@@ -42,9 +42,26 @@ typedef int8_t int8;
 typedef int16_t int16;
 typedef int32_t int32;
 typedef int64_t int64;
+typedef intptr_t integer;   // the default size of an integer (a "long" is only 32 bits on 64-bit Windows)
+typedef uintptr_t uinteger;
 typedef uint8_t uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
+typedef uint64_t uint64;
+#ifndef INT12_MAX
+	#define INT12_MAX   2047
+	#define INT12_MIN  -2048
+#endif
+#ifndef UINT12_MAX
+	#define UINT12_MAX   4096
+#endif
+#ifndef INT24_MAX
+	#define INT24_MAX   8388607
+	#define INT24_MIN  -8388608
+#endif
+#ifndef UINT24_MAX
+	#define UINT24_MAX   16777216
+#endif
 /*
 	The bounds of the contiguous set of integers that in a "double" can represent only themselves.
 */
@@ -64,6 +81,15 @@ typedef uint32_t uint32;
 #ifndef NULL
 	#define NULL  ((void *) 0)
 #endif
+
+#pragma mark - REALS
+/*
+	The following are checked in praat.h.
+*/
+typedef float real32;
+typedef double real64;
+typedef long double real80;   // at least 80 bits ("extended") precision, but stored in 96 or 128 bits
+typedef double real;
 
 #pragma mark - LAW OF DEMETER FOR CLASS FUNCTIONS DEFINED OUTSIDE CLASS DEFINITION
 
@@ -94,44 +120,44 @@ typedef char32_t char32;
 #define strequ  ! strcmp
 #define strnequ  ! strncmp
 
-inline static int64 str16len (const char16 *string) {
+inline static int64 str16len (const char16 *string) noexcept {
 	const char16 *p = string;
 	while (*p != u'\0') ++ p;
 	return (int64) (p - string);
 }
-inline static char16 * str16cpy (char16 *target, const char16 *source) {
+inline static char16 * str16cpy (char16 *target, const char16 *source) noexcept {
 	char16 *p = target;
 	while (* source != u'\0') * p ++ = * source ++;
 	*p = u'\0';
 	return target;
 }
 
-inline static int64 str32len (const char32 *string) {
+inline static int64 str32len (const char32 *string) noexcept {
 	const char32 *p = string;
 	while (*p != U'\0') ++ p;
 	return (int64) (p - string);
 }
-inline static char32 * str32cpy (char32 *target, const char32 *source) {
+inline static char32 * str32cpy (char32 *target, const char32 *source) noexcept {
 	char32 *p = target;
 	while (* source != U'\0') * p ++ = * source ++;
 	*p = U'\0';
 	return target;
 }
-inline static char32 * str32ncpy (char32 *target, const char32 *source, int64 n) {
+inline static char32 * str32ncpy (char32 *target, const char32 *source, int64 n) noexcept {
 	char32 *p = target;
 	for (; n > 0 && *source != U'\0'; -- n) * p ++ = * source ++;
 	for (; n > 0; -- n) * p ++ = U'\0';
 	return target;
 }
 
-inline static int str32cmp (const char32 *string1, const char32 *string2) {
+inline static int str32cmp (const char32 *string1, const char32 *string2) noexcept {
 	for (;; ++ string1, ++ string2) {
 		int32 diff = (int32) *string1 - (int32) *string2;
 		if (diff) return (int) diff;
 		if (*string1 == U'\0') return 0;
 	}
 }
-inline static int str32ncmp (const char32 *string1, const char32 *string2, int64 n) {
+inline static int str32ncmp (const char32 *string1, const char32 *string2, int64 n) noexcept {
 	for (; n > 0; -- n, ++ string1, ++ string2) {
 		int32 diff = (int32) *string1 - (int32) *string2;
 		if (diff) return (int) diff;
@@ -148,21 +174,21 @@ int Melder_ncmp (const char32 *string1, const char32 *string2, int64 n);
 bool Melder_equ_firstCharacterCaseInsensitive (const char32 *string1, const char32 *string2);
 #define Melder_nequ  ! Melder_ncmp
 
-inline static char32 * str32chr (const char32 *string, char32 kar) {
+inline static char32 * str32chr (const char32 *string, char32 kar) noexcept {
 	for (; *string != kar; ++ string) {
 		if (*string == U'\0')
 			return nullptr;
 	}
 	return (char32 *) string;
 }
-inline static char32 * str32rchr (const char32 *string, char32 kar) {
+inline static char32 * str32rchr (const char32 *string, char32 kar) noexcept {
 	char32 *result = nullptr;
 	for (; *string != U'\0'; ++ string) {
 		if (*string == kar) result = (char32 *) string;
 	}
 	return result;
 }
-inline static char32 * str32str (const char32 *string, const char32 *find) {
+inline static char32 * str32str (const char32 *string, const char32 *find) noexcept {
 	int64 length = str32len (find);
 	if (length == 0) return (char32 *) string;
 	char32 firstCharacter = * find ++;   // optimization
@@ -175,7 +201,7 @@ inline static char32 * str32str (const char32 *string, const char32 *find) {
 	} while (str32ncmp (string, find, length - 1));
 	return (char32 *) (string - 1);
 }
-inline static int64 str32spn (const char32 *string1, const char32 *string2) {
+inline static int64 str32spn (const char32 *string1, const char32 *string2) noexcept {
 	const char32 *p = string1;
 	char32 kar1, kar2;
 cont:
@@ -656,7 +682,7 @@ inline static bool isundef (double x) { return ((* (uint64_t *) & x) & 0x7FF0000
 
 /********** Arrays with one index (NUMarrays.cpp) **********/
 
-void * NUMvector (long elementSize, long lo, long hi, bool zero);
+void * NUMvector (integer elementSize, integer lo, integer hi, bool zero);
 /*
 	Function:
 		create a vector [lo...hi]; if `zero`, then all values are initialized to 0.
@@ -664,7 +690,7 @@ void * NUMvector (long elementSize, long lo, long hi, bool zero);
 		hi >= lo;
 */
 
-void NUMvector_free (long elementSize, void *v, long lo) noexcept;
+void NUMvector_free (integer elementSize, void *v, integer lo) noexcept;
 /*
 	Function:
 		destroy a vector v that was created with NUMvector.
@@ -672,7 +698,7 @@ void NUMvector_free (long elementSize, void *v, long lo) noexcept;
 		lo must have the same values as with the creation of the vector.
 */
 
-void * NUMvector_copy (long elementSize, void *v, long lo, long hi);
+void * NUMvector_copy (integer elementSize, void *v, integer lo, integer hi);
 /*
 	Function:
 		copy (part of) a vector v, which need not have been created with NUMvector, to a new one.
@@ -680,21 +706,21 @@ void * NUMvector_copy (long elementSize, void *v, long lo, long hi);
 		if v != nullptr, the values v [lo..hi] must exist.
 */
 
-void NUMvector_copyElements (long elementSize, void *v, void *to, long lo, long hi);
+void NUMvector_copyElements (integer elementSize, void *v, void *to, integer lo, integer hi);
 /*
 	copy the vector elements v [lo..hi] to those of a vector 'to'.
 	These vectors need not have been created by NUMvector.
 */
 
-bool NUMvector_equal (long elementSize, void *v1, void *v2, long lo, long hi);
+bool NUMvector_equal (integer elementSize, void *v1, void *v2, integer lo, integer hi);
 /*
 	return true if the vector elements v1 [lo..hi] are equal
 	to the corresponding elements of the vector v2; otherwise, return false.
 	The vectors need not have been created by NUMvector.
 */
 
-void NUMvector_append (long elementSize, void **v, long lo, long *hi);
-void NUMvector_insert (long elementSize, void **v, long lo, long *hi, long position);
+void NUMvector_append (integer elementSize, void **v, integer lo, integer *hi);
+void NUMvector_insert (integer elementSize, void **v, integer lo, integer *hi, integer position);
 /*
 	add one element to the vector *v.
 	The new element is initialized to zero.
@@ -704,7 +730,7 @@ void NUMvector_insert (long elementSize, void **v, long lo, long *hi, long posit
 
 /********** Arrays with two indices (NUMarrays.cpp) **********/
 
-void * NUMmatrix (long elementSize, long row1, long row2, long col1, long col2, bool zero);
+void * NUMmatrix (integer elementSize, integer row1, integer row2, integer col1, integer col2, bool zero);
 /*
 	Function:
 		create a matrix [row1...row2] [col1...col2]; if `zero`, then all values are initialized to 0.
@@ -713,7 +739,7 @@ void * NUMmatrix (long elementSize, long row1, long row2, long col1, long col2, 
 		col2 >= col1;
 */
 
-void NUMmatrix_free (long elementSize, void *m, long row1, long col1) noexcept;
+void NUMmatrix_free (integer elementSize, void *m, integer row1, integer col1) noexcept;
 /*
 	Function:
 		destroy a matrix m created with NUM...matrix.
@@ -722,7 +748,7 @@ void NUMmatrix_free (long elementSize, void *m, long row1, long col1) noexcept;
 		must have the same value as with the creation of the matrix.
 */
 
-void * NUMmatrix_copy (long elementSize, void *m, long row1, long row2, long col1, long col2);
+void * NUMmatrix_copy (integer elementSize, void *m, integer row1, integer row2, integer col1, integer col2);
 /*
 	Function:
 		copy (part of) a matrix m, wich does not have to be created with NUMmatrix, to a new one.
@@ -730,20 +756,20 @@ void * NUMmatrix_copy (long elementSize, void *m, long row1, long row2, long col
 		if m != nullptr: the values m [rowmin..rowmax] [colmin..colmax] must exist.
 */
 
-void NUMmatrix_copyElements (long elementSize, void *m, void *to, long row1, long row2, long col1, long col2);
+void NUMmatrix_copyElements (integer elementSize, void *m, void *to, integer row1, integer row2, integer col1, integer col2);
 /*
 	copy the matrix elements m [r1..r2] [c1..c2] to those of a matrix 'to'.
 	These matrices need not have been created by NUMmatrix.
 */
 
-bool NUMmatrix_equal (long elementSize, void *m1, void *m2, long row1, long row2, long col1, long col2);
+bool NUMmatrix_equal (integer elementSize, void *m1, void *m2, integer row1, integer row2, integer col1, integer col2);
 /*
 	return 1 if the matrix elements m1 [r1..r2] [c1..c2] are equal
 	to the corresponding elements of the matrix m2; otherwise, return 0.
 	The matrices need not have been created by NUM...matrix.
 */
 
-long NUM_getTotalNumberOfArrays ();   // for debugging
+integer NUM_getTotalNumberOfArrays ();   // for debugging
 
 /********** Special functions (NUM.cpp) **********/
 
@@ -886,57 +912,57 @@ void NUMautoscale (double x [], long n, double scale);
 
 /* The following ANSI-C power trick generates the declarations of 156 functions. */
 #define FUNCTION(type,storage)  \
-	void NUMvector_writeText_##storage (const type *v, long lo, long hi, MelderFile file, const char32 *name); \
-	void NUMvector_writeBinary_##storage (const type *v, long lo, long hi, FILE *f); \
-	type * NUMvector_readText_##storage (long lo, long hi, MelderReadText text, const char *name); \
-	type * NUMvector_readBinary_##storage (long lo, long hi, FILE *f); \
-	void NUMmatrix_writeText_##storage (type **v, long r1, long r2, long c1, long c2, MelderFile file, const char32 *name); \
-	void NUMmatrix_writeBinary_##storage (type **v, long r1, long r2, long c1, long c2, FILE *f); \
-	type ** NUMmatrix_readText_##storage (long r1, long r2, long c1, long c2, MelderReadText text, const char *name); \
-	type ** NUMmatrix_readBinary_##storage (long r1, long r2, long c1, long c2, FILE *f);
-FUNCTION (signed char, i1)
-FUNCTION (int, i2)
-FUNCTION (long, i4)
-FUNCTION (unsigned char, u1)
-FUNCTION (unsigned int, u2)
-FUNCTION (unsigned long, u4)
-FUNCTION (double, r4)
-FUNCTION (double, r8)
-FUNCTION (fcomplex, c8)
-FUNCTION (dcomplex, c16)
+	void NUMvector_writeText_##storage (const type *v, integer lo, integer hi, MelderFile file, const char32 *name); \
+	void NUMvector_writeBinary_##storage (const type *v, integer lo, integer hi, FILE *f); \
+	type * NUMvector_readText_##storage (integer lo, integer hi, MelderReadText text, const char *name); \
+	type * NUMvector_readBinary_##storage (integer lo, integer hi, FILE *f); \
+	void NUMmatrix_writeText_##storage (type **v, integer r1, integer r2, integer c1, integer c2, MelderFile file, const char32 *name); \
+	void NUMmatrix_writeBinary_##storage (type **v, integer r1, integer r2, integer c1, integer c2, FILE *f); \
+	type ** NUMmatrix_readText_##storage (integer r1, integer r2, integer c1, integer c2, MelderReadText text, const char *name); \
+	type ** NUMmatrix_readBinary_##storage (integer r1, integer r2, integer c1, integer c2, FILE *f);
+FUNCTION (signed char, i8)
+FUNCTION (int, i16)
+FUNCTION (long, i32)
+FUNCTION (unsigned char, u8)
+FUNCTION (unsigned int, u16)
+FUNCTION (unsigned long, u32)
+FUNCTION (double, r32)
+FUNCTION (double, r64)
+FUNCTION (fcomplex, c64)
+FUNCTION (dcomplex, c128)
 #undef FUNCTION
 
 /*
-void NUMvector_writeBinary_r8 (const double *v, long lo, long hi, FILE *f);   // etc
+void NUMvector_writeBinary_r64 (const double *v, integer lo, integer hi, FILE *f);   // etc
 	write the vector elements v [lo..hi] as machine-independent
 	binary data to the stream f.
 	Throw an error message if anything went wrong.
 	The vectors need not have been created by NUM...vector.
-double * NUMvector_readText_r8 (long lo, long hi, MelderReadText text, const char *name);   // etc
+double * NUMvector_readText_r64 (integer lo, integer hi, MelderReadText text, const char *name);   // etc
 	create and read a vector as text.
 	Throw an error message if anything went wrong.
 	Every element is supposed to be on the beginning of a line.
-double * NUMvector_readBinary_r8 (long lo, long hi, FILE *f);   // etc
+double * NUMvector_readBinary_r64 (integer lo, integer hi, FILE *f);   // etc
 	create and read a vector as machine-independent binary data from the stream f.
 	Throw an error message if anything went wrong.
-void NUMvector_writeText_r8 (const double *v, long lo, long hi, MelderFile file, const char32 *name);   // etc
+void NUMvector_writeText_r64 (const double *v, integer lo, integer hi, MelderFile file, const char32 *name);   // etc
 	write the vector elements v [lo..hi] as text to the open file,
 	each element on its own line, preceded by "name [index]: ".
 	Throw an error message if anything went wrong.
 	The vectors need not have been created by NUMvector.
-void NUMmatrix_writeText_r8 (double **m, long r1, long r2, long c1, long c2, MelderFile file, const char32 *name);   // etc
+void NUMmatrix_writeText_r64 (double **m, integer r1, integer r2, integer c1, integer c2, MelderFile file, const char32 *name);   // etc
 	write the matrix elements m [r1..r2] [c1..c2] as text to the open file.
 	Throw an error message if anything went wrong.
 	The matrices need not have been created by NUMmatrix.
-void NUMmatrix_writeBinary_r8 (double **m, long r1, long r2, long c1, long c2, FILE *f);   // etc
+void NUMmatrix_writeBinary_r64 (double **m, integer r1, integer r2, integer c1, integer c2, FILE *f);   // etc
 	write the matrix elements m [r1..r2] [c1..c2] as machine-independent
 	binary data to the stream f.
 	Throw an error message if anything went wrong.
 	The matrices need not have been created by NUMmatrix.
-double ** NUMmatrix_readText_r8 (long r1, long r2, long c1, long c2, MelderReadText text, const char *name);   // etc
+double ** NUMmatrix_readText_r64 (integer r1, integer r2, integer c1, integer c2, MelderReadText text, const char *name);   // etc
 	create and read a matrix as text.
 	Throw an error message if anything went wrong.
-double ** NUMmatrix_readBinary_r8 (long r1, long r2, long c1, long c2, FILE *f);   // etc
+double ** NUMmatrix_readBinary_r64 (integer r1, integer r2, integer c1, integer c2, FILE *f);   // etc
 	create and read a matrix as machine-independent binary data from the stream f.
 	Throw an error message if anything went wrong.
 */
@@ -951,67 +977,67 @@ void NUMlinprog_run (NUMlinprog me);
 double NUMlinprog_getPrimalValue (NUMlinprog me, long ivar);
 
 template <class T>
-T* NUMvector (long from, long to) {
+T* NUMvector (integer from, integer to) {
 	T* result = static_cast <T*> (NUMvector (sizeof (T), from, to, true));
 	return result;
 }
 
 template <class T>
-T* NUMvector (long from, long to, bool zero) {
+T* NUMvector (integer from, integer to, bool zero) {
 	T* result = static_cast <T*> (NUMvector (sizeof (T), from, to, zero));
 	return result;
 }
 
 template <class T>
-void NUMvector_free (T* ptr, long from) noexcept {
+void NUMvector_free (T* ptr, integer from) noexcept {
 	NUMvector_free (sizeof (T), ptr, from);
 }
 
 template <class T>
-T* NUMvector_copy (T* ptr, long lo, long hi) {
+T* NUMvector_copy (T* ptr, integer lo, integer hi) {
 	T* result = static_cast <T*> (NUMvector_copy (sizeof (T), ptr, lo, hi));
 	return result;
 }
 
 template <class T>
-bool NUMvector_equal (T* v1, T* v2, long lo, long hi) {
+bool NUMvector_equal (T* v1, T* v2, integer lo, integer hi) {
 	return NUMvector_equal (sizeof (T), v1, v2, lo, hi);
 }
 
 template <class T>
-void NUMvector_copyElements (T* vfrom, T* vto, long lo, long hi) {
+void NUMvector_copyElements (T* vfrom, T* vto, integer lo, integer hi) {
 	NUMvector_copyElements (sizeof (T), vfrom, vto, lo, hi);
 }
 
 template <class T>
-void NUMvector_append (T** v, long lo, long *hi) {
+void NUMvector_append (T** v, integer lo, integer *hi) {
 	NUMvector_append (sizeof (T), (void**) v, lo, hi);
 }
 
 template <class T>
-void NUMvector_insert (T** v, long lo, long *hi, long position) {
+void NUMvector_insert (T** v, integer lo, integer *hi, integer position) {
 	NUMvector_insert (sizeof (T), (void**) v, lo, hi, position);
 }
 
 template <class T>
 class autoNUMvector {
 	T* d_ptr;
-	long d_from;
+	integer d_from;
 public:
-	autoNUMvector<T> (long from, long to) : d_from (from) {
+	autoNUMvector<T> (integer from, integer to) : d_from (from) {
 		d_ptr = NUMvector<T> (from, to, true);
 	}
-	autoNUMvector<T> (long from, long to, bool zero) : d_from (from) {
+	autoNUMvector<T> (integer from, integer to, bool zero) : d_from (from) {
 		d_ptr = NUMvector<T> (from, to, zero);
 	}
-	autoNUMvector (T *ptr, long from) : d_ptr (ptr), d_from (from) {
+	autoNUMvector (T *ptr, integer from) : d_ptr (ptr), d_from (from) {
 	}
 	autoNUMvector () : d_ptr (nullptr), d_from (1) {
 	}
 	~autoNUMvector<T> () {
 		if (d_ptr) NUMvector_free (sizeof (T), d_ptr, d_from);
 	}
-	T& operator[] (long i) {
+	T& operator[] (integer i) {
 		return d_ptr [i];
 	}
 	T* peek () const {
@@ -1022,7 +1048,7 @@ public:
 		d_ptr = nullptr;   // make the pointer non-automatic again
 		return temp;
 	}
-	void reset (long from, long to) {
+	void reset (integer from, integer to) {
 		if (d_ptr) {
 			NUMvector_free (sizeof (T), d_ptr, d_from);
 			d_ptr = nullptr;
@@ -1030,7 +1056,7 @@ public:
 		d_from = from;
 		d_ptr = NUMvector<T> (from, to, true);
 	}
-	void reset (long from, long to, bool zero) {
+	void reset (integer from, integer to, bool zero) {
 		if (d_ptr) {
 			NUMvector_free (sizeof (T), d_ptr, d_from);
 			d_ptr = nullptr;
@@ -1041,64 +1067,64 @@ public:
 };
 
 template <class T>
-T** NUMmatrix (long row1, long row2, long col1, long col2) {
+T** NUMmatrix (integer row1, integer row2, integer col1, integer col2) {
 	T** result = static_cast <T**> (NUMmatrix (sizeof (T), row1, row2, col1, col2, true));
 	return result;
 }
 
 template <class T>
-T** NUMmatrix (long row1, long row2, long col1, long col2, bool zero) {
+T** NUMmatrix (integer row1, integer row2, integer col1, integer col2, bool zero) {
 	T** result = static_cast <T**> (NUMmatrix (sizeof (T), row1, row2, col1, col2, zero));
 	return result;
 }
 
 template <class T>
-void NUMmatrix_free (T** ptr, long row1, long col1) noexcept {
+void NUMmatrix_free (T** ptr, integer row1, integer col1) noexcept {
 	NUMmatrix_free (sizeof (T), ptr, row1, col1);
 }
 
 template <class T>
-T** NUMmatrix_copy (T** ptr, long row1, long row2, long col1, long col2) {
+T** NUMmatrix_copy (T** ptr, integer row1, integer row2, integer col1, integer col2) {
 	#if 1
 	T** result = static_cast <T**> (NUMmatrix_copy (sizeof (T), ptr, row1, row2, col1, col2));
 	#else
 	T** result = static_cast <T**> (NUMmatrix (sizeof (T), row1, row2, col1, col2));
-	for (long irow = row1; irow <= row2; irow ++)
-		for (long icol = col1; icol <= col2; icol ++)
+	for (integer irow = row1; irow <= row2; irow ++)
+		for (integer icol = col1; icol <= col2; icol ++)
 			result [irow] [icol] = ptr [irow] [icol];
 	#endif
 	return result;
 }
 
 template <class T>
-bool NUMmatrix_equal (T** m1, T** m2, long row1, long row2, long col1, long col2) {
+bool NUMmatrix_equal (T** m1, T** m2, integer row1, integer row2, integer col1, integer col2) {
 	return NUMmatrix_equal (sizeof (T), m1, m2, row1, row2, col1, col2);
 }
 
 template <class T>
-void NUMmatrix_copyElements (T** mfrom, T** mto, long row1, long row2, long col1, long col2) {
+void NUMmatrix_copyElements (T** mfrom, T** mto, integer row1, integer row2, integer col1, integer col2) {
 	NUMmatrix_copyElements (sizeof (T), mfrom, mto, row1, row2, col1, col2);
 }
 
 template <class T>
 class autoNUMmatrix {
 	T** d_ptr;
-	long d_row1, d_col1;
+	integer d_row1, d_col1;
 public:
-	autoNUMmatrix (long row1, long row2, long col1, long col2) : d_row1 (row1), d_col1 (col1) {
+	autoNUMmatrix (integer row1, integer row2, integer col1, integer col2) : d_row1 (row1), d_col1 (col1) {
 		d_ptr = NUMmatrix<T> (row1, row2, col1, col2, true);
 	}
-	autoNUMmatrix (long row1, long row2, long col1, long col2, bool zero) : d_row1 (row1), d_col1 (col1) {
+	autoNUMmatrix (integer row1, integer row2, integer col1, integer col2, bool zero) : d_row1 (row1), d_col1 (col1) {
 		d_ptr = NUMmatrix<T> (row1, row2, col1, col2, zero);
 	}
-	autoNUMmatrix (T **ptr, long row1, long col1) : d_ptr (ptr), d_row1 (row1), d_col1 (col1) {
+	autoNUMmatrix (T **ptr, integer row1, integer col1) : d_ptr (ptr), d_row1 (row1), d_col1 (col1) {
 	}
 	autoNUMmatrix () : d_ptr (nullptr), d_row1 (0), d_col1 (0) {
 	}
 	~autoNUMmatrix () {
 		if (d_ptr) NUMmatrix_free (sizeof (T), d_ptr, d_row1, d_col1);
 	}
-	T*& operator[] (long row) {
+	T*& operator[] (integer row) {
 		return d_ptr [row];
 	}
 	T** peek () const {
@@ -1109,7 +1135,7 @@ public:
 		d_ptr = nullptr;
 		return temp;
 	}
-	void reset (long row1, long row2, long col1, long col2) {
+	void reset (integer row1, integer row2, integer col1, integer col2) {
 		if (d_ptr) {
 			NUMmatrix_free (sizeof (T), d_ptr, d_row1, d_col1);
 			d_ptr = nullptr;
@@ -1118,7 +1144,7 @@ public:
 		d_col1 = col1;
 		d_ptr = NUMmatrix<T> (row1, row2, col1, col2, true);
 	}
-	void reset (long row1, long row2, long col1, long col2, bool zero) {
+	void reset (integer row1, integer row2, integer col1, integer col2, bool zero) {
 		if (d_ptr) {
 			NUMmatrix_free (sizeof (T), d_ptr, d_row1, d_col1);
 			d_ptr = nullptr;
@@ -1132,26 +1158,26 @@ public:
 template <class T>
 class autodatavector {
 	T* d_ptr;
-	long d_from, d_to;
+	integer d_from, d_to;
 public:
-	autodatavector<T> (long from, long to) : d_from (from), d_to (to) {
+	autodatavector<T> (integer from, integer to) : d_from (from), d_to (to) {
 		d_ptr = NUMvector<T> (from, to, true);
 	}
-	autodatavector<T> (long from, long to, bool zero) : d_from (from), d_to (to) {
+	autodatavector<T> (integer from, integer to, bool zero) : d_from (from), d_to (to) {
 		d_ptr = NUMvector<T> (from, to, zero);
 	}
-	autodatavector (T *ptr, long from, long to) : d_ptr (ptr), d_from (from), d_to (to) {
+	autodatavector (T *ptr, integer from, integer to) : d_ptr (ptr), d_from (from), d_to (to) {
 	}
 	autodatavector () : d_ptr (nullptr), d_from (1), d_to (0) {
 	}
 	~autodatavector<T> () {
 		if (d_ptr) {
-			for (long i = d_from; i <= d_to; i ++)
+			for (integer i = d_from; i <= d_to; i ++)
 				Melder_free (d_ptr [i]);
 			NUMvector_free (sizeof (T), d_ptr, d_from);
 		}
 	}
-	T& operator[] (long i) {
+	T& operator[] (integer i) {
 		return d_ptr [i];
 	}
 	T* peek () const {
@@ -1162,9 +1188,9 @@ public:
 		d_ptr = nullptr;   // make the pointer non-automatic again
 		return temp;
 	}
-	void reset (long from, long to) {
+	void reset (integer from, integer to) {
 		if (d_ptr) {
-			for (long i = d_from; i <= d_to; i ++)
+			for (integer i = d_from; i <= d_to; i ++)
 				Melder_free (d_ptr [i]);
 			NUMvector_free (sizeof (T), d_ptr, d_from);
 			d_ptr = nullptr;
@@ -1173,9 +1199,9 @@ public:
 		d_to = to;
 		d_ptr = NUMvector<T> (from, to, true);
 	}
-	void reset (long from, long to, bool zero) {
+	void reset (integer from, integer to, bool zero) {
 		if (d_ptr) {
-			for (long i = d_from; i <= d_to; i ++)
+			for (integer i = d_from; i <= d_to; i ++)
 				Melder_free (d_ptr [i]);
 			NUMvector_free (sizeof (T), d_ptr, d_from);
 			d_ptr = nullptr;
@@ -1222,11 +1248,11 @@ class autonumvec;   // forward declaration, needed in the declaration of numvec
 class numvec {
 public:
 	double *at;
-	long size;
+	integer size;
 public:
 	numvec () = default;   // for use in a union
-	numvec (double *givenAt, long givenSize): at (givenAt), size (givenSize) { }
-	numvec (long givenSize, bool zero) {
+	numvec (double *givenAt, integer givenSize): at (givenAt), size (givenSize) { }
+	numvec (integer givenSize, bool zero) {
 		our _initAt (givenSize, zero);
 		our size = givenSize;
 	}
@@ -1234,7 +1260,7 @@ public:
 	numvec (const autonumvec& other) = delete;
 	numvec& operator= (const numvec&) = default;
 	numvec& operator= (const autonumvec&) = delete;
-	double& operator[] (long i) {
+	double& operator[] (integer i) {
 		return our at [i];
 	}
 	void reset () noexcept {
@@ -1245,25 +1271,65 @@ public:
 		our size = 0;
 	}
 protected:
-	void _initAt (long givenSize, bool zero);
+	void _initAt (integer givenSize, bool zero);
 	void _freeAt () noexcept;
 };
 
 #define empty_numvec  numvec { nullptr, 0 }
 
-struct autonumvec: numvec {
-	autonumvec (): numvec (nullptr, 0) { }
-	autonumvec (long givenSize, bool zero): numvec (givenSize, zero) { }
-	explicit autonumvec (numvec x): numvec (x.at, x.size) { }   // explicit because unusual
-	autonumvec (const autonumvec&) = delete;   // disable copy constructor...
-	autonumvec (autonumvec&& other) noexcept : numvec { other.get() } {   // ...and enable move constructor
-		other.at = nullptr;   // disown source
-	}
-	~autonumvec () {
+/*
+	An autonumvec is the sole owner of its payload, which is a numvec.
+	When the autonumvec ends its life (goes out of scope),
+	it should destroy its payload (if it has not sold it),
+	because keeping a payload alive when the owner is dead
+	would continue to use some of the computer's resources (namely, memory).
+*/
+class autonumvec : public numvec {
+public:
+	autonumvec (): numvec (nullptr, 0) { }   // come into existence without a payload
+	autonumvec (integer givenSize, bool zero): numvec (givenSize, zero) { }   // come into existence and manufacture a payload
+	autonumvec (double *givenAt, integer givenSize): numvec (givenAt, givenSize) { }   // come into existence and buy a payload from a non-autonumvec
+	explicit autonumvec (numvec x): numvec (x.at, x.size) { }   // come into existence and buy a payload from a non-autonumvec (disable implicit conversion)
+	~autonumvec () {   // destroy the payload (if any)
 		if (our at) our _freeAt ();
 	}
-	autonumvec& operator= (const autonumvec&) = delete;   // disable copy assignment...
-	autonumvec& operator= (autonumvec&& other) noexcept {   // ...and enable move assignment
+	numvec get () const { return { our at, our size }; }   // let the public use the payload (they may change the values of the elements but not the at-pointer or the size)
+	numvec releaseToAmbiguousOwner () {   // sell the payload to a non-autonumvec
+		double *oldAt = our at;
+		our at = nullptr;   // disown ourselves, preventing automatic destruction of the payload
+		return { oldAt, our size };
+	}
+	void reset () {   // destroy the current payload (if any) and have no new payload
+		our numvec :: reset ();
+	}
+	void reset (integer newSize, bool zero) {   // destroy the current payload (if any) and manufacture a new payload
+		our numvec :: reset ();   // exception guarantee: leave *this in a reasonable state...
+		our _initAt (newSize, zero);   // ...in case this line throws an exception
+		our size = newSize;
+	}
+	void reset (double *newAt, integer newSize) {   // destroy the current payload (if any) and buy a new payload
+		if (our at) our _freeAt ();
+		our at = newAt;
+		our size = newSize;
+	}
+	void reset (numvec newX) {   // destroy the current payload (if any) and buy a new payload
+		if (our at) our _freeAt ();
+		our at = newX.at;
+		our size = newX.size;
+	}
+	/*
+		Disable copying via construction or assignment (which would violate unique ownership of the payload).
+	*/
+	autonumvec (const autonumvec&) = delete;   // disable copy constructor
+	autonumvec& operator= (const autonumvec&) = delete;   // disable copy assignment
+	/*
+		Enable moving of temporaries or (for variables) via an explicit move().
+		This implements buying a payload from another autonumvec (which involves destroying our current payload).
+	*/
+	autonumvec (autonumvec&& other) noexcept : numvec { other.get() } {   // enable move constructor for r-values (temporaries)
+		other.at = nullptr;   // disown source
+	}
+	autonumvec& operator= (autonumvec&& other) noexcept {   // enable move assignment for r-values (temporaries)
 		if (other.at != our at) {
 			if (our at) our _freeAt ();
 			our at = other.at;
@@ -1273,28 +1339,19 @@ struct autonumvec: numvec {
 		}
 		return *this;
 	}
-	autonumvec&& move () noexcept { return static_cast <autonumvec&&> (*this); }
-	numvec get () { return { our at, our size }; }
-	numvec releaseToAmbiguousOwner () {
-		double *oldAt = our at;
-		our at = nullptr;
-		return { oldAt, our size };
-	}
-	void reset (long newSize, bool zero) {
-		numvec :: reset ();   // exception guarantee: leave this in a reasonable state...
-		our _initAt (newSize, zero);   // ...in case this throws
-		our size = newSize;
-	}
+	autonumvec&& move () noexcept { return static_cast <autonumvec&&> (*this); }   // enable constriction and assignment for l-values (variables) via explicit move()
 };
 
-struct autonummat;   // forward declaration, needed in the declaration of nummat
+class autonummat;   // forward declaration, needed in the declaration of nummat
 
-struct nummat {
+class nummat {
+public:
 	double **at;
-	long nrow, ncol;
+	integer nrow, ncol;
+public:
 	nummat () = default;   // for use in a union
-	nummat (double **givenAt, long givenNrow, long givenNcol): at (givenAt), nrow (givenNrow), ncol (givenNcol) { }
-	nummat (long givenNrow, long givenNcol, bool zero) {
+	nummat (double **givenAt, integer givenNrow, integer givenNcol): at (givenAt), nrow (givenNrow), ncol (givenNcol) { }
+	nummat (integer givenNrow, integer givenNcol, bool zero) {
 		our _initAt (givenNrow, givenNcol, zero);
 		our nrow = givenNrow;
 		our ncol = givenNcol;
@@ -1303,7 +1360,7 @@ struct nummat {
 	nummat (const autonummat& other) = delete;
 	nummat& operator= (const nummat&) = default;
 	nummat& operator= (const autonummat&) = delete;
-	double *& operator[] (long i) {
+	double *& operator[] (integer i) {
 		return our at [i];
 	}
 	void reset () noexcept {
@@ -1315,26 +1372,68 @@ struct nummat {
 		our ncol = 0;
 	}
 protected:
-	void _initAt (long givenNrow, long givenNcol, bool zero);
+	void _initAt (integer givenNrow, integer givenNcol, bool zero);
 	void _freeAt () noexcept;
 };
 
 #define empty_nummat  nummat { nullptr, 0, 0 }
 
-struct autonummat : nummat {
-	autonummat () : nummat { nullptr, 0, 0 } { }
-	autonummat (double **givenAt, long givenNrow, long givenNcol): nummat (givenAt, givenNrow, givenNcol) { }
-	autonummat (long givenNrow, long givenNcol, bool zero): nummat { givenNrow, givenNcol, zero } { }
-	explicit autonummat (nummat x): nummat (x.at, x.nrow, x.ncol) { }   // explicit because unusual
-	autonummat (const autonummat&) = delete;   // disable copy constructor...
-	autonummat (autonummat&& other) noexcept : nummat { other.get() } {   // ...and enable move constructor
-		other.at = nullptr;   // disown source
-	}
-	~autonummat () {
+/*
+	An autonummat is the sole owner of its payload, which is a nummat.
+	When the autonummat ends its life (goes out of scope),
+	it should destroy its payload (if it has not sold it),
+	because keeping a payload alive when the owner is dead
+	would continue to use some of the computer's resources (namely, memory).
+*/
+class autonummat : public nummat {
+public:
+	autonummat (): nummat { nullptr, 0, 0 } { }   // come into existence without a payload
+	autonummat (integer givenNrow, integer givenNcol, bool zero): nummat { givenNrow, givenNcol, zero } { }   // come into existence and manufacture a payload
+	autonummat (double **givenAt, integer givenNrow, integer givenNcol): nummat (givenAt, givenNrow, givenNcol) { }   // come into existence and buy a payload from a non-autonummat
+	explicit autonummat (nummat x): nummat (x.at, x.nrow, x.ncol) { }   // come into existence and buy a payload from a non-autonummat (disable implicit conversion)
+	~autonummat () {   // destroy the payload (if any)
 		if (our at) our _freeAt ();
 	}
-	autonummat& operator= (const autonummat&) = delete;   // disable copy assignment...
-	autonummat& operator= (autonummat&& other) noexcept {   // ...and enable move assignment
+	nummat get () { return { our at, our nrow, our ncol }; }   // let the public use the payload (they may change the values in the cells but not the at-pointer, nrow or ncol)
+	nummat releaseToAmbiguousOwner () {   // sell the payload to a non-autonummat
+		double **oldAt = our at;
+		our at = nullptr;   // disown ourselves, preventing automatic destruction of the payload
+		return { oldAt, our nrow, our ncol };
+	}
+	void reset () {   // destroy the current payload (if any) and have no new payload
+		our nummat :: reset ();
+	}
+	void reset (integer newNrow, integer newNcol, bool zero) {   // destroy the current payload (if any) and manufacture a new payload
+		our nummat :: reset ();   // exception guarantee: leave *this in a reasonable state...
+		our _initAt (newNrow, newNcol, zero);   // ...in case this line throws an exception
+		our nrow = newNrow;
+		our ncol = newNcol;
+	}
+	void reset (double **newAt, integer newNrow, integer newNcol) {   // destroy the current payload (if any) and buy a new payload
+		if (our at) our _freeAt ();
+		our at = newAt;
+		our nrow = newNrow;
+		our ncol = newNcol;
+	}
+	void reset (nummat newX) {   // destroy the current payload (if any) and buy a new payload
+		if (our at) our _freeAt ();
+		our at = newX.at;
+		our nrow = newX.nrow;
+		our ncol = newX.ncol;
+	}
+	/*
+		Disable copying via construction or assignment (which would violate unique ownership of the payload).
+	*/
+	autonummat (const autonummat&) = delete;   // disable copy constructor
+	autonummat& operator= (const autonummat&) = delete;   // disable copy assignment
+	/*
+		Enable moving of temporaries or (for variables) via an explicit move().
+		This implements buying a payload from another autonummat (which involves destroying our current payload).
+	*/
+	autonummat (autonummat&& other) noexcept : nummat { other.get() } {   // enable move constructor for r-values (temporaries)
+		other.at = nullptr;   // disown source
+	}
+	autonummat& operator= (autonummat&& other) noexcept {   // enable move assignment for r-values (temporaries)
 		if (other.at != our at) {
 			if (our at) our _freeAt ();
 			our at = other.at;
@@ -1347,18 +1446,6 @@ struct autonummat : nummat {
 		return *this;
 	}
 	autonummat&& move () noexcept { return static_cast <autonummat&&> (*this); }
-	nummat get () { return { our at, our nrow, our ncol }; }
-	nummat releaseToAmbiguousOwner () {
-		double **oldAt = our at;
-		our at = nullptr;
-		return { oldAt, our nrow, our ncol };
-	}
-	void reset (long newNrow, long newNcol, bool zero) {
-		nummat :: reset ();
-		our _initAt (newNrow, newNcol, zero);
-		our nrow = newNrow;
-		our ncol = newNcol;
-	}
 };
 
 #pragma mark - ARGUMENTS
@@ -1922,7 +2009,7 @@ void Melder_progressOn ();
 	Usage:
 		- call with 'progress' = 0.0 before the process starts:
 		      (void) Melder_progress (0.0, U"Starting work...");
-		- at every turn in your loop, call with 'progress' between 0 and 1:
+		- at every turn in your loop, call with 'progress' between 0.0 and 1.0:
 		      Melder_progress (i / (n + 1.0), U"Working on part ", i, U" out of ", n, U"...");
 		  an exception is thrown if the user clicks Cancel; if you don't want that, catch it:
 		      try {
@@ -1985,7 +2072,7 @@ void * Melder_monitor (double progress, Melder_16_TO_19_ARGS);
 		          Graphics_polyline (graphics, ...);
 		          Graphics_text (graphics, ...);
 		      }
-		- immediately after this in your loop, call with 'progress' between 0 and 1:
+		- immediately after this in your loop, call with 'progress' between 0.0 and 1.0:
 		      Melder_monitor (i / (n + 1.0), U"Working on part ", i, U" out of ", n, U"...");
 		  an exception is thrown if the user clicks Cancel; if you don't want that, catch it:
 		      try {
@@ -2274,38 +2361,53 @@ public:
 };
 
 class autoMelderSaveDefaultDir {
-	structMelderDir saveDir;
+	structMelderDir _savedDir;
 public:
 	autoMelderSaveDefaultDir () {
-		Melder_getDefaultDir (& saveDir);
+		Melder_getDefaultDir (& our _savedDir);
 	}
 	~autoMelderSaveDefaultDir () {
-		Melder_setDefaultDir (& saveDir);
+		Melder_setDefaultDir (& our _savedDir);
 	}
+	/*
+		Disable copying.
+	*/
+	autoMelderSaveDefaultDir (const autoMelderSaveDefaultDir&) = delete;   // disable copy constructor
+	autoMelderSaveDefaultDir& operator= (const autoMelderSaveDefaultDir&) = delete;   // disable copy assignment
 };
 
 class autoMelderSetDefaultDir {
-	structMelderDir saveDir;
+	structMelderDir _savedDir;
 public:
 	autoMelderSetDefaultDir (MelderDir dir) {
-		Melder_getDefaultDir (& saveDir);
+		Melder_getDefaultDir (& our _savedDir);
 		Melder_setDefaultDir (dir);
 	}
 	~autoMelderSetDefaultDir () {
-		Melder_setDefaultDir (& saveDir);
+		Melder_setDefaultDir (& our _savedDir);
 	}
+	/*
+		Disable copying.
+	*/
+	autoMelderSetDefaultDir (const autoMelderSetDefaultDir&) = delete;   // disable copy constructor
+	autoMelderSetDefaultDir& operator= (const autoMelderSetDefaultDir&) = delete;   // disable copy assignment
 };
 
 class autoMelderFileSetDefaultDir {
-	structMelderDir saveDir;
+	structMelderDir _savedDir;
 public:
 	autoMelderFileSetDefaultDir (MelderFile file) {
-		Melder_getDefaultDir (& saveDir);
+		Melder_getDefaultDir (& our _savedDir);
 		MelderFile_setDefaultDir (file);
 	}
 	~autoMelderFileSetDefaultDir () {
-		Melder_setDefaultDir (& saveDir);
+		Melder_setDefaultDir (& our _savedDir);
 	}
+	/*
+		Disable copying.
+	*/
+	autoMelderFileSetDefaultDir (const autoMelderFileSetDefaultDir&) = delete;   // disable copy constructor
+	autoMelderFileSetDefaultDir& operator= (const autoMelderFileSetDefaultDir&) = delete;   // disable copy assignment
 };
 
 class autoMelderTokens {
@@ -2390,7 +2492,7 @@ public:
 		ptr = tmp;
 	}
 	_autostring& operator= (const _autostring&) = delete;   // disable copy assignment
-	//_autostring (_autostring &);   // disable copy constructor (trying it this way also disables good things like autostring s1 = str32dup(U"hello");)
+	//_autostring (_autostring &) = delete;   // disable copy constructor (trying it this way also disables good things like autostring s1 = str32dup(U"hello");)
 	template <class Y> _autostring (_autostring<Y> &) = delete;   // disable copy constructor
 };
 
@@ -2399,21 +2501,84 @@ typedef _autostring <char16> autostring16;
 typedef _autostring <char32> autostring32;
 
 class autoMelderAudioSaveMaximumAsynchronicity {
-	enum kMelder_asynchronicityLevel d_saveAsynchronicity;
+	bool _disowned;
+	enum kMelder_asynchronicityLevel _savedAsynchronicity;
 public:
 	autoMelderAudioSaveMaximumAsynchronicity () {
-		d_saveAsynchronicity = MelderAudio_getOutputMaximumAsynchronicity ();
-		trace (U"value was ", d_saveAsynchronicity);
+		our _savedAsynchronicity = MelderAudio_getOutputMaximumAsynchronicity ();
+		trace (U"value was ", our _savedAsynchronicity);
+		our _disowned = false;
 	}
 	~autoMelderAudioSaveMaximumAsynchronicity () {
-		MelderAudio_setOutputMaximumAsynchronicity (d_saveAsynchronicity);
-		trace (U"value set to ", d_saveAsynchronicity);
+		MelderAudio_setOutputMaximumAsynchronicity (our _savedAsynchronicity);
+		trace (U"value set to ", our _savedAsynchronicity);
+	}
+	/*
+		Disable copying.
+	*/
+	autoMelderAudioSaveMaximumAsynchronicity (const autoMelderAudioSaveMaximumAsynchronicity&) = delete;   // disable copy constructor
+	autoMelderAudioSaveMaximumAsynchronicity& operator= (const autoMelderAudioSaveMaximumAsynchronicity&) = delete;   // disable copy assignment
+	/*
+		Enable moving.
+	*/
+	autoMelderAudioSaveMaximumAsynchronicity (autoMelderAudioSaveMaximumAsynchronicity&& other) noexcept {   // enable move constructor
+		our _disowned = other._disowned;
+		our _savedAsynchronicity = other._savedAsynchronicity;
+		other._disowned = true;
+	}
+	autoMelderAudioSaveMaximumAsynchronicity& operator= (autoMelderAudioSaveMaximumAsynchronicity&& other) noexcept {   // enable move assignment
+		if (& other != this) {
+			our _disowned = other._disowned;
+			our _savedAsynchronicity = other._savedAsynchronicity;
+			other._disowned = true;   // needed only if you insist on keeping the source in a valid state
+		}
+		return *this;
+	}
+	autoMelderAudioSaveMaximumAsynchronicity&& move () noexcept { return static_cast <autoMelderAudioSaveMaximumAsynchronicity&&> (*this); }
+	void releaseToAmbiguousOwner () {
+		our _disowned = true;
 	}
 };
 
-struct autoMelderAsynchronous {
-	autoMelderAsynchronous () { Melder_asynchronous = true; }
-	~autoMelderAsynchronous () { Melder_asynchronous = false; }
+class autoMelderAsynchronous {
+	bool _disowned;
+	bool _savedAsynchronicity;
+public:
+	autoMelderAsynchronous () {
+		our _savedAsynchronicity = Melder_asynchronous;
+		Melder_asynchronous = true;
+		our _disowned = false;
+	}
+	~autoMelderAsynchronous () {
+		if (! _disowned) {
+			Melder_asynchronous = _savedAsynchronicity;
+		}
+	}
+	/*
+		Disable copying.
+	*/
+	autoMelderAsynchronous (const autoMelderAsynchronous&) = delete;   // disable copy constructor
+	autoMelderAsynchronous& operator= (const autoMelderAsynchronous&) = delete;   // disable copy assignment
+	/*
+		Enable moving.
+	*/
+	autoMelderAsynchronous (autoMelderAsynchronous&& other) noexcept {   // enable move constructor
+		our _disowned = other._disowned;
+		our _savedAsynchronicity = other._savedAsynchronicity;
+		other._disowned = true;
+	}
+	autoMelderAsynchronous& operator= (autoMelderAsynchronous&& other) noexcept {   // enable move assignment
+		if (& other != this) {
+			our _disowned = other._disowned;
+			our _savedAsynchronicity = other._savedAsynchronicity;
+			other._disowned = true;   // needed only if you insist on keeping the source in a valid state
+		}
+		return *this;
+	}
+	autoMelderAsynchronous&& move () noexcept { return static_cast <autoMelderAsynchronous&&> (*this); }
+	void releaseToAmbiguousOwner () {
+		our _disowned = true;
+	}
 };
 
 #define Melder_ENABLE_IF_ISA(A,B)  , class = typename std::enable_if<std::is_base_of<B,A>::value>::type

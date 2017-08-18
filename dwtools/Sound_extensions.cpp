@@ -122,14 +122,14 @@ static void i1write (Sound me, FILE *f, long *nClip) {
 			sample = min;
 			(*nClip) ++;
 		}
-		binputi1 ((int) sample, f);
+		binputi8 ((int) sample, f);
 	}
 }
 
 static void i1read (Sound me, FILE *f) {
 	double *s = my z[1];
 	for (long i = 1; i <= my nx; i++) {
-		s[i] = bingeti1 (f) / 128.0;
+		s[i] = bingeti8 (f) / 128.0;
 	}
 }
 
@@ -145,20 +145,20 @@ static void u1write (Sound me, FILE *f, long *nClip) {
 			sample = min;
 			(*nClip) ++;
 		}
-		binputu1 ((unsigned int) sample, f);
+		binputu8 ((unsigned int) sample, f);
 	}
 }
 
 static void u1read (Sound me, FILE *f) {
 	double *s = my z[1];
 	for (long i = 1; i <= my nx; i++) {
-		s[i] = bingetu1 (f) / 128.0 - 1.0;
+		s[i] = bingetu8 (f) / 128.0 - 1.0;
 	}
 }
 
 static void i2write (Sound me, FILE *f, int littleEndian, long *nClip) {
 	double *s = my z[1], min = -32768, max = 32767;
-	void (*put) (int16_t, FILE *) = littleEndian ? binputi2LE : binputi2;
+	void (*put) (int16_t, FILE *) = littleEndian ? binputi16LE : binputi16;
 	*nClip = 0;
 	for (long i = 1; i <= my nx; i++) {
 		double sample = round (s[i] * 32768);
@@ -175,7 +175,7 @@ static void i2write (Sound me, FILE *f, int littleEndian, long *nClip) {
 
 static void i2read (Sound me, FILE *f, int littleEndian) {
 	double *s = my z[1];
-	int16_t (*get) (FILE *) = littleEndian ? bingeti2LE : bingeti2;
+	int16_t (*get) (FILE *) = littleEndian ? bingeti16LE : bingeti16;
 	for (long i = 1; i <= my nx; i++) {
 		s[i] = get (f) / 32768.;
 	}
@@ -183,7 +183,7 @@ static void i2read (Sound me, FILE *f, int littleEndian) {
 
 static void u2write (Sound me, FILE *f, int littleEndian, long *nClip) {
 	double *s = my z[1], min = 0, max = 65535;
-	void (*put) (uint16_t, FILE *) = littleEndian ? binputu2LE : binputu2;
+	void (*put) (uint16_t, FILE *) = littleEndian ? binputu16LE : binputu16;
 	*nClip = 0;
 	for (long i = 1; i <= my nx; i++) {
 		double sample = round ( (s[i] + 1) * 65535 / 2);
@@ -200,7 +200,7 @@ static void u2write (Sound me, FILE *f, int littleEndian, long *nClip) {
 
 static void u2read (Sound me, FILE *f, int littleEndian) {
 	double *s = my z[1];
-	uint16_t (*get) (FILE *) = littleEndian ? bingetu2LE : bingetu2;
+	uint16_t (*get) (FILE *) = littleEndian ? bingetu16LE : bingetu16;
 	for (long i = 1; i <= my nx; i++) {
 		s[i] = get (f) / 32768.0 - 1.0;
 	}
@@ -208,7 +208,7 @@ static void u2read (Sound me, FILE *f, int littleEndian) {
 
 static void i4write (Sound me, FILE *f, int littleEndian, long *nClip) {
 	double *s = my z[1]; double min = -2147483648.0, max = 2147483647.0;
-	void (*put) (int32_t, FILE *) = littleEndian ? binputi4LE : binputi4;
+	void (*put) (int32_t, FILE *) = littleEndian ? binputi32LE : binputi32;
 	*nClip = 0;
 	for (long i = 1; i <= my nx; i++) {
 		double sample = round (s[i] * 2147483648.0);
@@ -225,7 +225,7 @@ static void i4write (Sound me, FILE *f, int littleEndian, long *nClip) {
 
 static void i4read (Sound me, FILE *f, int littleEndian) {
 	double *s = my z[1];
-	int32_t (*get) (FILE *) = littleEndian ? bingeti4LE : bingeti4;
+	int32_t (*get) (FILE *) = littleEndian ? bingeti32LE : bingeti32;
 	for (long i = 1; i <= my nx; i++) {
 		s[i] = get (f) / 2147483648.;
 	}
@@ -234,7 +234,7 @@ static void i4read (Sound me, FILE *f, int littleEndian) {
 
 static void u4write (Sound me, FILE *f, int littleEndian, long *nClip) {
 	double *s = my z[1]; double min = 0.0, max = 4294967295.0;
-	void (*put) (uint32_t, FILE *) = littleEndian ? binputu4LE : binputu4;
+	void (*put) (uint32_t, FILE *) = littleEndian ? binputu32LE : binputu32;
 	*nClip = 0;
 	for (long i = 1; i <= my nx; i++) {
 		double sample = floor (s[i] * 4294967295.0 + 0.5);
@@ -251,7 +251,7 @@ static void u4write (Sound me, FILE *f, int littleEndian, long *nClip) {
 
 static void u4read (Sound me, FILE *f, int littleEndian) {
 	double *s = my z[1];
-	int32_t (*get) (FILE *) = littleEndian ? bingeti4LE : bingeti4;
+	int32_t (*get) (FILE *) = littleEndian ? bingeti32LE : bingeti32;
 	for (long i = 1; i <= my nx; i++) {
 		s[i] = get (f) / 2147483648.0 - 1.0;
 	}
@@ -261,14 +261,14 @@ static void u4read (Sound me, FILE *f, int littleEndian) {
 static void r4write (Sound me, FILE *f) {
 	double *s = my z[1];
 	for (long i = 1; i <= my nx; i++) {
-		binputr4 (s[i], f);
+		binputr32 (s[i], f);
 	}
 }
 
 static void r4read (Sound me, FILE *f) {
 	double *s = my z[1];
 	for (long i = 1; i <= my nx; i++) {
-		s[i] = bingetr4 (f);
+		s[i] = bingetr32 (f);
 	}
 }
 
@@ -277,21 +277,21 @@ autoSound Sound_readFromCmuAudioFile (MelderFile file) {
 	try {
 		int littleEndian = 1;
 		autofile f = Melder_fopen (file, "rb");
-		if (bingeti2LE (f) != 6) {
+		if (bingeti16LE (f) != 6) {
 			Melder_throw (U"Incorrect header size.");
 		}
-		bingeti2LE (f);
-		short nChannels = bingeti2LE (f);
+		bingeti16LE (f);
+		short nChannels = bingeti16LE (f);
 		if (nChannels < 1) {
 			Melder_throw (U"Incorrect number of channels.");
 		}
 		if (nChannels > 1) {
 			Melder_throw (U"File has multiple channels: cannot read.");
 		}
-		if (bingeti2LE (f) < 1) {
+		if (bingeti16LE (f) < 1) {
 			Melder_throw (U"Incorrect sampling frequency.");
 		}
-		long nSamples = bingeti4LE (f);
+		long nSamples = bingeti32LE (f);
 		if (nSamples < 1) {
 			Melder_throw (U"Incorrect number of samples.");
 		}
@@ -1371,12 +1371,12 @@ void Sound_getStartAndEndTimesOfSounding (Sound me, double minPitch, double time
 autoSound Sound_and_IntervalTier_cutPartsMatchingLabel (Sound me, IntervalTier thee, const char32 *match) {
     try {
         // count samples of the trimmed sound
-        long ixmin, ixmax, numberOfSamples = 0, previous_ixmax = 0;
+        integer ixmin, ixmax, numberOfSamples = 0, previous_ixmax = 0;
 		double xmin = my xmin; // start time of output sound is start time of input sound
-        for (long iint = 1; iint <= thy intervals.size; iint ++) {
+        for (integer iint = 1; iint <= thy intervals.size; iint ++) {
             TextInterval interval = thy intervals.at [iint];
             if (! Melder_equ (interval -> text, match)) {
-                numberOfSamples += Sampled_getWindowSamples (me, interval -> xmin, interval -> xmax, &ixmin, &ixmax);
+                numberOfSamples += Sampled_getWindowSamples (me, interval -> xmin, interval -> xmax, & ixmin, & ixmax);
                 // if two contiguous intervals have to be copied then the last sample of previous interval
                 // and first sample of current interval might sometimes be equal
 				if (ixmin == previous_ixmax) {
@@ -1393,18 +1393,18 @@ autoSound Sound_and_IntervalTier_cutPartsMatchingLabel (Sound me, IntervalTier t
         autoSound him = Sound_create (my ny, xmin, xmin + numberOfSamples * my dx, numberOfSamples, my dx, xmin + 0.5 * my dx);
         numberOfSamples = 0;
 		previous_ixmax = 0;
-        for (long iint = 1; iint <= thy intervals.size; iint ++) {
+        for (integer iint = 1; iint <= thy intervals.size; iint ++) {
             TextInterval interval = thy intervals.at [iint];
             if (! Melder_equ (interval -> text, match)) {
-				long ipos;
+				integer ipos;
                 Sampled_getWindowSamples (me, interval -> xmin, interval -> xmax, &ixmin, &ixmax);
 				if (ixmin == previous_ixmax) {
-					ixmin++;
+					ixmin ++;
 				}
 				previous_ixmax = ixmax;
-                for (long ichan = 1; ichan <= my ny; ichan ++) {
+                for (integer ichan = 1; ichan <= my ny; ichan ++) {
                     ipos = numberOfSamples + 1;
-                    for (long i = ixmin; i <= ixmax; i ++, ipos ++) {
+                    for (integer i = ixmin; i <= ixmax; i ++, ipos ++) {
                         his z [ichan] [ipos] = my z [ichan] [i];
                     }
                 }
@@ -1605,7 +1605,7 @@ void Sound_draw_btlr (Sound me, Graphics g, double tmin, double tmax, double ami
 	if (tmin == tmax) {
 		tmin = my xmin; tmax = my xmax;
 	}
-	long itmin, itmax;
+	integer itmin, itmax;
 	Matrix_getWindowSamplesX (me, tmin, tmax, &itmin, &itmax);
 	if (amin == amax) {
 		Matrix_getWindowExtrema (me, itmin, itmax, 1, my ny, &amin, &amax);
@@ -1836,7 +1836,7 @@ static void _Sound_garnish (Sound me, Graphics g, double tmin, double tmax, doub
 	}
 }
 
-static void _Sound_getWindowExtrema (Sound me, double *tmin, double *tmax, double *minimum, double *maximum, long *ixmin, long *ixmax) {
+static void _Sound_getWindowExtrema (Sound me, double *tmin, double *tmax, double *minimum, double *maximum, integer *ixmin, integer *ixmax) {
 	if (*tmin == *tmax) {
 		*tmin = my xmin;
 		*tmax = my xmax;
@@ -1895,7 +1895,7 @@ static void Sound_findIntermediatePoint_bs (Sound me, long ichannel, long isampl
 		for (long channel = 1; channel <= my ny; channel++) {
 			thy z[channel][2] = Vector_getValueAtX (me, xmid, channel, interpolation);
 		}
-		struct Formula_Result result;
+		Formula_Result result;
 		Formula_compile (interpreter, thee.get(), formula, kFormula_EXPRESSION_TYPE_NUMERIC, true);
 		Formula_run (ichannel, 2, & result);
 		bool current = (result.result.numericResult != 0.0);
@@ -1933,13 +1933,13 @@ void Sound_drawWhere (Sound me, Graphics g, double tmin, double tmax, double min
 	bool garnish, const char32 *method, long numberOfBisections, const char32 *formula, Interpreter interpreter) {
 	Formula_compile (interpreter, me, formula, kFormula_EXPRESSION_TYPE_NUMERIC, true);
 
-	long ixmin, ixmax;
-	_Sound_getWindowExtrema (me, &tmin, &tmax, &minimum, &maximum, &ixmin, &ixmax);
+	integer ixmin, ixmax;
+	_Sound_getWindowExtrema (me, & tmin, & tmax, & minimum, & maximum, & ixmin, & ixmax);
 
 	// Set coordinates for drawing.
 
 	Graphics_setInner (g);
-	struct Formula_Result result;
+	Formula_Result result;
 	for (long channel = 1; channel <= my ny; channel ++) {
 		Graphics_setWindow (g, tmin, tmax, minimum - (my ny - channel) * (maximum - minimum), maximum + (channel - 1) * (maximum - minimum));
 		if (str32str (method, U"bars") || str32str (method, U"Bars")) {
@@ -2042,12 +2042,11 @@ void Sound_drawWhere (Sound me, Graphics g, double tmin, double tmax, double min
 
 void Sound_paintWhere (Sound me, Graphics g, Graphics_Colour colour, double tmin, double tmax, double minimum, double maximum, double level, bool garnish, long numberOfBisections, const char32 *formula, Interpreter interpreter) {
 	try {
-		long ixmin, ixmax;
-		struct Formula_Result result;
-
+		Formula_Result result;
 		Formula_compile (interpreter, me, formula, kFormula_EXPRESSION_TYPE_NUMERIC, true);
 
-		_Sound_getWindowExtrema (me, &tmin, &tmax, &minimum, &maximum, &ixmin, &ixmax);
+		integer ixmin, ixmax;
+		_Sound_getWindowExtrema (me, & tmin, & tmax, & minimum, & maximum, & ixmin, & ixmax);
 
 		Graphics_setColour (g, colour);
 		Graphics_setInner (g);
@@ -2099,7 +2098,7 @@ void Sound_paintWhere (Sound me, Graphics g, Graphics_Colour colour, double tmin
 
 void Sounds_paintEnclosed (Sound me, Sound thee, Graphics g, Graphics_Colour colour, double tmin, double tmax, double minimum, double maximum, bool garnish) {
 	try {
-		long ixmin, ixmax, numberOfChannels = my ny > thy ny ? my ny : thy ny;
+		integer ixmin, ixmax, numberOfChannels = my ny > thy ny ? my ny : thy ny;
 		double min1 = minimum, max1 = maximum, tmin1 = tmin, tmax1 = tmax;
 		double min2 = min1, max2 = max1, tmin2 = tmin1, tmax2 = tmax1;
 		double xmin = my xmin > thy xmin ? my xmin : thy xmin;
@@ -2111,14 +2110,14 @@ void Sounds_paintEnclosed (Sound me, Sound thee, Graphics g, Graphics_Colour col
 			tmin = xmin;
 			tmax = xmax;
 		}
-		_Sound_getWindowExtrema (thee, &tmin1, &tmax1, &min1, &max1, &ixmin, &ixmax);
-		_Sound_getWindowExtrema (me,   &tmin2, &tmax2, &min2, &max2, &ixmin, &ixmax);
+		_Sound_getWindowExtrema (thee, & tmin1, & tmax1, & min1, & max1, & ixmin, & ixmax);
+		_Sound_getWindowExtrema (me,   & tmin2, & tmax2, & min2, & max2, & ixmin, & ixmax);
 		minimum = min1 < min2 ? min1 : min2;
 		maximum = max1 > max2 ? max1 : max2;
 
 		Graphics_setColour (g, colour);
 		Graphics_setInner (g);
-		for (long channel = 1; channel <= numberOfChannels; channel++) {
+		for (integer channel = 1; channel <= numberOfChannels; channel++) {
 			autoPolygon him = Sounds_to_Polygon_enclosed (me, thee, channel, tmin, tmax, minimum, maximum);
 			Graphics_setWindow (g, tmin, tmax, minimum - (numberOfChannels - channel) * (maximum - minimum), maximum + (channel - 1) * (maximum - minimum));
 			Graphics_fillArea (g, his numberOfPoints, &his x[1], &his y[1]);

@@ -1,6 +1,6 @@
 /* NUM2.cpp
  *
- * Copyright (C) 1993-2016 David Weenink, Paul Boersma 2017
+ * Copyright (C) 1993-2017 David Weenink, Paul Boersma 2017
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -79,6 +79,7 @@
 #include "gsl_sf_trig.h"
 #include "gsl_poly.h"
 #include "gsl_cdf.h"
+#include "tensor.h"
 
 #undef MAX
 #undef MIN
@@ -206,6 +207,11 @@ void NUMnormalize (double **a, long nr, long nc, double norm) {
 	}
 }
 
+/*
+ * Standard deviations calculated by the corrected two-pass algorithm as decribed in
+ * Chan, Golub & LeVeque (1983), Algorithms for computing the sample variance: Analysis and recommendations, 
+ * The American Statistician 37: 242 - 247.
+ */
 void NUMstandardizeColumns (double **a, long rb, long re, long cb, long ce) {
 	long n = re - rb + 1;
 	if (n < 2) {
@@ -233,6 +239,22 @@ void NUMstandardizeColumns (double **a, long rb, long re, long cb, long ce) {
 			for (long i = rb; i <= re; i++) {
 				a[i][j] /= sdev;
 			}
+		}
+	}
+}
+
+void NUMmatrix_standardizeRows (double **a, integer rb, integer re, integer cb, integer ce) {
+	integer n = ce - cb + 1;
+	if (n < 1) {
+		return;
+	}
+	for (integer i = rb; i <= re; i ++) {
+		double mean, stdev = undefined;
+		numvec x {& a [i][cb] - 1, n};
+		sum_mean_sumsq_variance_stdev_scalar (x, nullptr, & mean, nullptr, nullptr, & stdev);
+		stdev = isdefined (stdev) ? stdev : 1.0;
+		for (integer j = cb; j <= ce; j ++) {
+			a [i][j] = (a [i][j] - mean) / stdev;
 		}
 	}
 }
