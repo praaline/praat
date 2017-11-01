@@ -1,6 +1,6 @@
 /* melder_debug.cpp
  *
- * Copyright (C) 2000-2012,2014,2015,2016,2017 Paul Boersma
+ * Copyright (C) 2000-2017 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,11 +29,12 @@
 #endif
 
 int Melder_debug = 0;
-
 /*
-
-If Melder_debug is set to the following values in Praat,
-the behaviour of that program changes in the following way:
+Melder_debug will always be set to 0 when Praat starts up.
+If Melder_debug is temporarily set to the following values
+(preferably with the "Debug..." command under Praat->Technical,
+ which you can use from a script),
+the behaviour of Praat will temporarily change in the following ways:
 
 1: Windows: use C-clock instead of multimedia-clock in melder_audio.cpp.
 2: Windows: always reset waveOut, even when played to end, in melder_audio.cpp.
@@ -77,12 +78,12 @@ the behaviour of that program changes in the following way:
 45: tracing structMatrix :: read ()
 46: trace GTK parent sizes in _GuiObject_position ()
 47: force resampling in OTGrammar RIP
-48: compute sum, mean, stdev, inner, and so on, with naive implementation in real64
-49: compute sum, mean, stdev, inner, and so on, with naive implementation in real80
+48: compute sum, mean, stdev with naive implementation in real64
+49: compute sum, mean, stdev with naive implementation in real80
 50: compute sum, mean, stdev with first-element offset (80 bits)
-51: compute sum, mean, stdev with Chan, Golub & LeVeque's pairwise algorithm (80 bits)
-52: compute sum, mean, stdev, inner and so on with simple pairwise algorithm, base case 8 (80 bits)
-(0: compute sum, mean, stdev, inner and so on with simple pairwise algorithm, base case 16 [80 bits])
+51: compute sum, mean, stdev with two cycles, as in R (80 bits)
+(other numbers than 48-51: compute sum, mean, stdev with simple pairwise algorithm, base case 64 [80 bits])
+181: read and write native-endian real64
 900: use DG Meta Serif Science instead of Palatino
 1264: Mac: Sound_record_fixedTime uses microphone "FW Solo (1264)"
 
@@ -199,7 +200,7 @@ void Melder_writeToConsole (const char32 *message, bool useStderr) {
 		}
 		if (Melder_consoleIsAnsi) {
 			size_t n = str32len (message);
-			for (long i = 0; i < n; i ++) {
+			for (integer i = 0; i < n; i ++) {
 				unsigned int kar = (unsigned short) message [i];
 				fputc (kar, stdout);
 			}
@@ -217,7 +218,7 @@ void Melder_writeToConsole (const char32 *message, bool useStderr) {
 		for (const char32* p = message; *p != U'\0'; p ++) {
 			char32 kar = *p;
 			if (kar <= 0x00007F) {
-				fputc ((int) kar, f);   // because fputc wants an int instead of an uint8 (guarded conversion)
+				fputc ((int) kar, f);   // because fputc wants an int instead of a uint8 (guarded conversion)
 			} else if (kar <= 0x0007FF) {
 				fputc (0xC0 | (kar >> 6), f);
 				fputc (0x80 | (kar & 0x00003F), f);
@@ -430,7 +431,7 @@ static void Melder_trace_close (FILE *f) {
 void Melder_trace (const char *fileName, int lineNumber, const char *functionName, Melder_1_ARG) {
 	if (! Melder_isTracing || MelderFile_isNull (& theTracingFile)) return;
 	FILE *f = Melder_trace_open (fileName, lineNumber, functionName);
-	fprintf (f, "%s", peek32to8 (arg1._arg));
+	fprintf (f, "%s", peek32to8 (arg1. _arg));
 	Melder_trace_close (f);
 }
 void Melder_trace (const char *fileName, int lineNumber, const char *functionName, Melder_2_ARGS) {
