@@ -23,9 +23,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <espeak-ng/espeak_ng.h>
-#include <espeak-ng/speak_lib.h>
-#include <espeak-ng/encoding.h>
+#include "espeak_ng.h"
+#include "speak_lib.h"
+#include "encoding.h"
 
 #include "speech.h"
 #include "synthesize.h"
