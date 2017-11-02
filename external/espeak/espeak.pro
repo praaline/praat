@@ -11,7 +11,6 @@ CONFIG += staticlib thread warn_on stl rtti exceptions c++11
 QT -= core gui
 
 INCLUDEPATH += . ../../kar ../../sys ../../dwsys ../../stat
-DEFINES += ESPEAK_API=
 
 SOURCES += \
     categories.cpp compiledata.cpp compiledict.cpp dictionary.cpp encoding.cpp error.cpp intonation.cpp klatt.cpp  \
