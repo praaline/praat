@@ -19,12 +19,15 @@
 
 // The glue between Praat and espeak
 
+
 #include "NUM2.h"
 #include "espeak_ng.h"
 #include "FileInMemoryManager.h"
 #include "speech.h"
 #include "voice.h"
 #include <wctype.h>
+
+#include "Strings_extensions.h"
 
 #include "espeakdata_FileInMemory.h"
 
@@ -36,12 +39,12 @@ autoTable espeakdata_voices_propertiesTable;
 autoStrings espeakdata_voices_names;
 autoStrings espeakdata_languages_names;
 
-integer Table_findStringInColumn (Table me, const char32 *string, integer icol) {
+integer Table_findStringInColumn (Table me, conststring32 string, integer icol) {
 	integer row = 0;
 	if (icol > 0 && icol <= my numberOfColumns) {
 		for (integer irow = 1; irow <= my rows.size; irow ++) {
 			TableRow myRow = my rows.at [irow];
-			if (Melder_equ (myRow -> cells [icol]. string, string)) {
+			if (Melder_equ (myRow -> cells [icol]. string.get(), string)) {
 				return irow;
 			}
 		}
@@ -55,8 +58,11 @@ void espeakdata_praat_init () {
 		espeakdata_languages_propertiesTable = Table_createAsEspeakLanguagesProperties ();
 		espeakdata_voices_propertiesTable = Table_createAsEspeakVoicesProperties ();
 		espeakdata_languages_names = Table_column_to_Strings (espeakdata_languages_propertiesTable.get(), 2);
-		Strings_sort (espeakdata_languages_names.get());
 		espeakdata_voices_names = Table_column_to_Strings (espeakdata_voices_propertiesTable.get(), 2);
+		int test = 1;
+		if (* ((char *) & test) != 1) { // (too?) simple endian test
+			espeak_ng_data_to_bigendian ();
+		}
 	} catch (MelderError) {
 		Melder_throw (U"Espeakdata initialization not performed.");
 	}
@@ -88,14 +94,14 @@ const char * espeakdata_get_voicedata (const char *data, integer ndata, char *bu
 }
 
 
-static const char32 * get_wordAfterPrecursor_u8 (const unsigned char *text8, const char32 *precursor) {
+static conststring32 get_wordAfterPrecursor_u8 (const unsigned char *text8, conststring32 precursor) {
 	static char32 word [100];
 	/*
 		1. Find (first occurence of) 'precursor' at the start of a line (with optional leading whitespace).
 		2. Get the words after 'precursor' (skip leading and trailing whitespace).
 	*/
 	autoMelderString regex;
-	const char32 *text = Melder_peek8to32 (reinterpret_cast<const char *> (text8));
+	conststring32 text = Melder_peek8to32 (reinterpret_cast<const char *> (text8));
 	MelderString_append (& regex, U"^\\s*", precursor, U"\\s+");
 	char32 *p = nullptr;
 	const char32 *pmatch = strstr_regexp (text, regex.string);
@@ -111,14 +117,14 @@ static const char32 * get_wordAfterPrecursor_u8 (const unsigned char *text8, con
 	return p;
 }
 
-static const char32 * get_stringAfterPrecursor_u8 (const unsigned char *text8, const char32 *precursor) {
+static conststring32 get_stringAfterPrecursor_u8 (const unsigned char *text8, conststring32 precursor) {
 	static char32 word [100];
 	/*
 		1. Find (first occurence of) 'precursor' at the start of a line (with optional leading whitespace).
 		2. Get the words after 'precursor' (skip leading and trailing whitespace).
 	*/
 	autoMelderString regex;
-	const char32 *text = Melder_peek8to32 (reinterpret_cast<const char *> (text8));
+	conststring32 text = Melder_peek8to32 (reinterpret_cast<const char *> (text8));
 	MelderString_append (& regex, U"^\\s*", precursor, U"\\s+");
 	char32 *p = nullptr;
 	const char32 *pmatch = strstr_regexp (text, regex.string);
@@ -139,29 +145,29 @@ static const char32 * get_stringAfterPrecursor_u8 (const unsigned char *text8, c
 
 autoTable Table_createAsEspeakVoicesProperties () {
 	try {
-		const char32 *criterion = U"/voices/!v/";
+		static const conststring32 criterion = U"/voices/!v/";
 		FileInMemorySet me = espeak_ng_FileInMemoryManager -> files.get();
 		integer numberOfMatches = FileInMemorySet_findNumberOfMatches_path (me, kMelder_string :: CONTAINS, criterion);
-		
 		autoTable thee = Table_createWithColumnNames (numberOfMatches, U"id name index gender age variant");
 		integer irow = 0;
 		for (integer ifile = 1; ifile <= my size; ifile ++) {
 			FileInMemory fim = (FileInMemory) my at [ifile];
-			if (Melder_stringMatchesCriterion (fim -> d_path, kMelder_string :: CONTAINS, criterion)) {
+			if (Melder_stringMatchesCriterion (fim -> d_path.get(), kMelder_string :: CONTAINS, criterion, true)) {
 				irow ++;
-				Table_setStringValue (thee.get(), irow, 1, fim -> d_id);
+				Table_setStringValue (thee.get(), irow, 1, fim -> d_id.get());
 				const char32 *name = get_stringAfterPrecursor_u8 (fim -> d_data, U"name");
 				// The first character of name must be upper case
-				if (name) { 
+				if (name) {
 					autoMelderString capitalFirst;
 					MelderString_copy (& capitalFirst, name); // we cannot modify original
-					char32 capital = toupper32 (*name);  *(capitalFirst . string) = capital;
-					Table_setStringValue (thee.get(), irow, 2, capitalFirst . string);
+					char32 capital = Melder_toUpperCase (*name);
+					*(capitalFirst. string) = capital;
+					Table_setStringValue (thee.get(), irow, 2, capitalFirst. string);
 				} else {
-					Table_setStringValue (thee.get(), irow, 2, fim -> d_id);
+					Table_setStringValue (thee.get(), irow, 2, fim -> d_id.get());
 				}
-				Table_setNumericValue (thee.get(), irow, 3, ifile); 
-				const char32 *word = get_wordAfterPrecursor_u8 (fim -> d_data, U"gender");
+				Table_setNumericValue (thee.get(), irow, 3, ifile);
+				conststring32 word = get_wordAfterPrecursor_u8 (fim -> d_data, U"gender");
 				Table_setStringValue (thee.get(), irow, 4, (word ? word : U"0"));
 				word = get_wordAfterPrecursor_u8 (fim -> d_data, U"age");
 				Table_setStringValue (thee.get(), irow, 5, (word ? word : U"0"));
@@ -179,19 +185,18 @@ autoTable Table_createAsEspeakVoicesProperties () {
 
 autoTable Table_createAsEspeakLanguagesProperties () {
 	try {
-		const char32 *criterion = U"/lang/";
+		static const conststring32 criterion = U"/lang/";
 		FileInMemorySet me = espeak_ng_FileInMemoryManager -> files.get();
 		integer numberOfMatches = FileInMemorySet_findNumberOfMatches_path (me, kMelder_string :: CONTAINS, criterion);
-		
-		autoTable thee = Table_createWithColumnNames (numberOfMatches, U"id name index");
+		autoTable thee = Table_createWithColumnNames (numberOfMatches, U"id name index"); // old: Default English
 		integer irow = 0;
 		for (integer ifile = 1; ifile <= my size; ifile ++) {
 			FileInMemory fim = (FileInMemory) my at [ifile];
-			if (Melder_stringMatchesCriterion (fim -> d_path, kMelder_string :: CONTAINS, criterion)) {
+			if (Melder_stringMatchesCriterion (fim -> d_path.get(), kMelder_string :: CONTAINS, criterion, true)) {
 				irow ++;
-				Table_setStringValue (thee.get(), irow, 1, fim -> d_id);
+				Table_setStringValue (thee.get(), irow, 1, fim -> d_id.get());
 				const char32 *word = get_stringAfterPrecursor_u8 (fim -> d_data, U"name");
-				Table_setStringValue (thee.get(), irow, 2, (word ? word : fim -> d_id));
+				Table_setStringValue (thee.get(), irow, 2, ( word ? word : fim -> d_id.get() ));
 				Table_setNumericValue (thee.get(), irow, 3, ifile);
 			}
 		}
@@ -205,11 +210,10 @@ autoTable Table_createAsEspeakLanguagesProperties () {
 
 autoStrings Table_column_to_Strings (Table me, integer column) {
 	try {
-		if (column < 0 || column > 2) {
+		if (column < 0 || column > 2)
 			Melder_throw (U"Illegal columnn.");
-		}
 		autoStrings thee = Thing_new (Strings);
-		thy strings = NUMvector <char32 *> (1, my rows.size);
+		thy strings = autostring32vector (my rows.size);
 		thy numberOfStrings = 0;
 		for (integer irow = 1; irow <= my rows.size; irow ++) {
 			thy strings [irow] = Melder_dup (Table_getStringValue_Assert (me, irow, column));
@@ -218,6 +222,49 @@ autoStrings Table_column_to_Strings (Table me, integer column) {
 		return thee;
 	} catch (MelderError) {
 		Melder_throw (U"Espeakdata: voices not initialized.");
+	}
+}
+
+void espeakdata_getIndices (conststring32 language_string, conststring32 voice_string, int *p_languageIndex, int *p_voiceIndex) {
+	if (p_languageIndex) {
+		integer languageIndex = Strings_findString (espeakdata_languages_names.get(), language_string);
+		if (languageIndex == 0) {
+			if (Melder_equ (language_string, U"Default") || Melder_equ (language_string, U"English")) {
+				languageIndex = Strings_findString (espeakdata_languages_names.get(), U"English (Great Britain)");
+				Melder_casual (U"Language \"", language_string, U"\" is deprecated. Please use \"",
+					espeakdata_languages_names -> strings [languageIndex].get(), U"\".");
+			} else {
+				languageIndex = Table_searchColumn (espeakdata_languages_propertiesTable.get(), 1, language_string);
+				if (languageIndex == 0) {
+					Melder_throw (U"Language \"", language_string, U" is not a valid option.");
+				}
+			}
+		}
+		*p_languageIndex = languageIndex;
+	}
+	if (p_voiceIndex) {
+		integer voiceIndex = Strings_findString (espeakdata_voices_names.get(), voice_string);
+		*p_voiceIndex = voiceIndex;
+		if (voiceIndex == 0) {
+			if (Melder_equ (voice_string, U"default")) {
+				voiceIndex = Strings_findString (espeakdata_voices_names.get(), U"Male1");
+			} else if (Melder_equ (voice_string, U"f1")) {
+				voiceIndex = Strings_findString (espeakdata_voices_names.get(), U"Female1");
+			} else {
+				// Try the bare file names
+				voiceIndex = Table_searchColumn (espeakdata_voices_propertiesTable.get(), 1, voice_string);
+				if (voiceIndex == 0) {
+					Melder_throw (U"Voice variant ", voice_string, U" is not a valid option.");
+				}
+			}
+		}
+		if (voiceIndex != *p_voiceIndex) {
+			*p_voiceIndex = voiceIndex;
+			Melder_casual (U"Voice \"", voice_string, U"\" is deprecated. Please use \"",
+				espeakdata_voices_names -> strings [*p_voiceIndex].get(), U"\".");
+		} else {
+			// unknown voice, handled by interface
+		}
 	}
 }
 

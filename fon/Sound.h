@@ -86,7 +86,7 @@ autoSound Sound_createSimple (integer numberOfChannels, double duration, double 
 	Postconditions:
 		thy xmin == 0.0;
 		thy xmax == duration;
-		thy nx == round (duration * samplingFrequency);
+		thy nx == Melder_iround (duration * samplingFrequency);
 		thy dx == 1 / samplingFrequency;
 		thy x1 == 0.5 * thy dx;		// Centre of first sampling period.
 		thy ymin = 1.0;
@@ -100,6 +100,7 @@ autoSound Sound_createSimple (integer numberOfChannels, double duration, double 
 autoSound Sound_convertToMono (Sound me);
 autoSound Sound_convertToStereo (Sound me);
 autoSound Sound_extractChannel (Sound me, integer ichannel);
+autoSound Sound_extractChannels (Sound me, numvec channelNumbers);
 autoSound Sounds_combineToStereo (OrderedOf<structSound>* me);
 
 /* Levels for Sampled_getValueAtSample (me, index, level, unit) */
@@ -125,13 +126,13 @@ autoSound Sounds_append (Sound me, double silenceDuration, Sound thee);
 	Postconditions:
 		result -> xmin == 0;
 		result -> xmax == result -> nx * my dx;
-		result -> nx == my nx + thy nx + round (silenceDuration / my dx);
+		result -> nx == my nx + thy nx + Melder_iround (silenceDuration / my dx);
 		result -> dx == my dx;
 		result -> x1 == 0.5 * my dx;
 		for (i = 1..my nx)
 			result -> z [1] [i] == my z [1] [i]
 		for (i = 1..thy nx)
-		result -> z [1] [i + my nx + round (silenceDuration / my dx)] == thy z [1] [i]
+		result -> z [1] [i + my nx + Melder_iround (silenceDuration / my dx)] == thy z [1] [i]
 */
  
 autoSound Sounds_convolve (Sound me, Sound thee, kSounds_convolve_scaling scaling, kSounds_convolve_signalOutsideTimeDomain signalOutsideTimeDomain);
@@ -182,14 +183,14 @@ autoSound Sound_extractPartForOverlap (Sound me, double t1, double t2, double ov
 void Sound_filterWithFormants (Sound me, double tmin, double tmax,
 	int numberOfFormants, double formant [], double bandwidth []);
 autoSound Sound_filter_oneFormant (Sound me, double frequency, double bandwidth);
-void Sound_filterWithOneFormantInline (Sound me, double frequency, double bandwidth);
+void Sound_filterWithOneFormantInplace (Sound me, double frequency, double bandwidth);
 autoSound Sound_filter_preemphasis (Sound me, double frequency);
 autoSound Sound_filter_deemphasis (Sound me, double frequency);
 
 void Sound_reverse (Sound me, double tmin, double tmax);
 
 void Sound_draw (Sound me, Graphics g,
-	double tmin, double tmax, double minimum, double maximum, bool garnish, const char32 *method);
+	double tmin, double tmax, double minimum, double maximum, bool garnish, conststring32 method);
 /* For method, see Vector_draw. */
 
 autoMatrix Sound_to_Matrix (Sound me);

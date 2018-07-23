@@ -1,6 +1,6 @@
 /* SpeechSynthesizer.cpp
  *
-//  * Copyright (C) 2011-2013, 2015-2016 David Weenink
+//  * Copyright (C) 2011-2017 David Weenink
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "Strings_extensions.h"
 #include "speak_lib.h"
 #include "encoding.h"
+#include "string.h"
 #include "translate.h"
 
 #include "oo_DESTROY.h"
@@ -56,105 +57,165 @@
 extern structMelderDir praatDir;
 extern int option_phoneme_events;
 
-Thing_implement (SpeechSynthesizerVoice, Daata, 0);
+Thing_implement (EspeakVoice, Daata, 0);
 
-autoSpeechSynthesizerVoice SpeechSynthesizerVoice_create (long numberOfFormants) {
+autoEspeakVoice EspeakVoice_create () {
 	try {
-		autoSpeechSynthesizerVoice me = Thing_new (SpeechSynthesizerVoice);
-		my d_numberOfFormants = numberOfFormants;
-		my d_freq = NUMvector<int> (0, numberOfFormants);
-		my d_height = NUMvector<int> (0, my d_numberOfFormants);	// 100% = 256
-		my d_width = NUMvector<int> (0, my d_numberOfFormants);		// 100% = 256
-		my d_freqadd = NUMvector<int> (0, my d_numberOfFormants);	// Hz
+		autoEspeakVoice me = Thing_new (EspeakVoice);
+		my numberOfFormants = 9; // equals N_PEAKS 
+		my numberOfKlattParameters = 8;
+		my klattv = NUMvector<int32> (1, my numberOfKlattParameters);
+		my freq = NUMvector<int32> (1, my numberOfFormants);
+		my height = NUMvector<int32> (1, my numberOfFormants);	// 100% = 256
+		my width = NUMvector<int32> (0, my numberOfFormants);		// 100% = 256
+		my freqadd = NUMvector<int32> (0, my numberOfFormants);	// Hz
 
 		// copies without temporary adjustments from embedded commands
-		my d_freq2 = NUMvector<int> (0, my d_numberOfFormants);		// 100% = 256
-		my d_height2 = NUMvector<int> (0, my d_numberOfFormants);	// 100% = 256
-		my d_width2 = NUMvector<int> (0, my d_numberOfFormants);	// 100% = 256
+		my freq2 = NUMvector<int32> (0, my numberOfFormants);		// 100% = 256
+		my height2 = NUMvector<int32> (0, my numberOfFormants);	// 100% = 256
+		my width2 = NUMvector<int32> (0, my numberOfFormants);	// 100% = 256
 
-		my d_breath = NUMvector<int> (0, my d_numberOfFormants);	// amount of breath for each formant. breath[0] indicates whether any are set.
-		my d_breathw = NUMvector<int> (0, my d_numberOfFormants);	// width of each breath formant
-		SpeechSynthesizerVoice_setDefaults (me.get());
+		my breath = NUMvector<int32> (0, my numberOfFormants);	// amount of breath for each formant. breath[0] indicates whether any are set.
+		my breathw = NUMvector<int32> (0, my numberOfFormants);	// width of each breath formant
+		my numberOfToneAdjusts = 1000; // equals N_TONE_ADJUST in voice.h
+		my tone_adjust = NUMvector<unsigned char> (1, my numberOfToneAdjusts);
+		EspeakVoice_setDefaults (me.get());
 		return me;
 	} catch (MelderError) {
-		Melder_throw (U"SpeechSynthesizerVoice not created.");
+		Melder_throw (U"EspeakVoice not created.");
 	}
 }
 
-void SpeechSynthesizerVoice_setDefaults (SpeechSynthesizerVoice me) {
+void EspeakVoice_setDefaults (EspeakVoice me) {
 	(void) me;
 }
 
-void SpeechSynthesizerVoice_initFromEspeakVoice (SpeechSynthesizerVoice me, voice_t *evoice) {
-	my d_v_name = Melder_dup (Melder_peek8to32 (evoice -> v_name));
+void EspeakVoice_initFromEspeakVoice (EspeakVoice me, voice_t *voice) {
+	my v_name = Melder_dup (Melder_peek8to32 (voice -> v_name));
 
-	my d_phoneme_tab_ix = evoice -> phoneme_tab_ix;
-	my d_pitch_base = evoice -> pitch_base;
-	my d_pitch_range = evoice -> pitch_range;
+	my phoneme_tab_ix = voice -> phoneme_tab_ix;
+	my pitch_base = voice -> pitch_base;
+	my pitch_range = voice -> pitch_range;
 
-	my d_speedf1 = evoice -> speedf1;
-	my d_speedf2 = evoice -> speedf2;
-	my d_speedf3 = evoice -> speedf3;
+	my speedf1 = voice -> speedf1;
+	my speedf2 = voice -> speedf2;
+	my speedf3 = voice -> speedf3;
 
-	my d_speed_percent = evoice -> speed_percent;
-	my d_flutter = evoice -> flutter;
-	my d_roughness = evoice -> roughness;
-	my d_echo_delay = evoice -> echo_delay;
-	my d_echo_amp = evoice -> echo_amp;
-	my d_n_harmonic_peaks = evoice -> n_harmonic_peaks;
-	my d_peak_shape = evoice -> peak_shape;
-	my d_voicing = evoice -> voicing;
-	my d_formant_factor = evoice -> formant_factor;
-	my d_consonant_amp = evoice -> consonant_amp;
-	my d_consonant_ampv = evoice -> consonant_ampv;
-	my d_samplingFrequency = evoice -> samplerate;
-	for (long i = 0; i < 7; i++) {
-		my d_klattv[i] = evoice -> klattv[i];
+	my speed_percent = voice -> speed_percent;
+	my flutter = voice -> flutter;
+	my roughness = voice -> roughness;
+	my echo_delay = voice -> echo_delay;
+	my echo_amp = voice -> echo_amp;
+	my n_harmonic_peaks = voice -> n_harmonic_peaks;
+	my peak_shape = voice -> peak_shape;
+	my voicing = voice -> voicing;
+	my formant_factor = voice -> formant_factor;
+	my consonant_amp = voice -> consonant_amp;
+	my consonant_ampv = voice -> consonant_ampv;
+	my samplerate = voice -> samplerate;
+	my numberOfKlattParameters = 8;
+	for (integer i = 1; i <= my numberOfKlattParameters; i ++) {
+		my klattv [i] = voice -> klattv [i - 1];
 	}
-	for (long i = 0; i <= my d_numberOfFormants; i++) {
-		my d_freq[i] = evoice -> freq[i];
-		my d_height[i] = evoice -> height[i];
-		my d_width[i] = evoice -> width[i];
-		my d_freqadd[i] = evoice -> freqadd[i];
-		my d_freq2[i] = evoice -> freq2[i];
-		my d_height2[i] = evoice -> height2[i];
-		my d_width2[i] = evoice -> width2[i];
-		my d_breath[i] = evoice -> breath[i];
-		my d_breathw[i] = evoice -> breathw[i];
+	for (integer i = 1; i <= my numberOfFormants; i ++) {
+		my freq [i] = voice -> freq [i - 1];
+		my height [i] = voice -> height [i - 1];
+		my width [i] = voice -> width [i - 1];
+		my freqadd [i] = voice -> freqadd [i - 1];
+		my freq2 [i] = voice -> freq2 [i - 1];
+		my height2 [i] = voice -> height2 [i - 1];
+		my width2 [i] = voice -> width2 [i - 1];
+		my breath [i] = voice -> breath [i - 1];
+		my breathw [i] = voice -> breathw [i - 1];
+	}
+	my numberOfToneAdjusts = 1000;
+	for (integer i = 1; i <= my numberOfToneAdjusts; i ++) {
+		my tone_adjust [i] = voice -> tone_adjust [i - 1];
+	}
+}
+
+void EspeakVoice_into_voice (EspeakVoice me, voice_t *voice) {
+
+	if (my v_name) {
+		strncpy (voice -> v_name, Melder_peek32to8 (my v_name.get()), 40);
+	}
+	if (my language_name) {
+		strncpy (voice -> language_name, Melder_peek32to8 (my language_name.get()), 20);
+	}
+	voice -> phoneme_tab_ix = my phoneme_tab_ix;
+	voice -> pitch_base = my pitch_base;
+	voice -> pitch_range = my pitch_range;
+
+	voice -> speedf1 = my speedf1;
+	voice -> speedf2 = my speedf2;
+	voice -> speedf3 = my speedf3;
+
+	voice -> speed_percent = my speed_percent;
+	voice -> flutter = my flutter;
+	voice -> roughness = my roughness;
+	voice -> echo_delay = my echo_delay;
+	voice -> echo_amp = my echo_amp;
+	voice -> n_harmonic_peaks = my n_harmonic_peaks;
+	voice -> peak_shape = my peak_shape;
+	voice -> voicing = my voicing;
+	voice -> formant_factor = my formant_factor;
+	voice -> consonant_amp = my consonant_amp;
+	voice -> consonant_ampv = my consonant_ampv;
+	voice -> samplerate = my samplerate;
+	for (integer i = 1; i <= my numberOfKlattParameters; i ++) {
+		voice -> klattv [i - 1] = my klattv [i];
+	}
+	for (integer i = 1; i <= my numberOfFormants; i ++) {
+		voice -> freq [i - 1] = my freq [i];
+		voice -> height [i - 1] = my height [i];
+		voice -> width [i - 1] = my width [i];
+		voice -> freqadd [i - 1] = my freqadd [i];
+		voice -> freq2 [i - 1] = my freq2 [i];
+		voice -> height2 [i - 1] = my height2 [i];
+		voice -> width2 [i - 1] = my width2 [i];
+		voice -> breath [i - 1] = my breath [i];
+		voice -> breathw [i - 1] = my breathw [i];
+	}
+	for (integer i = 1; i <= my numberOfToneAdjusts; i ++) {
+		voice -> tone_adjust [i - 1] = voice -> tone_adjust [i];
 	}
 }
 
 Thing_implement (SpeechSynthesizer, Daata, 1);
 
 void structSpeechSynthesizer :: v_info () {
-	SpeechSynthesizer_Parent :: v_info ();
-	MelderInfo_writeLine (U"Synthesizer version: espeak-ng ", d_synthesizerVersion);
-	MelderInfo_writeLine (U"Language: ", d_languageName);
-	MelderInfo_writeLine (U"Voice: ", d_voiceName);
-	MelderInfo_writeLine (U"Phoneme set: ", d_phonemeSet);
-	MelderInfo_writeLine (U"Input text format: ", (d_inputTextFormat == SpeechSynthesizer_INPUT_TEXTONLY ? U"text only" :
+	our SpeechSynthesizer_Parent :: v_info ();
+	MelderInfo_writeLine (U"Synthesizer version: espeak-ng ", our d_synthesizerVersion.get());
+	MelderInfo_writeLine (U"Language: ", our d_languageName.get());
+	MelderInfo_writeLine (U"Voice: ", our d_voiceName.get());
+	MelderInfo_writeLine (U"Phoneme set: ", our d_phonemeSet.get());
+	MelderInfo_writeLine (U"Input text format: ", (our d_inputTextFormat == SpeechSynthesizer_INPUT_TEXTONLY ? U"text only" :
 		d_inputTextFormat == SpeechSynthesizer_INPUT_PHONEMESONLY ? U"phonemes only" : U"tagged text"));
-	MelderInfo_writeLine (U"Input phoneme coding: ", (d_inputPhonemeCoding == SpeechSynthesizer_PHONEMECODINGS_KIRSHENBAUM ? U"Kirshenbaum" : U"???"));
-	MelderInfo_writeLine (U"Sampling frequency: ", d_samplingFrequency, U" Hz");
-	MelderInfo_writeLine (U"Word gap: ", d_wordgap, U" s");
-	MelderInfo_writeLine (U"Pitch adjustment value: ", d_pitchAdjustment, U" (0-100)");
-	MelderInfo_writeLine (U"Speaking rate: ", d_wordsPerMinute, U" words per minute", (d_estimateWordsPerMinute ? U" (but estimated from data if possible)" : U" (fixed)"));
-
-	MelderInfo_writeLine (U"Output phoneme coding: ", (d_inputPhonemeCoding == SpeechSynthesizer_PHONEMECODINGS_KIRSHENBAUM ? U"Kirshenbaum" : d_inputPhonemeCoding == SpeechSynthesizer_PHONEMECODINGS_IPA ? U"IPA" : U"???"));
+	MelderInfo_writeLine (U"Input phoneme coding: ", (our d_inputPhonemeCoding == SpeechSynthesizer_PHONEMECODINGS_KIRSHENBAUM ? U"Kirshenbaum" : U"???"));
+	MelderInfo_writeLine (U"Sampling frequency: ", our d_samplingFrequency, U" Hz");
+	MelderInfo_writeLine (U"Word gap: ", our d_wordgap, U" s");
+	MelderInfo_writeLine (U"Pitch multiplier: ", our d_pitchAdjustment, U" (0.5-2.0)");
+	MelderInfo_writeLine (U"Pitch range multiplier: ", our d_pitchRange, U" (0.0-2.0)");
+	MelderInfo_writeLine (U"Speaking rate: ", our d_wordsPerMinute, U" words per minute",
+		our d_estimateSpeechRate ? U" (but estimated from speech if possible)" : U" (fixed)");
+	MelderInfo_writeLine (U"Output phoneme coding: ",
+		our d_inputPhonemeCoding == SpeechSynthesizer_PHONEMECODINGS_KIRSHENBAUM ? U"Kirshenbaum" :
+		our d_inputPhonemeCoding == SpeechSynthesizer_PHONEMECODINGS_IPA ? U"IPA" : U"???"
+	);
 }
 
 static void NUMvector_extendNumberOfElements (integer elementSize, void **v, integer lo, integer *hi, integer extraDemand)
 {
 	try {
-		char *result;
+		byte *result;
 		if (! *v) {
 			integer newhi = lo + extraDemand - 1;
-			result = reinterpret_cast <char *> (NUMvector (elementSize, lo, newhi, true));
+			result = NUMvector_generic (elementSize, lo, newhi, true);
 			*hi = newhi;
 		} else {
 			integer offset = lo * elementSize;
 			for (;;) {   // not very infinite: 99.999 % of the time once, 0.001 % twice
-				result = reinterpret_cast <char *> (Melder_realloc ((char *) *v + offset, (*hi - lo + 1 + extraDemand) * elementSize));
+				result = reinterpret_cast <byte *> (Melder_realloc ((char *) *v + offset, (*hi - lo + 1 + extraDemand) * elementSize));
 				if ((result -= offset)) break;   // this will normally succeed at the first try
 				(void) Melder_realloc_f (result + offset, 1);   // ??make "sure" that the second try will succeed
 			}
@@ -197,7 +258,7 @@ static int synthCallback (short *wav, int numsamples, espeak_EVENT *events)
 			//my events = Table "time type type-t t-pos length a-pos sample id uniq";
 			//                    1    2     3      4     5     6     7      8   9
 			Table_appendRow (my d_events.get());
-			long irow = my d_events -> rows.size;
+			integer irow = my d_events -> rows.size;
 			double time = events -> audio_position * 0.001;
 			Table_setNumericValue (my d_events.get(), irow, 1, time);
 			Table_setNumericValue (my d_events.get(), irow, 2, events -> type);
@@ -220,7 +281,7 @@ static int synthCallback (short *wav, int numsamples, espeak_EVENT *events)
 	}
 	if (me) {
 		NUMvector_supplyStorage<int> (& my d_wav, 1, & my d_wavCapacity, my d_numberOfSamples, numsamples);
-		for (long i = 1; i <= numsamples; i++) {
+		for (integer i = 1; i <= numsamples; i++) {
 			my d_wav [my d_numberOfSamples + i] = wav [i - 1];
 		}
 		my d_numberOfSamples += numsamples;
@@ -228,11 +289,11 @@ static int synthCallback (short *wav, int numsamples, espeak_EVENT *events)
 	return 0;
 }
 
-const char32 *SpeechSynthesizer_getLanguageCode (SpeechSynthesizer me) {
+conststring32 SpeechSynthesizer_getLanguageCode (SpeechSynthesizer me) {
 	try {
-		integer irow = Table_searchColumn (espeakdata_languages_propertiesTable.get(), 2, my d_languageName);
+		integer irow = Table_searchColumn (espeakdata_languages_propertiesTable.get(), 2, my d_languageName.get());
 		if (irow == 0) {
-			Melder_throw (U"Cannot find language \"", my d_languageName, U"\".");
+			Melder_throw (U"Cannot find language \"", my d_languageName.get(), U"\".");
 		}
 		return Table_getStringValue_Assert (espeakdata_languages_propertiesTable.get(), irow, 1);
 	} catch (MelderError) {
@@ -240,11 +301,11 @@ const char32 *SpeechSynthesizer_getLanguageCode (SpeechSynthesizer me) {
 	}
 }
 
-const char32 *SpeechSynthesizer_getPhonemeCode (SpeechSynthesizer me) {
+conststring32 SpeechSynthesizer_getPhonemeCode (SpeechSynthesizer me) {
 	try {
-		integer irow = Table_searchColumn (espeakdata_languages_propertiesTable.get(), 2, my d_phonemeSet);
+		integer irow = Table_searchColumn (espeakdata_languages_propertiesTable.get(), 2, my d_phonemeSet.get());
 		if (irow == 0) {
-			Melder_throw (U"Cannot find phoneme set \"", my d_phonemeSet, U"\".");
+			Melder_throw (U"Cannot find phoneme set \"", my d_phonemeSet.get(), U"\".");
 		}
 		return Table_getStringValue_Assert (espeakdata_languages_propertiesTable.get(), irow, 1);
 	} catch (MelderError) {
@@ -252,11 +313,11 @@ const char32 *SpeechSynthesizer_getPhonemeCode (SpeechSynthesizer me) {
 	}
 }
 
-const char32 *SpeechSynthesizer_getVoiceCode (SpeechSynthesizer me) {
+conststring32 SpeechSynthesizer_getVoiceCode (SpeechSynthesizer me) {
 	try {
-		integer irow = Table_searchColumn (espeakdata_voices_propertiesTable.get(), 2, my d_voiceName);
+		integer irow = Table_searchColumn (espeakdata_voices_propertiesTable.get(), 2, my d_voiceName.get());
 		if (irow == 0) {
-			Melder_throw (U": Cannot find voice variant \"", my d_voiceName, U"\".");
+			Melder_throw (U": Cannot find voice variant \"", my d_voiceName.get(), U"\".");
 		}
 		return Table_getStringValue_Assert (espeakdata_voices_propertiesTable.get(), irow, 1);
 	} catch (MelderError) {
@@ -264,19 +325,18 @@ const char32 *SpeechSynthesizer_getVoiceCode (SpeechSynthesizer me) {
 	}
 }
 
-
-
-autoSpeechSynthesizer SpeechSynthesizer_create (const char32 *languageName, const char32 *voiceName) {
+autoSpeechSynthesizer SpeechSynthesizer_create (conststring32 languageName, conststring32 voiceName) {
 	try {
 		autoSpeechSynthesizer me = Thing_new (SpeechSynthesizer);
-		my d_synthesizerVersion = Melder_dup(ESPEAK_NG_VERSION);
+		my d_synthesizerVersion = Melder_dup (ESPEAK_NG_VERSION);
 		my d_languageName = Melder_dup (languageName);
 		(void) SpeechSynthesizer_getLanguageCode (me.get());  // existence check
 		my d_voiceName = Melder_dup (voiceName);
 		(void) SpeechSynthesizer_getVoiceCode (me.get());  // existence check
 		my d_phonemeSet = Melder_dup (languageName);
 		SpeechSynthesizer_setTextInputSettings (me.get(), SpeechSynthesizer_INPUT_TEXTONLY, SpeechSynthesizer_PHONEMECODINGS_KIRSHENBAUM);
-		SpeechSynthesizer_setSpeechOutputSettings (me.get(), 44100, 0.01, 50, 50, 175, true, SpeechSynthesizer_PHONEMECODINGS_IPA);
+		SpeechSynthesizer_setSpeechOutputSettings (me.get(), 44100.0, 0.01, 1.0, 1.0, 175, SpeechSynthesizer_PHONEMECODINGS_IPA);
+		SpeechSynthesizer_setEstimateSpeechRateFromSpeech (me.get(), true);
 		return me;
 	} catch (MelderError) {
 		Melder_throw (U"SpeechSynthesizer not created.");
@@ -289,32 +349,37 @@ void SpeechSynthesizer_setTextInputSettings (SpeechSynthesizer me, int inputText
 	my d_inputPhonemeCoding = inputPhonemeCoding;
 }
 
-void SpeechSynthesizer_setSpeechOutputSettings (SpeechSynthesizer me, double samplingFrequency, double wordgap, long pitchAdjustment, long pitchRange, long wordsPerMinute, bool estimateWordsPerMinute, int outputPhonemeCoding) {
+void SpeechSynthesizer_setEstimateSpeechRateFromSpeech (SpeechSynthesizer me, bool estimate) {
+	my d_estimateSpeechRate = estimate;
+}
+
+void SpeechSynthesizer_setSpeechOutputSettings (SpeechSynthesizer me, double samplingFrequency, double wordgap, double pitchAdjustment, double pitchRange, double wordsPerMinute, int outputPhonemeCoding) {
 	my d_samplingFrequency = samplingFrequency;
 	my d_wordgap = wordgap;
+	pitchAdjustment = pitchAdjustment < 0.5 ? 0.5 : (pitchAdjustment > 2.0 ? 2.0 : pitchAdjustment);
 	my d_pitchAdjustment = pitchAdjustment;
+	pitchRange = pitchRange < 0.0 ? 0.0 : (pitchRange > 2.0 ? 2.0 : pitchRange);
 	my d_pitchRange = pitchRange;
 
-	if (wordsPerMinute <= 0) wordsPerMinute = 175;
-	if (wordsPerMinute > 450) wordsPerMinute = 450;
-	if (wordsPerMinute < 80) wordsPerMinute = 80;
+	if (wordsPerMinute <= 0.0) wordsPerMinute = 175.0;
+	if (wordsPerMinute > 450.0) wordsPerMinute = 450.0;
+	if (wordsPerMinute < 80.0) wordsPerMinute = 80.0;
 	my d_wordsPerMinute = wordsPerMinute;
-	my d_estimateWordsPerMinute = estimateWordsPerMinute;
 	my d_outputPhonemeCoding = outputPhonemeCoding;
 }
 
-void SpeechSynthesizer_playText (SpeechSynthesizer me, const char32 *text) {
+void SpeechSynthesizer_playText (SpeechSynthesizer me, conststring32 text) {
 	autoSound thee = SpeechSynthesizer_to_Sound (me, text, nullptr, nullptr);
 	Sound_play (thee.get(), nullptr, nullptr);
 }
 
-static autoSound buffer_to_Sound (int *wav, long numberOfSamples, double samplingFrequency)
+static autoSound buffer_to_Sound (int *wav, integer numberOfSamples, double samplingFrequency)
 {
 	try {
 		double dx = 1.0 / samplingFrequency;
 		double xmax = numberOfSamples * dx;
 		autoSound thee = Sound_create (1, 0.0, xmax, numberOfSamples, dx, dx / 2.0);
-		for (long i = 1; i <= numberOfSamples; i++) {
+		for (integer i = 1; i <= numberOfSamples; i++) {
 			thy z[1][i] = wav[i] / 32768.0;
 		}
 		return thee;
@@ -323,7 +388,7 @@ static autoSound buffer_to_Sound (int *wav, long numberOfSamples, double samplin
 	}
 }
 
-static void IntervalTier_addBoundaryUnsorted (IntervalTier me, long iinterval, double time, const char32 *newLabel, bool isNewleftLabel) {
+static void IntervalTier_addBoundaryUnsorted (IntervalTier me, integer iinterval, double time, conststring32 newLabel, bool isNewleftLabel) {
 	if (time <= my xmin || time >= my xmax) {
 		Melder_throw (U"Time is outside interval domains.");
 	}
@@ -344,9 +409,9 @@ static void IntervalTier_addBoundaryUnsorted (IntervalTier me, long iinterval, d
 
 static void Table_setEventTypeString (Table me) {
 	try {
-		for (long i = 1; i <= my rows.size; i ++) {
+		for (integer i = 1; i <= my rows.size; i ++) {
 			int type = Table_getNumericValue_Assert (me, i, 2);
-			const char32 *label = U"0";
+			conststring32 label = U"0";
 			if (type == espeakEVENT_WORD) {
 				label = U"word";
 			} else if (type == espeakEVENT_SENTENCE) {
@@ -379,14 +444,14 @@ static void MelderString_trimWhiteSpaceAtEnd (MelderString *me) {
 }
 
 static void IntervalTier_mergeSpecialIntervals (IntervalTier me) {
-	long intervalIndex = my intervals.size;
+	integer intervalIndex = my intervals.size;
 	TextInterval right = my intervals.at [intervalIndex];
-	long labelLength_right = TextInterval_labelLength (right);
-	bool isEmptyInterval_right = labelLength_right == 0 || (labelLength_right == 1 && Melder_equ (right -> text, U"\001"));
+	integer labelLength_right = TextInterval_labelLength (right);
+	bool isEmptyInterval_right = labelLength_right == 0 || (labelLength_right == 1 && Melder_equ (right -> text.get(), U"\001"));
 	while (intervalIndex > 1) {
 		TextInterval left = my intervals.at [intervalIndex - 1];
-		long labelLength_left = TextInterval_labelLength (left);
-		bool isEmptyInterval_left = labelLength_left == 0 || (labelLength_left == 1 && Melder_equ (left -> text, U"\001"));
+		integer labelLength_left = TextInterval_labelLength (left);
+		bool isEmptyInterval_left = labelLength_left == 0 || (labelLength_left == 1 && Melder_equ (left -> text.get(), U"\001"));
 		if (isEmptyInterval_right && isEmptyInterval_left) {
 			// remove right interval and empty left interval
 			left -> xmax = right -> xmax;
@@ -406,7 +471,7 @@ static void IntervalTier_insertBoundaryAndMergeIntervalsAfter (IntervalTier me, 
 		return;
 	}
 	
-	long intervalNumber = IntervalTier_timeToLowIndex (me, t);
+	integer intervalNumber = IntervalTier_timeToLowIndex (me, t);
 	while (my intervals.size > intervalNumber + 1) {
 		my intervals. removeItem (my intervals.size);
 	}
@@ -434,11 +499,11 @@ static bool almost_equal (double t1, double t2) {
 }
 
 static void IntervalTier_insertEmptyIntervalsFromOtherTier (IntervalTier to, IntervalTier from) {
-	for (long iint = 1; iint <= from -> intervals.size; iint ++) {
+	for (integer iint = 1; iint <= from -> intervals.size; iint ++) {
 		TextInterval tifrom = from -> intervals.at [iint];
 		if (TextInterval_labelLength (tifrom) == 0) {   // found empty interval
 			double t_left = tifrom -> xmin, t_right = tifrom -> xmax;
-			long intervalIndex_to = IntervalTier_timeToLowIndex (to, t_left);
+			integer intervalIndex_to = IntervalTier_timeToLowIndex (to, t_left);
 			if (intervalIndex_to > 0) {   // insert to the right of intervalIndex_to
 				TextInterval tito = to -> intervals.at [intervalIndex_to];
 				if (! almost_equal (tito -> xmin, t_left)) {   // not on the start boundary of the interval, it cannot be at xmax
@@ -461,7 +526,7 @@ static void IntervalTier_insertEmptyIntervalsFromOtherTier (IntervalTier to, Int
 }
 
 static void IntervalTier_removeVeryShortIntervals (IntervalTier me) {
-	long iint = 1;
+	integer iint = 1;
 	while (iint <= my intervals.size) {
 		TextInterval ti = my intervals.at [iint];
 		if (almost_equal (ti -> xmin, ti -> xmax)) {
@@ -472,20 +537,20 @@ static void IntervalTier_removeVeryShortIntervals (IntervalTier me) {
 	}
 }
 
-static autoTextGrid Table_to_TextGrid (Table me, const char32 *text, double xmin, double xmax) {
+static autoTextGrid Table_to_TextGrid (Table me, conststring32 text, double xmin, double xmax) {
 	//Table_createWithColumnNames (0, L"time type type-t t-pos length a-pos sample id uniq");
 	try {
-		long length, textLength = str32len (text);
-		long numberOfRows = my rows.size;
-		long timeColumnIndex = Table_getColumnIndexFromColumnLabel (me, U"time");
-		long typeColumnIndex = Table_getColumnIndexFromColumnLabel (me, U"type");
-		long tposColumnIndex = Table_getColumnIndexFromColumnLabel (me, U"t-pos");
-		long   idColumnIndex = Table_getColumnIndexFromColumnLabel (me, U"id");
+		integer length, textLength = str32len (text);
+		integer numberOfRows = my rows.size;
+		integer timeColumnIndex = Table_getColumnIndexFromColumnLabel (me, U"time");
+		integer typeColumnIndex = Table_getColumnIndexFromColumnLabel (me, U"type");
+		integer tposColumnIndex = Table_getColumnIndexFromColumnLabel (me, U"t-pos");
+		integer   idColumnIndex = Table_getColumnIndexFromColumnLabel (me, U"id");
 		autoTextGrid thee = TextGrid_create (xmin, xmax, U"sentence clause word phoneme", U"");
 
 		TextGrid_setIntervalText (thee.get(), 1, 1, text);
 
-		long p1c = 1, p1w = 1;
+		integer p1c = 1, p1w = 1;
 		double time_phon_p = xmin;
 		bool wordEnd = false;
 		autoMelderString mark;
@@ -494,10 +559,10 @@ static autoTextGrid Table_to_TextGrid (Table me, const char32 *text, double xmin
 		IntervalTier words = (IntervalTier) thy tiers->at [3];
 		IntervalTier phonemes = (IntervalTier) thy tiers->at [4];
 
-		for (long i = 1; i <= numberOfRows; i++) {
+		for (integer i = 1; i <= numberOfRows; i++) {
 			double time = Table_getNumericValue_Assert (me, i, timeColumnIndex);
 			int type = Table_getNumericValue_Assert (me, i, typeColumnIndex);
-			long pos = Table_getNumericValue_Assert (me, i, tposColumnIndex);
+			integer pos = Table_getNumericValue_Assert (me, i, tposColumnIndex);
 			if (type == espeakEVENT_SENTENCE) {
 				// Only insert a new boundary, no text
 				// text will be inserted at end sentence event
@@ -547,7 +612,7 @@ static autoTextGrid Table_to_TextGrid (Table me, const char32 *text, double xmin
 				wordEnd = true;
 				p1w = pos;
 			} else if (type == espeakEVENT_PHONEME) {
-				const char32 *id = Table_getStringValue_Assert (me, i, idColumnIndex);
+				conststring32 id = Table_getStringValue_Assert (me, i, idColumnIndex);
 				if (time > time_phon_p) {
 					// Insert new boudary and label interval with the id
 					// TODO: Translate the id to the correct notation
@@ -582,7 +647,7 @@ static autoTextGrid Table_to_TextGrid (Table me, const char32 *text, double xmin
 	}
 }
 
-static void espeakdata_SetVoiceByName (const char32 *languageName, const char32 *voiceName)
+static void espeakdata_SetVoiceByName (conststring32 languageName, conststring32 voiceName)
 {
 	espeak_VOICE voice_selector;
 
@@ -596,7 +661,7 @@ static void espeakdata_SetVoiceByName (const char32 *languageName, const char32 
 	}
 }
 
-autoSound SpeechSynthesizer_to_Sound (SpeechSynthesizer me, const char32 *text, autoTextGrid *tg, autoTable *events) {
+autoSound SpeechSynthesizer_to_Sound (SpeechSynthesizer me, conststring32 text, autoTextGrid *tg, autoTable *events) {
 	try {
 		espeak_ng_InitializePath (nullptr); // PATH_ESPEAK_DATA
 		espeak_ng_ERROR_CONTEXT context = { 0 };
@@ -617,20 +682,30 @@ autoSound SpeechSynthesizer_to_Sound (SpeechSynthesizer me, const char32 *text, 
 		}
 
 		espeak_ng_SetParameter (espeakRATE, my d_wordsPerMinute, 0);
-		espeak_ng_SetParameter (espeakPITCH, my d_pitchAdjustment, 0);
-		espeak_ng_SetParameter (espeakRANGE, my d_pitchRange, 0);
-		const char32 *languageCode = SpeechSynthesizer_getLanguageCode (me);
-		const char32 *voiceCode = SpeechSynthesizer_getVoiceCode (me);
+		/*
+			pitchAdjustment_0_99 = a * log10 (my d_pitchAdjustment) + b,
+			where 0.5 <= my d_pitchAdjustment <= 2
+			pitchRange_0_99 = my d_pitchRange * 49.5,
+			where 0 <= my d_pitchRange <= 2
+		*/
+		int pitchAdjustment_0_99 = (int) ((49.5 / log10(2.0)) * log10 (my d_pitchAdjustment) + 49.5);   // rounded towards zero
+		espeak_ng_SetParameter (espeakPITCH, pitchAdjustment_0_99, 0);
+		int pitchRange_0_99 = (int) (my d_pitchRange * 49.5);   // rounded towards zero
+		espeak_ng_SetParameter (espeakRANGE, pitchRange_0_99, 0);
+		conststring32 languageCode = SpeechSynthesizer_getLanguageCode (me);
+		conststring32 voiceCode = SpeechSynthesizer_getVoiceCode (me);
 		
 		espeak_ng_SetVoiceByName(Melder_peek32to8 (Melder_cat (languageCode, U"+", voiceCode)));
-		espeak_ng_SetParameter (espeakWORDGAP, my d_wordgap * 100, 0); // espeak wordgap is in units of 10 ms
+		int wordgap_10ms = my d_wordgap * 100; // espeak wordgap is in units of 10 ms
+		espeak_ng_SetParameter (espeakWORDGAP, wordgap_10ms, 0);
 		espeak_ng_SetParameter (espeakCAPITALS, 0, 0);
 		espeak_ng_SetParameter (espeakPUNCTUATION, espeakPUNCT_NONE, 0);
+		
 		status =  espeak_ng_InitializeOutput (ENOUTPUT_MODE_SYNCHRONOUS, 2048, nullptr);
 		espeak_SetSynthCallback (synthCallback);
-		if (! Melder_equ (my d_phonemeSet, my d_languageName)) {
-			const char32 *phonemeCode = SpeechSynthesizer_getPhonemeCode (me);
-			int index_phon_table_list = LookupPhonemeTable (Melder_32to8 (phonemeCode));
+		if (! Melder_equ (my d_phonemeSet.get(), my d_languageName.get())) {
+			conststring32 phonemeCode = SpeechSynthesizer_getPhonemeCode (me);
+			int index_phon_table_list = LookupPhonemeTable (Melder_peek32to8 (phonemeCode));
 			if (index_phon_table_list > 0) {
 				voice -> phoneme_tab_ix = index_phon_table_list;
 				DoVoiceChange(voice);
@@ -640,7 +715,7 @@ autoSound SpeechSynthesizer_to_Sound (SpeechSynthesizer me, const char32 *text, 
 		my d_events = Table_createWithColumnNames (0, U"time type type-t t-pos length a-pos sample id uniq");
 
 		#ifdef _WIN32
-                wchar_t *textW = Melder_peek32toW (text);
+                conststringW textW = Melder_peek32toW (text);
                 espeak_ng_Synthesize (textW, wcslen (textW) + 1, 0, POS_CHARACTER, 0, synth_flags, nullptr, me);
 		#else
                 espeak_ng_Synthesize (text, str32len (text) + 1, 0, POS_CHARACTER, 0, synth_flags, nullptr, me);

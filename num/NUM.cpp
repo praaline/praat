@@ -335,11 +335,11 @@ double NUMchiSquareQ (double chiSquare, double degreesOfFreedom) {
 }
 
 double NUMcombinations (integer n, integer k) {
-	real80 result = 1.0;
+	longdouble result = 1.0;
 	if (k > n / 2) k = n - k;
 	for (integer i = 1; i <= k; i ++) result *= n - i + 1;
 	for (integer i = 2; i <= k; i ++) result /= i;
-	return (real) result;
+	return (double) result;
 }
 
 #define NUM_interpolate_simple_cases \
@@ -570,7 +570,7 @@ void NUM_viterbi_multi (
 
 	if (ntrack > ncand) Melder_throw (U"(NUM_viterbi_multi:) "
 		U"Number of tracks (", ntrack, U") should not exceed number of candidates (", ncand, U").");
-	integer ncomb = lround (NUMcombinations (ncand, ntrack));
+	integer ncomb = Melder_iround (NUMcombinations (ncand, ntrack));
 	if (ncomb > 10000000) Melder_throw (U"(NUM_viterbi_multi:) "
 		U"Unrealistically high number of combinations (", ncomb, U").");
 	parm. ntrack = ntrack;

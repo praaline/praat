@@ -68,7 +68,7 @@ struct CollectionOf : structDaata {
 	CollectionOf () {
 		extern ClassInfo classCollection;
 		our classInfo = classCollection;
-		our name = nullptr;
+		our name. reset();
 	}
 	virtual ~ CollectionOf () {
 		/*
@@ -238,8 +238,7 @@ struct CollectionOf : structDaata {
 
 		You transfer ownership of 'thing' to the Collection.
 
-		You cannot call both
-		Collection_addItem_move() and Collection_addItem_ref() on the same Collection.
+		You cannot call both addItem_move() and addItem_ref() on the same Collection.
 		For a SortedSet, this may mean that the Collection immediately disposes of 'item',
 		if that item already occurred in the Collection.
 	*/
@@ -647,18 +646,18 @@ struct SortedSetOf : SortedOf <T> {
 				/*
 				 * Move item 'ifrom' to 'n'.
 				 */
+				Melder_assert (ifrom >= n);
 				if (ifrom != n) {
-					if (our _ownItems) {
-						_Thing_forget (our at [n]);
-					}
 					our at [n] = our at [ifrom];   // surface copy
 					our at [ifrom] = nullptr;   // undangle
 				}
 				/*
 				 * Purge items from 'ifrom'+1 to 'ito'.
 				 */
-				for (integer j = ifrom + 1; j <= ito; j ++) {
-					_Thing_forget (our at [j]);
+				if (our _ownItems) {
+					for (integer j = ifrom + 1; j <= ito; j ++) {
+						_Thing_forget (our at [j]);
+					}
 				}
 				ifrom = ito + 1;
 			}
@@ -675,23 +674,6 @@ struct SortedSetOf : SortedOf <T> {
 */
 
 _Collection_declare (SortedSet, SortedSetOf, Daata);
-
-
-#pragma mark - class SortedSetOfInt
-
-template <typename T   Melder_ENABLE_IF_ISA (T, structSimpleInt)>
-struct SortedSetOfIntOf : SortedSetOf <T> {
-	SortedSetOfIntOf () {
-	}
-	SortedSetOfIntOf<T>&& move () noexcept { return static_cast <SortedSetOfIntOf<T>&&> (*this); }
-	static int s_compareHook (SimpleInt me, SimpleInt thee) noexcept {
-		if (my number < thy number) return -1;
-		if (my number > thy number) return +1;
-		return 0;
-	}
-	typename SortedOf<T>::CompareHook v_getCompareHook ()
-		override { return (typename SortedOf<T>::CompareHook) our s_compareHook; }
-};
 
 
 #pragma mark - class SortedSetOfInteger
@@ -736,28 +718,28 @@ struct SortedSetOfStringOf : SortedSetOf <T> {
 	}
 	SortedSetOfStringOf<T>&& move () noexcept { return static_cast <SortedSetOfStringOf<T>&&> (*this); }
 	static int s_compareHook (SimpleString me, SimpleString thee) noexcept {
-		return str32cmp (my string, thy string);
+		return str32cmp (my string.get(), thy string.get());
 	}
 	typename SortedOf<T>::CompareHook v_getCompareHook ()
 		override { return (typename SortedOf<T>::CompareHook) our s_compareHook; }
 
-	integer lookUp (const char32 *string) {
+	integer lookUp (conststring32 string) {
 		integer numberOfItems = our size;
 		integer left = 1, right = numberOfItems;
 		int atStart, atEnd;
 		if (numberOfItems == 0) return 0;
 
-		atEnd = str32cmp (string, our at [numberOfItems] -> string);
+		atEnd = str32cmp (string, our at [numberOfItems] -> string.get());
 		if (atEnd > 0) return 0;
 		if (atEnd == 0) return numberOfItems;
 
-		atStart = str32cmp (string, our at [1] -> string);
+		atStart = str32cmp (string, our at [1] -> string.get());
 		if (atStart < 0) return 0;
 		if (atStart == 0) return 1;
 
 		while (left < right - 1) {
 			integer mid = (left + right) / 2;
-			int here = str32cmp (string, our at [mid] -> string);
+			int here = str32cmp (string, our at [mid] -> string.get());
 			if (here == 0) return mid;
 			if (here > 0) left = mid; else right = mid;
 		}
@@ -765,32 +747,6 @@ struct SortedSetOfStringOf : SortedSetOf <T> {
 		return 0;
 	}
 
-	/**
-		Add a SimpleString to the set.
-
-		@note one can create a class that specializes SortedSetOfStringOf
-		with an element class <i>derived</i> from SimpleString.
-		Trying to call @c addString_copy() for an object of that class
-		would lead to a compile-time type mismatch error,
-		because a SimpleString cannot be inserted where a derived object is expected.
-		This is correct behaviour, because a SimpleString object has no place
-		in a homogeneous set of derived-class objects.
-
-		@param string   a C-string
-	*/
-	void addString_copy (const char32 *string) {
-		static autoSimpleString simp;
-		if (! simp) {
-			simp = SimpleString_create (U"");
-			Melder_free (simp -> string);
-		}
-		simp -> string = (char32 *) string;   // reference copy
-		integer index = our _v_position (simp.get());
-		simp -> string = nullptr;   // otherwise Praat will crash at shutdown
-		if (index == 0) return;   // OK: already there: do not add
-		autoSimpleString newSimp = SimpleString_create (string);
-		our _insertItem_move (newSimp.move(), index);
-	}
 };
 
 
@@ -803,17 +759,21 @@ struct SortedSetOfStringOf : SortedSetOf <T> {
 
 #pragma mark class DaataList
 
-Collection_define (DaataList, OrderedOf, Daata) {
+Collection_define (DaataList, OrderedOf, /* generic */ Daata) {
 };
 
 #pragma mark class StringList
 
-Collection_define (StringList, OrderedOf, SimpleString) {
+Collection_define (StringList, OrderedOf, /* final */ SimpleString) {
 };
 
 #pragma mark class StringSet
 
-Collection_define (StringSet, SortedSetOfStringOf, SimpleString) {
+Collection_define (StringSet, SortedSetOfStringOf, /* final */ SimpleString) {
+	void addString_copy (conststring32 string) {
+		autoSimpleString newSimp = SimpleString_create (string);
+		our addItem_move (newSimp.move());
+	}
 };
 
 /* End of file Collection.h */

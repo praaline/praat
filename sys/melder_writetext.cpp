@@ -1,6 +1,6 @@
 /* melder_writetext.cpp
  *
- * Copyright (C) 2007,2008,2010-2013,2015-2017 Paul Boersma
+ * Copyright (C) 2007,2008,2010-2013,2015-2018 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #include "UnicodeData.h"
 #include "abcio.h"
 
-void Melder_fwrite32to8 (const char32 *string, FILE *f) {
+void Melder_fwrite32to8 (conststring32 string, FILE *f) {
 	/*
 	 * Precondition:
 	 *    the string's encoding is UTF-32.
@@ -35,7 +35,7 @@ void Melder_fwrite32to8 (const char32 *string, FILE *f) {
 			#ifdef _WIN32
 				if (kar == U'\n') fputc (13, f);
 			#endif
-			fputc ((int) kar, f);   // because fputc wants an int instead of an uint8_t (guarded conversion)
+			fputc ((int) kar, f);   // because fputc wants an int instead of an uint8 (guarded conversion)
 		} else if (kar <= 0x0007FF) {
 			fputc (0xC0 | (kar >> 6), f);
 			fputc (0x80 | (kar & 0x00003F), f);
@@ -52,7 +52,7 @@ void Melder_fwrite32to8 (const char32 *string, FILE *f) {
 	}
 }
 
-void MelderFile_writeText (MelderFile file, const char32 *text, kMelder_textOutputEncoding outputEncoding) {
+void MelderFile_writeText (MelderFile file, conststring32 text, kMelder_textOutputEncoding outputEncoding) {
 	if (! text) text = U"";
 	autofile f = Melder_fopen (file, "wb");
 	if (outputEncoding == kMelder_textOutputEncoding::UTF8) {
@@ -97,7 +97,7 @@ void MelderFile_writeText (MelderFile file, const char32 *text, kMelder_textOutp
 	f.close (file);
 }
 
-void MelderFile_appendText (MelderFile file, const char32 *text) {
+void MelderFile_appendText (MelderFile file, conststring32 text) {
 	if (! text) text = U"";
 	autofile f1;
 	try {
@@ -147,7 +147,7 @@ void MelderFile_appendText (MelderFile file, const char32 *text) {
 			autostring32 oldText = MelderFile_readText (file);
 			autofile f2 = Melder_fopen (file, "wb");
 			binputu16 (0xfeff, f2);
-			int64 n = str32len (oldText.peek());
+			int64 n = str32len (oldText.get());
 			for (int64 i = 0; i < n; i ++) {
 				char32 kar = oldText [i];
 				#ifdef _WIN32
@@ -219,7 +219,7 @@ void MelderFile_appendText (MelderFile file, const char32 *text) {
 	}
 }
 
-static void _MelderFile_write (MelderFile file, const char32 *string) {
+void _MelderFile_write (MelderFile file, conststring32 string) {
 	if (! string) return;
 	int64 length = str32len (string);
 	FILE *f = file -> filePointer;
@@ -300,162 +300,6 @@ void MelderFile_writeCharacter (MelderFile file, char32 kar) {
 			binputu16 (UNICODE_REPLACEMENT_CHARACTER, f);
 		}
 	}
-}
-
-void MelderFile_write (MelderFile file, Melder_1_ARG) {
-	if (! file -> filePointer) return;
-	_MelderFile_write (file, arg1. _arg);
-}
-void MelderFile_write (MelderFile file, Melder_2_ARGS) {
-	if (! file -> filePointer) return;
-	_MelderFile_write (file, arg1. _arg);
-	_MelderFile_write (file, arg2. _arg);
-}
-void MelderFile_write (MelderFile file, Melder_3_ARGS) {
-	if (! file -> filePointer) return;
-	_MelderFile_write (file, arg1. _arg);
-	_MelderFile_write (file, arg2. _arg);
-	_MelderFile_write (file, arg3. _arg);
-}
-void MelderFile_write (MelderFile file, Melder_4_ARGS) {
-	if (! file -> filePointer) return;
-	_MelderFile_write (file, arg1. _arg);
-	_MelderFile_write (file, arg2. _arg);
-	_MelderFile_write (file, arg3. _arg);
-	_MelderFile_write (file, arg4. _arg);
-}
-void MelderFile_write (MelderFile file, Melder_5_ARGS) {
-	if (! file -> filePointer) return;
-	_MelderFile_write (file, arg1. _arg);
-	_MelderFile_write (file, arg2. _arg);
-	_MelderFile_write (file, arg3. _arg);
-	_MelderFile_write (file, arg4. _arg);
-	_MelderFile_write (file, arg5. _arg);
-}
-void MelderFile_write (MelderFile file, Melder_6_ARGS) {
-	if (! file -> filePointer) return;
-	_MelderFile_write (file, arg1. _arg);
-	_MelderFile_write (file, arg2. _arg);
-	_MelderFile_write (file, arg3. _arg);
-	_MelderFile_write (file, arg4. _arg);
-	_MelderFile_write (file, arg5. _arg);
-	_MelderFile_write (file, arg6. _arg);
-}
-void MelderFile_write (MelderFile file, Melder_7_ARGS) {
-	if (! file -> filePointer) return;
-	_MelderFile_write (file, arg1. _arg);
-	_MelderFile_write (file, arg2. _arg);
-	_MelderFile_write (file, arg3. _arg);
-	_MelderFile_write (file, arg4. _arg);
-	_MelderFile_write (file, arg5. _arg);
-	_MelderFile_write (file, arg6. _arg);
-	_MelderFile_write (file, arg7. _arg);
-}
-void MelderFile_write (MelderFile file, Melder_8_ARGS) {
-	if (! file -> filePointer) return;
-	_MelderFile_write (file, arg1. _arg);
-	_MelderFile_write (file, arg2. _arg);
-	_MelderFile_write (file, arg3. _arg);
-	_MelderFile_write (file, arg4. _arg);
-	_MelderFile_write (file, arg5. _arg);
-	_MelderFile_write (file, arg6. _arg);
-	_MelderFile_write (file, arg7. _arg);
-	_MelderFile_write (file, arg8. _arg);
-}
-void MelderFile_write (MelderFile file, Melder_9_ARGS) {
-	if (! file -> filePointer) return;
-	_MelderFile_write (file, arg1. _arg);
-	_MelderFile_write (file, arg2. _arg);
-	_MelderFile_write (file, arg3. _arg);
-	_MelderFile_write (file, arg4. _arg);
-	_MelderFile_write (file, arg5. _arg);
-	_MelderFile_write (file, arg6. _arg);
-	_MelderFile_write (file, arg7. _arg);
-	_MelderFile_write (file, arg8. _arg);
-	_MelderFile_write (file, arg9. _arg);
-}
-void MelderFile_write (MelderFile file, Melder_10_ARGS) {
-	if (! file -> filePointer) return;
-	_MelderFile_write (file, arg1. _arg);
-	_MelderFile_write (file, arg2. _arg);
-	_MelderFile_write (file, arg3. _arg);
-	_MelderFile_write (file, arg4. _arg);
-	_MelderFile_write (file, arg5. _arg);
-	_MelderFile_write (file, arg6. _arg);
-	_MelderFile_write (file, arg7. _arg);
-	_MelderFile_write (file, arg8. _arg);
-	_MelderFile_write (file, arg9. _arg);
-	_MelderFile_write (file, arg10._arg);
-}
-void MelderFile_write (MelderFile file, Melder_11_ARGS) {
-	if (! file -> filePointer) return;
-	_MelderFile_write (file, arg1. _arg);
-	_MelderFile_write (file, arg2. _arg);
-	_MelderFile_write (file, arg3. _arg);
-	_MelderFile_write (file, arg4. _arg);
-	_MelderFile_write (file, arg5. _arg);
-	_MelderFile_write (file, arg6. _arg);
-	_MelderFile_write (file, arg7. _arg);
-	_MelderFile_write (file, arg8. _arg);
-	_MelderFile_write (file, arg9. _arg);
-	_MelderFile_write (file, arg10._arg);
-	_MelderFile_write (file, arg11._arg);
-}
-void MelderFile_write (MelderFile file, Melder_13_ARGS) {
-	if (! file -> filePointer) return;
-	_MelderFile_write (file, arg1. _arg);
-	_MelderFile_write (file, arg2. _arg);
-	_MelderFile_write (file, arg3. _arg);
-	_MelderFile_write (file, arg4. _arg);
-	_MelderFile_write (file, arg5. _arg);
-	_MelderFile_write (file, arg6. _arg);
-	_MelderFile_write (file, arg7. _arg);
-	_MelderFile_write (file, arg8. _arg);
-	_MelderFile_write (file, arg9. _arg);
-	_MelderFile_write (file, arg10._arg);
-	_MelderFile_write (file, arg11._arg);
-	_MelderFile_write (file, arg12._arg);
-	_MelderFile_write (file, arg13._arg);
-}
-void MelderFile_write (MelderFile file, Melder_15_ARGS) {
-	if (! file -> filePointer) return;
-	_MelderFile_write (file, arg1. _arg);
-	_MelderFile_write (file, arg2. _arg);
-	_MelderFile_write (file, arg3. _arg);
-	_MelderFile_write (file, arg4. _arg);
-	_MelderFile_write (file, arg5. _arg);
-	_MelderFile_write (file, arg6. _arg);
-	_MelderFile_write (file, arg7. _arg);
-	_MelderFile_write (file, arg8. _arg);
-	_MelderFile_write (file, arg9. _arg);
-	_MelderFile_write (file, arg10._arg);
-	_MelderFile_write (file, arg11._arg);
-	_MelderFile_write (file, arg12._arg);
-	_MelderFile_write (file, arg13._arg);
-	_MelderFile_write (file, arg14._arg);
-	_MelderFile_write (file, arg15._arg);
-}
-void MelderFile_write (MelderFile file, Melder_19_ARGS) {
-	if (! file -> filePointer) return;
-	_MelderFile_write (file, arg1. _arg);
-	_MelderFile_write (file, arg2. _arg);
-	_MelderFile_write (file, arg3. _arg);
-	_MelderFile_write (file, arg4. _arg);
-	_MelderFile_write (file, arg5. _arg);
-	_MelderFile_write (file, arg6. _arg);
-	_MelderFile_write (file, arg7. _arg);
-	_MelderFile_write (file, arg8. _arg);
-	_MelderFile_write (file, arg9. _arg);
-	_MelderFile_write (file, arg10._arg);
-	_MelderFile_write (file, arg11._arg);
-	_MelderFile_write (file, arg12._arg);
-	_MelderFile_write (file, arg13._arg);
-	_MelderFile_write (file, arg14._arg);
-	_MelderFile_write (file, arg15._arg);
-	_MelderFile_write (file, arg16._arg);
-	_MelderFile_write (file, arg17._arg);
-	_MelderFile_write (file, arg18._arg);
-	_MelderFile_write (file, arg19._arg);
 }
 
 /* End of file melder_writetext.cpp */

@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see: <http://www.gnu.org/licenses/>.
  */
-
+#include "melder.h"
 #include "config.h"
 
 #include <assert.h>
@@ -54,7 +54,6 @@
 #include "translate.h"
 #include "espeak_command.h"
 #include "fifo.h"
-#include "event.h"
 
 unsigned char *outbuf = NULL;
 int outbuf_size = 0;
@@ -278,7 +277,7 @@ ESPEAK_NG_API espeak_ng_STATUS espeak_ng_InitializeOutput(espeak_ng_OUTPUT_MODE 
 	return ENS_OK;
 }
 
-#ifndef DATA_FROM_SOURCECODE_FILES
+#if ! DATA_FROM_SOURCECODE_FILES
 int GetFileLength(const char *filename)
 {
 	struct stat statbuf;
@@ -342,6 +341,7 @@ ESPEAK_NG_API espeak_ng_STATUS espeak_ng_Initialize(espeak_ng_ERROR_CONTEXT *con
 				setlocale(LC_CTYPE, "");
 		}
 	}
+	fprintf (stderr, "Locale: %s\n", setlocale (LC_ALL, nullptr));
 
 	espeak_ng_STATUS result = LoadPhData(&srate, context);
 	if (result != ENS_OK)

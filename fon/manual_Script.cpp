@@ -242,8 +242,8 @@ NORMAL (U"To hide a built-in command from a fixed or dynamic menu, or to make a 
 	"you typically use the @ButtonEditor.")
 ENTRY (U"Where is the buttons file?")
 NORMAL (U"The buttons file is in your Praat @@preferences directory@.")
-NORMAL (U"On Windows the file is called ##Buttons5.ini#, "
-	"for instance ##C:\\bsUsers\\bsMiep\\bsPraat\\bsButtons5.ini#.")
+NORMAL (UR"(On Windows the file is called ##Buttons5.ini#,
+for instance ##C:\bsUsers\bsMiep\bsPraat\bsButtons5.ini#.)")
 NORMAL (U"On MacOS it is called #Buttons5, "
 	"for instance ##/Users/miep/Library/Preferences/Praat Prefs/Buttons5#.")
 NORMAL (U"On Linux it is called #buttons5, "
@@ -708,7 +708,7 @@ NORMAL (U"##Integer division# operators (#div and #mod) have the same precedence
 CODE (U"54 div 5 \\-> 10       (division rounded down)")                             //@praat assert 54 div 5 = 10
 CODE (U"54 mod 5 \\-> 4        (the remainder)")                                     //@praat assert 54 mod 5 = 4
 CODE (U"54.3 div 5.1 \\-> 10   (works for real numbers as well)")                    //@praat assert 54.3 div 5.1 = 10
-CODE (U"54.3 mod 5.1 \\-> 3.3  (the remainder)")                                     //@praat assert 54.3 mod 5.1 = 3.3
+CODE (U"54.3 mod 5.1 \\-> 3.3  (the remainder)")                                     //@praat assert abs ((54.3 mod 5.1) - 3.3) < 1e-14
 CODE (U"-54 div 5 \\-> -11     (division rounded down; negation before division)")   //@praat assert -54 div 5 = -11
 CODE (U"-54 mod 5 \\-> 1       (the remainder)")                                     //@praat assert -54 mod 5 = 1
 CODE (U"-(54 div 5) \\-> -10   (use parentheses to change the order)")               //@praat assert -(54 div 5) = -10
@@ -931,41 +931,75 @@ TAG (U"##besselK (%n, %x)")
 NORMAL (U"For functions with arrays, see @@Scripting 5.7. Vectors and matrices@.")
 MAN_END
 
-MAN_BEGIN (U"Formulas 6. String functions", U"ppgb", 20140223)
+MAN_BEGIN (U"Formulas 6. String functions", U"ppgb", 20180318)
 INTRO (U"String functions are functions that either return a text string or have at least one text string as an argument. "
 	"Since string computations are not very useful in the @calculator, in settings windows, or in creation and "
 	"modification formulas, this page only gives examples of strings in scripts, so that the example may contain "
 	"string variables.")
+/*@praat
+	string$ = "hallo"
+	length = length (string$ + "dag")
+	assert length = 8
+@*/
 TAG (U"##length (a\\$ )")
 DEFINITION (U"gives the length of the string. After")
 		CODE2 (U"string\\$  = \"hallo\"")
 		CODE2 (U"length = length (string\\$  + \"dag\")")
 DEFINITION (U"the variable %length contains the number 8 (by the way, from this example "
 	"you see that variables can have the same names as functions, without any danger of confusing the interpreter).")
+/*@praat
+	head$ = left$ ("hallo", 3)
+	assert head$ = "hal"
+@*/
 TAG (U"##left\\$  (a\\$ , n)")
 DEFINITION (U"gives a string consisting of the first %n characters of %%a\\$ %. After")
 		CODE2 (U"head\\$  = left\\$  (\"hallo\", 3)")
 DEFINITION (U"the variable %%head\\$ % contains the string \"hal\".")
+/*@praat
+	english$ = "he" + right$ ("hallo", 3)
+	assert english$ = "hello"
+@*/
 TAG (U"##right\\$  (a\\$ , n)")
 DEFINITION (U"gives a string consisting of the last %n characters of %%a\\$ %. After")
 		CODE2 (U"english\\$  = \"he\" + right\\$  (\"hallo\", 3)")
 DEFINITION (U"the variable %%english\\$ % contains the string \"hello\".")
+/*@praat
+	assert mid$ ("hello", 3, 2) = "ll"
+@*/
 TAG (U"##mid\\$  (\"hello\" , 3, 2)")
 DEFINITION (U"gives a string consisting of 2 characters from \"hello\", starting at the third character. Outcome: ll.")
+/*@praat
+	where = index ("hallo allemaal", "al")
+	assert where = 2
+	assert index ("hallo allemaal", "fhjgfhj") = 0
+@*/
 TAG (U"##index (a\\$ , b\\$ )")
 DEFINITION (U"gives the index of the first occurrence of the string %%b\\$ % in the string %%a\\$ %. After")
 		CODE2 (U"where = index (\"hallo allemaal\", \"al\")")
 DEFINITION (U"the variable %where contains the number 2, because the first \"al\" starts at the second character of the longer string. "
 	"If the first string does not contain the second string, %index returns 0.")
+/*@praat
+	where = rindex ("hallo allemaal", "al")
+	assert where = 13
+	assert rindex ("hallo allemaal", "fhjgfhj") = 0
+@*/
 TAG (U"##rindex (a\\$ , b\\$ )")
 DEFINITION (U"gives the index of the last occurrence of the string %%b\\$ % in the string %%a\\$ %. After")
 		CODE2 (U"where = rindex (\"hallo allemaal\", \"al\")")
 DEFINITION (U"the variable %where contains the number 13, because the last \"al\" starts at the 13th character. "
 	"If the first string does not contain the second string, %rindex returns 0.")
+/*@praat
+	where = startsWith ("internationalization", "int")
+	assert where = 1
+@*/
 TAG (U"##startsWith (a\\$ , b\\$ )")
 DEFINITION (U"determines whether the string %%a\\$ % starts with the string %%b\\$ %. After")
 		CODE2 (U"where = startsWith (\"internationalization\", \"int\")")
 DEFINITION (U"the variable %where contains the number 1 (true).")
+/*@praat
+	where = endsWith ("internationalization", "nation")
+	assert where = 0
+@*/
 TAG (U"##endsWith (a\\$ , b\\$ )")
 DEFINITION (U"determines whether the string %%a\\$ % ends with the string %%b\\$ %. After")
 		CODE2 (U"where = endsWith (\"internationalization\", \"nation\")")
@@ -1007,11 +1041,15 @@ TAG (U"##percent\\$  (number, precision)")
 DEFINITION (U"the same as ##fixed\\$ #, but with a percent sign. For instance, $$percent\\$ (0.157, 3)$ becomes $$15.700\\% $, "
 	"$$percent\\$ (0.000157, 3)$ becomes $$0.016\\% $, and $$percent\\$  (0.000000157, 3)$ becomes $$0.00002\\% $. "
 	"The number 0 always becomes the string $0.")
+/*@praat
+	string$ = "5e6"
+	assert 3 + number (string$) = 5000003
+@*/
 TAG (U"##number (a\\$ )")
-DEFINITION (U"interprets a string as a number.")
+DEFINITION (U"interprets a string as a number. After")
 		CODE2 (U"string\\$  = \"5e6\"")
 		CODE2 (U"writeInfoLine: 3 + number (string\\$ )")
-DEFINITION (U"the Info window contains the number 500003.")
+DEFINITION (U"the Info window contains the number 5000003.")
 TAG (U"##date\\$  ( )")
 DEFINITION (U"gives the date and time in the following format:")
 		CODE2 (U"Mon Jun 24 17:11:21 2002")
@@ -1666,7 +1704,7 @@ SCRIPT (5.4, Manual_SETTINGS_WINDOW_HEIGHT (2.6), U""
 )
 NORMAL (U"According to section 4 above, and according to @@Formulas 2.2. Representation of strings@, "
 	"you would have to write this in the following way in a script:")
-CODE (U"Formula: \"correct\", \"self\\$  [\"\"response\"\"] = self\\$  [\"\"stimulus\"\"]\"")
+CODE (UR"(Formula: "correct", "self\$  [""response""] = self\$  [""stimulus""]")")
 NORMAL (U"The required doubling of string-internal double quotes is awkward. "
 	"Therefore, there exists a special way for typing formula arguments, namely with the tilde (\"~\"):")
 CODE (U"Formula: \"correct\", ~ self\\$  [\"response\"] = self\\$  [\"stimulus\"]")
@@ -2180,7 +2218,7 @@ LIST_ITEM (U"@@Scripting 4.2. Removing objects")
 LIST_ITEM (U"@@Scripting 4.3. Querying objects")
 MAN_END
 
-MAN_BEGIN (U"Scripting 4.1. Selecting objects", U"ppgb", 20140223)
+MAN_BEGIN (U"Scripting 4.1. Selecting objects", U"ppgb", 20180428)
 NORMAL (U"To simulate the mouse-clicked and dragged selection in the list of objects, "
 	"you have the commands #selectObject, #plusObject and #minusObject.")
 NORMAL (U"Suppose you start Praat and use ##Create Sound as tone...# to create a Sound called %tone. "
@@ -2211,6 +2249,9 @@ NORMAL (U"or")
 CODE (U"#selectObject: \"Sound tone\", \"Spectrum tone\"")
 NORMAL (U"or even")
 CODE (U"#selectObject: 1, \"Spectrum tone\"")
+NORMAL (U"or, using a numeric vector:")
+CODE (U"myObjects\\#  = { 1, 2 }")
+CODE (U"#selectObject: myObjects\\# ")
 ENTRY (U"How to refer to objects created in your script")
 NORMAL (U"In a script, you typically don't know whether the IDs of the objects are 1 and 2, or much higher numbers. "
 	"Fortunately, commands that create a new object give you the ID of the object that is created, "
@@ -2269,7 +2310,7 @@ NORMAL (U"This selects all objects in the list and then removes them. "
 	"even if the script is for your own use (because if it is a nice script, others will want to use it).")
 MAN_END
 
-MAN_BEGIN (U"Scripting 4.3. Querying objects", U"ppgb", 20140111)
+MAN_BEGIN (U"Scripting 4.3. Querying objects", U"ppgb", 20180427)
 NORMAL (U"You can get the name of a selected object into a string variable. "
 	"For instance, the following reads the name of the second selected Sound "
 	"(as counted from the top of the list of objects) into the variable %name\\$ :")
@@ -2310,23 +2351,17 @@ CODE (U"numberOfSelectedSounds = #numberOfSelected (\"Sound\")")
 NORMAL (U"To get the number of selected objects into a variable, use")
 CODE (U"numberOfSelectedObjects = #numberOfSelected ()")
 ENTRY (U"Example: doing something to every selected Sound")
-CODE (U"n = #numberOfSelected (\"Sound\")")
-CODE (U"#for i to n")
-	CODE1 (U"sound [i] = #selected (\"Sound\", i)")
-CODE (U"#endfor")
+CODE (U"sounds\\#  = ##selected\\# # (\"Sound\")")
 CODE (U"\\#  Median pitches of all selected sounds:")
-CODE (U"#for i to n")
-	CODE1 (U"#selectObject: sound [i]")
+CODE (U"#for i to size (sounds\\# )")
+	CODE1 (U"#selectObject: sounds\\#  [i]")
 	CODE1 (U"To Pitch: 0.0, 75, 600")
 	CODE1 (U"f0 = Get quantile: 0, 0, 0.50, \"Hertz\"")
 	CODE1 (U"appendInfoLine: f0")
 	CODE1 (U"Remove")
 CODE (U"#endfor")
 CODE (U"\\#  Restore selection:")
-CODE (U"#selectObject ( )   ; deselect all objects")
-CODE (U"#for i from 1 to n")
-	CODE1 (U"#plusObject: sound [i]")
-CODE (U"#endfor")
+CODE (U"#selectObject (sounds\\# )")
 MAN_END
 
 MAN_BEGIN (U"Scripting 5. Language elements reference", U"ppgb", 20170718)
@@ -2455,7 +2490,7 @@ if left$ (fileName$) <> "/"
 endif
 */
 
-MAN_BEGIN (U"Scripting 5.2. Expressions", U"ppgb", 20140111)
+MAN_BEGIN (U"Scripting 5.2. Expressions", U"ppgb", 20180721)
 INTRO (U"In a Praat script, you can use numeric expressions as well as string expressions.")
 ENTRY (U"Numeric expressions")
 NORMAL (U"You can use a large variety of @@Formulas@ in your script:")
@@ -2478,10 +2513,6 @@ CODE (U"Draw line: 0, if answer\\$  = \"yes\" then 20 else 30 fi, 0, 100")
 NORMAL (U"You can use numeric and string variables and formulas in string arguments to commands:")
 CODE (U"Text top: \"yes\", \"Hi \" + addressee\\$  + \"!\"")
 CODE (U"Text top: \"yes\", left\\$  (fileName\\$ , index (fileName\\$ , \".\") - 1)")
-NORMAL (U"The two examples from the end of @@Scripting 3.5. String queries|\\SS3.5@ could be abbreviated as the one-liners")
-CODE (U"writeInfoLine: do\\$  (\"Get power...\", 0.0, 0.0)")
-NORMAL (U"and")
-CODE (U"writeInfoLine: do (\"Get power...\", 0.0, 0.0)")
 ENTRY (U"Assignments from query commands")
 NORMAL (U"On how to get information from commands that normally write to the Info window, "
 	"see @@Scripting 6.3. Query commands@.")
@@ -2815,7 +2846,7 @@ NORMAL (U"You can use any number of array and dictionary variables in a script, 
 	"or to use Matrix or Sound objects.")
 MAN_END
 
-MAN_BEGIN (U"Scripting 5.7. Vectors and matrices", U"ppgb", 20170916)
+MAN_BEGIN (U"Scripting 5.7. Vectors and matrices", U"ppgb", 20180426)
 ENTRY (U"1. What is a vector?")
 NORMAL (U"A ##numeric vector# is an array of numbers, regarded as a single object. "
 	"For instance, the squares of the first five integers can be collected in the vector { 1, 4, 9, 16, 25 }. "
@@ -2882,10 +2913,10 @@ CODE (U"center (squares\\# )")
 NORMAL (U"which gives 4.090909090909091 (for a vector with five elements, the result will always be "
 	"a number between 1.0 and 5.0). You compute the ##inner product# of two equally long vectors as follows:")
 CODE (U"other\\#  = { 2, 1.5, 1, 0.5, 0 }")
-CODE (U"result\\#  = inner (squares\\# , other\\# )")
+CODE (U"result = inner (squares\\# , other\\# )")
 NORMAL (U"which gives 1*2 + 4*1.5 + 9*1 + 16*0.5 + 25*0 = 25. "
 	"The formula for this is \\su__%i=1_^5 squares[i] * other[i], so that an alternative piece of code could be")
-CODE (U"result\\#  = sumOver (i to 5, squares\\#  [i] * other\\#  [i])")
+CODE (U"result = sumOver (i to 5, squares\\#  [i] * other\\#  [i])")
 ENTRY (U"4. Converting vectors to vectors")
 CODE (U"a\\#  = squares\\#  + 5   ; adding a number to each element of a vector")
 NORMAL (U"causes a\\#  to become the vector { 6, 9, 14, 21, 30 }.")
@@ -3511,13 +3542,13 @@ CODE (U"")
 CODE (U"writeInfoLine: \"She: \"\"\", first_text\\$ , \"\"\"\"")
 CODE (U"appendInfoLine: \"He: \"\"\", second_text\\$ , \"\"\"\"")
 CODE (U"")
-CODE (U"synth1 = Create SpeechSynthesizer: \"English\", \"f1\"")
+CODE (U"synth1 = Create SpeechSynthesizer: \"English (Great Britain)\", \"Female1\"")
 CODE (U"Play text: first_text\\$ ")
 CODE (U"Create Sound as pure tone: \"beep\", 1, 0.0, beep_duration,")
 CODE (U"... 44100, 440, 0.2, 0.01, 0.01")
 CODE (U"Play")
 CODE (U"Remove")
-CODE (U"synth2 = Create SpeechSynthesizer: \"English\", \"m1\"")
+CODE (U"synth2 = Create SpeechSynthesizer: \"English (America)\", \"Male1\"")
 CODE (U"Play text: second_text\\$ ")
 NORMAL (U"When you run this script from within Praat, it writes two lines to the Info window "
 	"and plays first a female voice speaking the first sentence, then a beep, and then a male voice "

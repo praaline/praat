@@ -2,7 +2,7 @@
 #define _NUM2_h_
 /* NUM2.h
  *
- * Copyright (C) 1997-2017 David Weenink
+ * Copyright (C) 1997-2018 David Weenink
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,18 +30,11 @@
 /* machine precision */
 #define NUMeps 2.2e-16
 
-int NUMstrcmp (const char *s1, const char *s2);
-/*
-	Compares strings, accepts NUL-strings (NULL < 'a')
-	return s1 == NULL ? (s2 == NULL ? 0 : - 1) :
-		(s2 == NULL ? 1 : strcmp (s1, s2));
-*/
+bool NUMstring_containsPrintableCharacter (conststring32 s);
 
-int NUMstring_containsPrintableCharacter (const char32 *s);
+void NUMstring_chopWhiteSpaceAtExtremes_inplace (mutablestring32 string);
 
-void NUMstring_chopWhiteSpaceAtExtremes_inline (char32 *string);
-
-real * NUMstring_to_numbers (const char32 *s, integer *numbers_found);
+double * NUMstring_to_numbers (conststring32 s, integer *numbers_found);
 /* return array with the number of numbers found */
 
 /*
@@ -49,40 +42,24 @@ real * NUMstring_to_numbers (const char32 *s, integer *numbers_found);
  * 1, 4, 2, 3, 4, 5, 6, 7, 4, 3, 3, 4, 5, 4, 3, 2
  * Overlap is allowed. Ranges can go up and down.
  */
-integer *NUMstring_getElementsOfRanges (const char32 *ranges, integer maximumElement, integer *numberOfElements, integer *numberOfMultiples, const char32 *elementType, bool sortedUniques);
+integer *NUMstring_getElementsOfRanges (conststring32 ranges, integer maximumElement,
+	integer *numberOfElements, integer *numberOfMultiples, conststring32 elementType, bool sortedUniques);
 
 char32 * NUMstring_timeNoDot (double time);
 
-int NUMstrings_equal (const char32 **s1, const char32 **s2, integer lo, integer hi);
-
-void NUMstrings_copyElements (char32 **from, char32**to, integer lo, integer hi);
-
-void NUMstrings_free (char32 **s, integer lo, integer hi);
-
-int NUMstrings_setSequentialNumbering (char32 **s, integer lo, integer hi, const char32 *precursor, integer number, integer increment, int asArray);
-/*
-	Set s[lo]   = precursor<number>
-	    s[lo+1] = precursor<number+1>
-		...
-		s[hi]   = precursor<number+hi-lo>
-*/
-
-char32 **NUMstrings_copy (char32 **from, integer lo, integer hi);
-
-regexp *NUMregexp_compile (const char32 *regexp);
+regexp *NUMregexp_compile (conststring32 regexp);
 /* Compiles a regular expression to a datastructure used by the regexp engine */
 
-
-char32 *strstr_regexp (const char32 *string, const char32 *search_regexp);
+char32 *strstr_regexp (conststring32 string, conststring32 search_regexp);
 /*
 	Returns a pointer to the first occurrence in 'string' of the
 	regular expression 'searchRE'. It returns a null pointer if
 	no match is found.
 */
 
-char32 **strs_replace (char32 **from, integer lo, integer hi, const char32 *search,
-	const char32 *replace, int maximumNumberOfReplaces, integer *nmatches,
-	integer *nstringmatches, int use_regexp);
+autostring32vector string32vector_searchAndReplace (string32vector me,
+	conststring32 search, conststring32 replace, int maximumNumberOfReplaces,
+	integer *nmatches, integer *nstringmatches, bool use_regexp);
 /*
 	Searches and replaces in string array of strings.
 	If use_regexp != 0, 'search' and 'replace' will be interpreted
@@ -96,37 +73,37 @@ char32 **strs_replace (char32 **from, integer lo, integer hi, const char32 *sear
 	'nstringmatches'.
 */
 
-char32 *str_replace_literal (const char32 *string, const char32 *search,
-	const char32 *replace, integer maximumNumberOfReplaces, integer *nmatches);
+autostring32 str_replace_literal (conststring32 string, conststring32 search,
+	conststring32 replace, integer maximumNumberOfReplaces, integer *nmatches);
 /*
 	Search and replace in 'string'.
 	The maximum number of replaces is limited by 'maximumNumberOfReplaces'.
 */
 
-char32 *str_replace_regexp (const char32 *string, regexp *search_compiled,
-	const char32 *replace_regexp, integer maximumNumberOfReplaces, integer *nmatches);
+autostring32 str_replace_regexp (conststring32 string, regexp *search_compiled,
+	conststring32 replace_regexp, integer maximumNumberOfReplaces, integer *nmatches);
 /*
 	Searches and replaces 'maximumNumberOfReplaces' times in 'string' on
 	the basis of regular expressions (RE).
 	If maximumNumberOfReplaces <= 0 the interpreted 'replaceRE' replaces
 	ALL occurrences.
 	'search_regexp' is an efficient representation of the search RE and
-	is the result of the compileRE-function which must be called first before
+	is the result of the compileRE-function which should be called first before
 	calling this routine.
 	The number of matches found is returned in 'nmatches'.
 */
 
 
-void NUMdmatrix_printMatlabForm (double **m, integer nr, integer nc, const char32 *name);
+void NUMdmatrix_printMatlabForm (double **m, integer nr, integer nc, conststring32 name);
 /*
 	Print a matrix in a form that can be used as input for octave/matlab.
-	                      1 2 3
-	Let A be the matrix:  4 5 6
-				          7 8 9
+							1 2 3
+	Let A be the matrix:	4 5 6
+							7 8 9
 	The output from NUMdmatrix_printAsOctaveForm (A, 3, 3, "M") will be
-	M=[1, 2, 3;
-	4, 5, 6;
-	7, 8, 9];
+	M=[	1, 2, 3;
+		4, 5, 6;
+		7, 8, 9 ];
 */
 
 bool NUMdmatrix_containsUndefinedElements (double **m, integer row1, integer row2, integer col1, integer col2);
@@ -143,20 +120,20 @@ double **NUMdmatrix_transpose (double **m, integer nr, integer nc);
 
 /*  NUMvector_extrema
  * Function:
- *     compute minimum and maximum values of array v[lo..hi].
+ *	 compute minimum and maximum values of array v[lo..hi].
  * Precondition:
- *     lo and hi must be valid indices in the array.
+ *	 lo and hi should be valid indices in the array.
 */
 template <class T>
 void NUMvector_extrema (T *v, integer lo, integer hi, double *p_min, double *p_max) {
-    T min = v[lo];
-    T max = min;
-    for (integer i = lo + 1; i <= hi; i++)
-    {
-        if (v[i] < min) min = v[i];
-        else if (v[i] > max) max = v[i];
-    }
-    if (p_min) {
+	T min = v[lo];
+	T max = min;
+	for (integer i = lo + 1; i <= hi; i++)
+	{
+		if (v[i] < min) min = v[i];
+		else if (v[i] > max) max = v[i];
+	}
+	if (p_min) {
 		*p_min = min;
 	}
 	if (p_max) {
@@ -166,15 +143,15 @@ void NUMvector_extrema (T *v, integer lo, integer hi, double *p_min, double *p_m
 
 template <class T>
 void NUMmatrix_extrema (T **x, integer rb, integer re, integer cb, integer ce, double *p_min, double *p_max) {
-    T min = x[rb][cb], max = min;
-    for (integer i = rb; i <= re; i++) {
-        for (integer j = cb; j <= ce; j++) {
-            T t = x[i][j];
-            if (t < min) min = t;
-            else if (t > max) max = t;
-        }
-    }
-    if (p_min) {
+	T min = x[rb][cb], max = min;
+	for (integer i = rb; i <= re; i++) {
+		for (integer j = cb; j <= ce; j++) {
+			T t = x[i] [j];
+			if (t < min) min = t;
+			else if (t > max) max = t;
+		}
+	}
+	if (p_min) {
 		*p_min = min;
 	}
 	if (p_max) {
@@ -182,31 +159,36 @@ void NUMmatrix_extrema (T **x, integer rb, integer re, integer cb, integer ce, d
 	}
 }
 
-
+template <class T>
+double NUMmatrix_extremum (T **x, integer rb, integer re, integer cb, integer ce) {
+	double min, max;
+	NUMmatrix_extrema (x, rb, re, cb, ce, & min, & max);
+	return fabs (max) > fabs (min) ? max : min;
+}
 
 /* NUMvector_clip
-    Clip array values.
-    c[i] = c[i] < min ? min : (c[i] > max ? max : c[i])
+	Clip array values.
+	c[i] = c[i] < min ? min : (c[i] > max ? max : c[i])
 */
 template <class T>
 void NUMvector_clip (T *v, integer lo, integer hi, double min, double max) {
-    for (integer i = lo; i <= hi; i++)
-    {
-        if (v[i] < min) v[i] = min;
-        else if (v[i] > max) v[i] = max;
-    }
+	for (integer i = lo; i <= hi; i++)
+	{
+		if (v[i] < min) v[i] = min;
+		else if (v[i] > max) v[i] = max;
+	}
 }
 
 template<class T>
 T ** NUMmatrix_transpose (T **m, integer nr, integer nc) {
-    autoNUMmatrix<T> to (1, nc, 1, nr);
+	autoNUMmatrix<T> to (1, nc, 1, nr);
 
-    for (integer i = 1; i <= nr; i++) {
-        for (integer j = 1; j <= nc; j++) {
-            to[j][i] = m[i][j];
-        }
-    }
-    return to.transfer();
+	for (integer i = 1; i <= nr; i++) {
+		for (integer j = 1; j <= nc; j++) {
+			to[j][i] = m[i][j];
+		}
+	}
+	return to.transfer();
 }
 
 double NUMvector_normalize1 (double v[], integer n);
@@ -245,12 +227,6 @@ void NUMnormalize (double **a, integer nr, integer nc, double norm);
 	Scale all elements of the matrix [1..nr][1..nc] such that
 	(sqrt(Sum( a[i][j]^2, i=1..nr, j=1..nc)) becomes equal to norm.
 */
-
-void NUMstandardizeColumns (double **a, integer rb, integer re, integer cb, integer ce);
-/* a[i][j] = (a[i][j] - average[j]) / sigma[j] */
-
-void NUMstandardizeRows (double **a, integer rb, integer re, integer cb, integer ce);
-/* a[i][j] = (a[i][j] - average[i]) / sigma[i] */
 
 void NUMaverageColumns (double **a, integer rb, integer re, integer cb, integer ce);
 /* a[i][j] = average[j]) */
@@ -303,85 +279,85 @@ void NUMmonotoneRegression (const double x[], integer n, double xs[]);
 
 
 /* NUMsort2:
-    NUMsort2 uses heapsort to sort the second array in parallel with the first one.
+	NUMsort2 uses heapsort to sort the second array in parallel with the first one.
 
-    Algorithm follows p. 145 and 642 in:
-    Donald E. Knuth (1998): The art of computer programming. Third edition. Vol. 3: sorting and searching.
-        Boston: Addison-Wesley, printed may 2002.
-    Modification: there is no distinction between record and key and
-        Floyd's optimization (page 642) is used.
-    Sorts (inplace) an array a[1..n] into ascending order using the Heapsort algorithm,
-    while making the corresponding rearrangement of the companion
-    array b[1..n]. A characteristic of heapsort is that it does not conserve
-    the order of equals: e.g., the array 3,1,1,2 will be sorted as 1,1,2,3.
-    It may occur that a_sorted[1] = a_presorted[2] and a_sorted[2] = a_presorted[1]
+	Algorithm follows p. 145 and 642 in:
+	Donald E. Knuth (1998): The art of computer programming. Third edition. Vol. 3: sorting and searching.
+		Boston: Addison-Wesley, printed may 2002.
+	Modification: there is no distinction between record and key and
+		Floyd's optimization (page 642) is used.
+	Sorts (inplace) an array a[1..n] into ascending order using the Heapsort algorithm,
+	while making the corresponding rearrangement of the companion
+	array b[1..n]. A characteristic of heapsort is that it does not conserve
+	the order of equals: e.g., the array 3,1,1,2 will be sorted as 1,1,2,3.
+	It may occur that a_sorted[1] = a_presorted[2] and a_sorted[2] = a_presorted[1]
 */
 template<class T1, class T2>
 void NUMsort2 (integer n, T1 *a, T2 *b) {
-    integer l, r, j, i, imin;
-    T1 k, min;
-    T2 kb, min2;
-    if (n < 2) {
-        return;   /* Already sorted. */
-    }
-    if (n == 2) {
-        if (a[1] > a[2]) {
-            min = a[2]; a[2] = a[1]; a[1] = min;
-            min2 = b[2]; b[2] = b[1]; b[1] = min2;
-        }
-        return;
-    }
-    if (n <= 12) {
-        for (i = 1; i < n; i++) {
-            min = a[i];
-            imin = i;
-            for (j = i + 1; j <= n; j++) {
-                if (a[j] < min) {
-                    min = a [j];
-                    imin = j;
-                }
-            }
-            a[imin] = a[i]; a[i] = min;
-            min2 = b[imin]; b[imin] = b[i]; b[i] = min2;
-        }
-        return;
-    }
-    /* H1 */
-    l = (n >> 1) + 1;
-    r = n;
-    for (;;) {
-        if (l > 1) {
-            l--;
-            k = a[l]; kb = b[l];
-        } else /* l == 1 */ {
-            k = a[r]; kb = b[r];
-            a[r] = a[1]; b[r] = b[1];
-            r--;
-            if (r == 1) {
-                a[1] = k; b[1] = kb; return;
-            }
-        }
-        /* H3 */
-        j = l;
-        for (;;) { /* H4 */
-            i = j;
-            j = j << 1;
-            if (j > r) break;
-            if (j < r && a[j] < a[j + 1]) j++; /* H5 */
-            /* if (k >= a[j]) break; H6 */
-            a[i] = a[j]; b[i] = b[j]; /* H7 */
-        }
-        /* a[i] = k; b[i] = kb; H8 */
-        for (;;) { /*H8' */
-            j = i;
-            i = j >> 1;
-            /* H9' */
-            if (j == l || k <= a[i]) {
-                a[j] = k; b[j] = kb; break;
-            }
-            a[j] = a[i]; b[j] = b[i];
-        }
-    }
+	integer l, r, j, i, imin;
+	T1 k, min;
+	T2 kb, min2;
+	if (n < 2) {
+		return;   /* Already sorted. */
+	}
+	if (n == 2) {
+		if (a [1] > a [2]) {
+			min = a [2]; a [2] = a [1]; a [1] = min;
+			min2 = b [2]; b [2] = b [1]; b [1] = min2;
+		}
+		return;
+	}
+	if (n <= 12) {
+		for (i = 1; i < n; i ++) {
+			min = a [i];
+			imin = i;
+			for (j = i + 1; j <= n; j ++) {
+				if (a [j] < min) {
+					min = a [j];
+					imin = j;
+				}
+			}
+			a [imin] = a [i]; a [i] = min;
+			min2 = b [imin]; b [imin] = b [i]; b [i] = min2;
+		}
+		return;
+	}
+	/* H1 */
+	l = (n >> 1) + 1;
+	r = n;
+	for (;;) {
+		if (l > 1) {
+			l --;
+			k = a [l]; kb = b [l];
+		} else /* l == 1 */ {
+			k = a [r]; kb = b [r];
+			a [r] = a [1]; b [r] = b [1];
+			r --;
+			if (r == 1) {
+				a [1] = k; b [1] = kb; return;
+			}
+		}
+		/* H3 */
+		j = l;
+		for (;;) { /* H4 */
+			i = j;
+			j = j << 1;
+			if (j > r) break;
+			if (j < r && a [j] < a [j + 1]) j ++; /* H5 */
+			/* if (k >= a[j]) break; H6 */
+			a [i] = a [j]; b [i] = b [j]; /* H7 */
+		}
+		/* a[i] = k; b[i] = kb; H8 */
+		for (;;) { /*H8' */
+			j = i;
+			i = j >> 1;
+			/* H9' */
+			if (j == l || k <= a [i]) {
+				a [j] = k; b [j] = kb; break;
+			}
+			a [j] = a [i]; b [j] = b [i];
+		}
+	}
 }
 
 void NUMindexx (const double a[], integer n, integer indx[]);
@@ -389,7 +365,7 @@ void NUMindexx_s (char32 *a[], integer n, integer indx[]);
 /*
 	Indexes the array a[1..n], i.e., outputs the array indx[1..n] such that
 	a[ indx[i] ] is in ascending order for i=1..n;
-	No preservation of order amoung equals (see NUMsort2_...)
+	No preservation of order among equals (see NUMsort2_...)
 */
 
 
@@ -400,27 +376,19 @@ void NUMindexx_s (char32 *a[], integer n, integer indx[]);
  */
 template <class T>
 void NUMrank (integer n, T *a) {
-    integer jt, j = 1;
-    while (j < n) {
-        for (jt = j + 1; jt <= n && a[jt] == a[j]; jt++) {}
-        T rank = (j + jt - 1) * 0.5;
-        for (integer i = j; i <= jt - 1; i++) {
-            a[i] = rank;
-        }
-        j = jt;
-    }
-    if (j == n) a[n] = n;
+	integer jt, j = 1;
+	while (j < n) {
+		for (jt = j + 1; jt <= n && a[jt] == a[j]; jt++) {}
+		T rank = (j + jt - 1) * 0.5;
+		for (integer i = j; i <= jt - 1; i++) {
+			a[i] = rank;
+		}
+		j = jt;
+	}
+	if (j == n) a[n] = n;
 }
 
 void NUMrankColumns (double **m, integer rb, integer re, integer cb, integer ce);
-
-void NUMlocate (double *xx, integer n, double x, integer *index);
-/*
-	Given an array xx[1..n], and given a value x, returns a value index
-	such that xx[index] < x <=  xx[index+1].
-	Preconditions: xx must be monotonic
-	Error: index = 0 or index = n (out of range)
-*/
 
 int NUMjacobi (float **a, integer n, float d[], float **v, integer *nrot);
 /*
@@ -508,7 +476,7 @@ void NUMcholeskySolve (double **a, integer n, double d[], double b[], double x[]
 	Solves A.x=b for x. A[][] and d[] are output from NUMcholeskyDecomposition.
 */
 
-void NUMlowerCholeskyInverse (double **a, integer n, double *lnd);
+void NUMlowerCholeskyInverse (double **a, integer n, double *p_lnd);
 /*
 	Calculates L^-1, where A = L.L' is a symmetric positive definite matrix
 	and ln(determinant). L^-1 in lower, leave upper part intact.
@@ -520,7 +488,7 @@ double **NUMinverseFromLowerCholesky (double **m, integer n);
 	Input is the lower Cholesky decomposition of the inverse as calculated by NUMlowerCholeskyInverse.
 */
 
-void NUMdeterminant_cholesky (double **a, integer n, double *lnd);
+double NUMdeterminant_cholesky (double **a, integer n);
 /*
 	ln(determinant) of a symmetric p.s.d. matrix
 */
@@ -648,7 +616,6 @@ void NUMsolveEquation (double **a, integer nr, integer nc, double *b, double tol
 	a & b are destroyed during the computation.
 	Algorithm: s.v.d.
 */
-void NUMsolveEquation2 (double **a, long nr, long nc, double *b, double fractionOfSumOfEigenvalues, double *result);
 
 void NUMsolveEquations (double **a, integer nr, integer nc, double **b, integer ncb, double tol, double **x);
 /*
@@ -725,8 +692,7 @@ double NUMridders (double (*f) (double x, void *closure), double xmin, double xm
 		root not bracketed.
 */
 
-void NUMmspline (double knot[], integer nKnots, integer order, integer i, double x,
-	double *y);
+double NUMmspline (double knot[], integer nKnots, integer order, integer i, double x);
 /*
 	Calculates an M-spline for a knot sequence.
 	After Ramsay (1988), Monotone splines in action, Statistical Science 4.
@@ -738,8 +704,7 @@ void NUMmspline (double knot[], integer nKnots, integer order, integer i, double
 	Error condition: no memory.
 */
 
-void NUMispline (double aknot[], integer nKnots, integer order, integer i, double x,
-	double *y);
+double NUMispline (double aknot[], integer nKnots, integer order, integer i, double x);
 /*
 	Calculates an I-spline for simple knot sequences: only one knot at each
 	interior boundary.
@@ -846,9 +811,9 @@ double NUMinvFisherQ (double p, double df1, double df2);
 */
 
 double NUMtukeyQ (double q, double cc, double df, double rr);
-/*    Computes the probability that the maximum of rr studentized
- *    ranges, each based on cc means and with df degrees of freedom
- *    for the standard error, is larger than q.
+/*	Computes the probability that the maximum of rr studentized
+ *	ranges, each based on cc means and with df degrees of freedom
+ *	for the standard error, is larger than q.
  */
 
 double NUMinvTukeyQ (double p, double cc, double df, double rr);
@@ -927,8 +892,8 @@ double NUMhertzToBark_schroeder (double hz);
 
 double NUMbladonlindblomfilter_amplitude (double zc, double z);
 /*
-    Amplitude of filter at dz (barks) from centre frequency.
-    dz may be positive and negative.
+	Amplitude of filter at dz (barks) from centre frequency.
+	dz may be positive and negative.
 
 	The bladonlindblomfilter function is:
 
@@ -943,8 +908,8 @@ double NUMbladonlindblomfilter_amplitude (double zc, double z);
 
 double NUMsekeyhansonfilter_amplitude (double zc, double z);
 /*
-    Amplitude of filter at dz (barks) from centre frequency.
-    dz may be positive and negative.
+	Amplitude of filter at dz (barks) from centre frequency.
+	dz may be positive and negative.
 
 	The sekeyhansonfilter function is:
 	z' = zc - z - 0.215
@@ -964,9 +929,9 @@ double NUMtriangularfilter_amplitude (double fl, double fc, double fh,
 	calculation.
 	The filter function is
 
-	         (f-fl)/(fc-fl)  fl < f < fc
+			 (f-fl)/(fc-fl)  fl < f < fc
 	H(z) =   (fh-f)/(fh-fc)  fc < f < fh
-	         0               otherwise
+			 0			   otherwise
 	Preconditions:
 		0 < fl < fh
  */
@@ -1018,7 +983,7 @@ double **NUMcosinesTable (integer first, integer last, integer npoints);
 
 /******  Interpolation ****/
 
-void NUMspline (double x[], double y[], integer n, double yp1, double ypn, double y2[]);
+void NUMcubicSplineInterpolation_getSecondDerivatives (double x[], double y[], integer n, double yp1, double ypn, double y2[]);
 /*
 	Given arrays a[1..n] and y[1..n] containing a tabulated function, i.e.,
 	y[i] = f(x[i]), with x[1] < x[2] < ... < x[n], and given values yp1 and
@@ -1026,19 +991,25 @@ void NUMspline (double x[], double y[], integer n, double yp1, double ypn, doubl
 	1 and n, respectively, this routine returns an array y2[1..n] that
 	contains the second derivative of the interpolating function at the
 	tabulated point x.
-	If yp1 and/or ypn are greaterequal 10^30, the routine is signaled to
-	set the corresponding boundary condition for a natuarl spline, with
+	If yp1 and/or ypn are >= 10^30, the routine is signaled to
+	set the corresponding boundary condition for a natural spline, with
 	zero second derivative on that boundary.
 */
 
-void NUMsplint (double xa[], double ya[], double y2a[], integer n, double x, double *y);
+double NUMcubicSplineInterpolation (double xa[], double ya[], double y2a[], integer n, double x);
 /*
 	Given arrays xa[1..n] and ya[1..n] containing a tabulated function,
 	i.e., y[i] = f(x[i]), with x[1] < x[2] < ... < x[n], and given the
-	array y2a[1..n] which is the output of NUMspline above, and given
+	array y2a[1..n] which is the output of NUMcubicSplineInterpolation_getSecondDerivatives above, and given
 	a value of x, this routine returns an interpolated value y.
 */
+void NUMbiharmonic2DSplineInterpolation_getWeights (double *x, double *y, double *z, integer numberOfPoints, double *weights);
+/*
+	Input: x[1..numberOfPoints], y[1..numberOfPoints], (xp,yp)
+	Output: interpolated result
+*/
 
+double NUMbiharmonic2DSplineInterpolation (double *x, double *y, integer numberOfPoints, double *weights, double xp, double yp);
 /* Biharmonic spline interpolation based on Green's function.
 	. Given z[i] values at points (x[i],y[i]) for i=1..n, 
 	Get value at new point (px,py).
@@ -1053,13 +1024,6 @@ void NUMsplint (double xa[], double ya[], double y2a[], integer n, double x, dou
 	D. Sandwell (1987), Biharmonic spline interpolation of GEOS-3 and SEASAT altimetr data, Geophysical Research Letters 14, 139--142
 	X. Deng & Z. Tang (2011), Moving surface spline interpolation based on Green's function, Math. Geosci 43: 663--680
 */
-void NUMbiharmonic2DSplineInterpolation_getWeights (double *x, double *y, double *z, integer numberOfPoints, double *weights);
-
-/*
-	Input: x[1..numberOfPoints], y[1..numberOfPoints], (xp,yp)
-	Output: interpolated result
-*/
-double NUMbiharmonic2DSplineInterpolation (double *x, double *y, integer numberOfPoints, double *weights, double xp, double yp);
 
 
 double NUMsincpi (const double x);
@@ -1164,15 +1128,15 @@ void NUMfft_Table_init (NUMfft_Table table, integer n);
 */
 
 struct autoNUMfft_Table : public structNUMfft_Table {
-        autoNUMfft_Table () throw () {
-                n = 0;
-                trigcache = 0;
-                splitcache = 0;
-        }
-        ~autoNUMfft_Table () {
-                NUMvector_free (trigcache, 0);
-                NUMvector_free (splitcache, 0);
-        }
+	autoNUMfft_Table () throw () {
+		n = 0;
+		trigcache = 0;
+		splitcache = 0;
+	}
+	~autoNUMfft_Table () {
+		NUMvector_free (trigcache, 0);
+		NUMvector_free (splitcache, 0);
+	}
 };
 
 void NUMfft_forward (NUMfft_Table table, double *data);
@@ -1193,39 +1157,32 @@ void NUMfft_forward (NUMfft_Table table, double *data);
 
 	data  r(1) = the sum from i=1 to i=n of r(i)
 
-        If l =(int) (n+1)/2
+		If l =(int) (n+1)/2
 
-          then for k = 2,...,l
+		then for k = 2,...,l
 
-             r(2*k-2) = the sum from i = 1 to i = n of
+			r(2*k-2) = the sum from i = 1 to i = n of r(i)*cos((k-1)*(i-1)*2*pi/n)
 
-                  r(i)*cos((k-1)*(i-1)*2*pi/n)
+			r(2*k-1) = the sum from i = 1 to i = n of -r(i)*sin((k-1)*(i-1)*2*pi/n)
 
-             r(2*k-1) = the sum from i = 1 to i = n of
+		if n is even
 
-                 -r(i)*sin((k-1)*(i-1)*2*pi/n)
-
-        if n is even
-
-             r(n) = the sum from i = 1 to i = n of
-
-                  (-1)**(i-1)*r(i)
+			 r(n) = the sum from i = 1 to i = n of (-1)**(i-1)*r(i)
 
 		i.e., the ordering of the output array will be for n even
 			r(1),(r(2),i(2)),(r(3),i(3)),...,(r(l-1),i(l-1)),r(l).
 		Or ...., (r(l),i(l)) for n uneven.
 
  *****  note
-             this transform is unnormalized since a call of NUMfft_forward
-             followed by a call of NUMfft_backward will multiply the input
-             sequence by n.
+	this transform is unnormalized since a call of NUMfft_forward
+	followed by a call of NUMfft_backward will multiply the input sequence by n.
 */
 
 void NUMfft_backward (NUMfft_Table table, double *data);
 /*
 	Function:
 		Calculates the inverse transform of a complex array if it is the transform of real data.
-		(Result in this case must be multiplied by 1/n.)
+		(Result in this case should be multiplied by 1/n.)
 	Preconditions:
 		n is an integer power of 2.
 		data != NULL;
@@ -1237,28 +1194,24 @@ void NUMfft_backward (NUMfft_Table table, double *data);
 
 	Output parameters
 
-	data       for n even and for i = 1,...,n
+	data	 for n even and for i = 1,...,n
 
-             r(i) = r(1)+(-1)**(i-1)*r(n)
+			 r(i) = r(1)+(-1)**(i-1)*r(n)
 
-                  plus the sum from k=2 to k=n/2 of
+				plus the sum from k=2 to k=n/2 of
 
-                   2.*r(2*k-2)*cos((k-1)*(i-1)*2*pi/n)
+				2.0*r(2*k-2)*cos((k-1)*(i-1)*2*pi/n) -2.0*r(2*k-1)*sin((k-1)*(i-1)*2*pi/n)
 
-                  -2.*r(2*k-1)*sin((k-1)*(i-1)*2*pi/n)
+		for n odd and for i = 1,...,n
 
-        for n odd and for i = 1,...,n
+			 r(i) = r(1) plus the sum from k=2 to k=(n+1)/2 of
 
-             r(i) = r(1) plus the sum from k=2 to k=(n+1)/2 of
-
-                  2.*r(2*k-2)*cos((k-1)*(i-1)*2*pi/n)
-
-                 -2.*r(2*k-1)*sin((k-1)*(i-1)*2*pi/n)
+				2.0*r(2*k-2)*cos((k-1)*(i-1)*2*pi/n) -2.0*r(2*k-1)*sin((k-1)*(i-1)*2*pi/n)
 
  *****  note
-             this transform is unnormalized since a call of NUMfft_forward
-             followed by a call of NUMfft_backward will multiply the input
-             sequence by n.
+	this transform is unnormalized since a call of NUMfft_forward
+	followed by a call of NUMfft_backward will multiply the input
+	sequence by n.
 */
 
 /**** Compatibility with NR fft's */
@@ -1281,7 +1234,7 @@ void NUMreverseRealFastFourierTransform (double  *data, integer n);
 /*
 	Function:
 		Calculates the inverse transform of a complex array if it is the transform of real data.
-		(Result in this case must be multiplied by 1/n.)
+		(Result in this case should be multiplied by 1/n.)
 	Preconditions:
 		n is an integer power of 2.
 		data != NULL;
@@ -1304,12 +1257,12 @@ void NUMlineFit (double *x, double *y, integer numberOfPoints, double *m, double
 void NUMlineFit_theil (double *x, double *y, integer numberOfPoints, double *m, double *intercept, bool incompleteMethod);
 /*
  * Preconditions:
- *		all x[i] must be different, i.e. x[i] != x[j] for all i = 1..(numberOfPoints - 1), j = (i+1) ..numberOfPoints
+ *		all x[i] should be different, i.e. x[i] != x[j] for all i = 1..(numberOfPoints - 1), j = (i+1) ..numberOfPoints
  * Algorithm:
  * Theils robust line fit method:
  * 1. Use all combination of pairs (x[i],y[i]), (x[j],y[j]) to calculate an intercept m[k] as
- *    m[k] = (y[j] - y[i]) / (x[j] - x[i]).
- *    There will be (numberOfPoints - 1) * numberOfPoints / 2 numbers m[k].
+ *	m[k] = (y[j] - y[i]) / (x[j] - x[i]).
+ *	There will be (numberOfPoints - 1) * numberOfPoints / 2 numbers m[k].
  * 2. Take the median value m of all the m[k].
  * 3. Calculate the numberOfPoints intercepts b[i] as b[i] = y[i] - m * x[i]
  * 4. Take the median value b of all the b[i] values
@@ -1326,7 +1279,7 @@ void NUMlineFit_LS (double *x, double *y, integer numberOfPoints, double *m, dou
 /* The binomial distribution has the form,
 
    f(x) =  n!/(x!(n-x)!) * p^x (1-p)^(n-x) for integer 0 <= x <= n
-        =  0                               otherwise
+		=  0							   otherwise
 
    This implementation follows the public domain ranlib function
    "ignbin", the bulk of which is the BTPE (Binomial Triangle
@@ -1380,5 +1333,10 @@ void NUMlpc_area_to_lpc (double *area, integer n, double *lpc);
 
 // lpc[1..n] to area[1..n+1], area[m+1] = 0.0001; (1 cm^2)
 void NUMlpc_lpc_to_area (double *lpc, integer m, double *area);
+
+/*
+ Fix indices to be in the range [lowerLimit, upperLimit].
+*/
+void NUMfixIndicesInRange (integer lowerLimit, integer upperLimit, integer *lowIndex, integer *highIndex);
 
 #endif // _NUM2_h_

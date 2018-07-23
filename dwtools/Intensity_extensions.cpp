@@ -1,6 +1,6 @@
 /* Intensity_extensions.cpp
  *
- * Copyright (C) 2007-2011 David Weenink, 2015,2017 Paul Boersma
+ * Copyright (C) 2007-2017 David Weenink, 2015,2017 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,10 +26,9 @@
 #include "Intensity_extensions.h"
 #include "TextGrid_extensions.h"
 
-static void IntervalTier_addBoundaryUnsorted (IntervalTier me, long iinterval, double time, const char32 *leftLabel) {
-	if (time <= my xmin || time >= my xmax) {
+static void IntervalTier_addBoundaryUnsorted (IntervalTier me, integer iinterval, double time, conststring32 leftLabel) {
+	if (time <= my xmin || time >= my xmax)
 		Melder_throw (U"Time is outside interval.");
-	}
 
 	/*
 		Find interval to split.
@@ -49,13 +48,14 @@ static void IntervalTier_addBoundaryUnsorted (IntervalTier me, long iinterval, d
 	my intervals. addItem_unsorted_move (ti_new.move());
 }
 
-autoTextGrid Intensity_to_TextGrid_detectSilences (Intensity me, double silenceThreshold_dB, double minSilenceDuration, double minSoundingDuration, const char32 *silenceLabel, const char32 *soundingLabel) {
+autoTextGrid Intensity_to_TextGrid_detectSilences (Intensity me,
+	double silenceThreshold_dB, double minSilenceDuration, double minSoundingDuration,
+	conststring32 silenceLabel, conststring32 soundingLabel)
+{
 	try {
 		double duration = my xmax - my xmin, time;
 
-		if (silenceThreshold_dB >= 0.0) {
-			Melder_throw (U"The silence threshold w.r.t. the maximum intensity should be a negative number.");
-		}
+		Melder_require (silenceThreshold_dB < 0.0, U"The silence threshold w.r.t. the maximum intensity should be a negative number.");
 
 		autoTextGrid thee = TextGrid_create (my xmin, my xmax, U"silences", U"");
 		IntervalTier it = (IntervalTier) thy tiers->at [1];
@@ -79,9 +79,9 @@ autoTextGrid Intensity_to_TextGrid_detectSilences (Intensity me, double silenceT
 		}
 
 		bool inSilenceInterval = my z [1] [1] < intensityThreshold;
-		long iinterval = 1;
-		const char32 *label;
-		for (long i = 2; i <= my nx; i ++) {
+		integer iinterval = 1;
+		conststring32 label;
+		for (integer i = 2; i <= my nx; i ++) {
 			bool addBoundary = false;
 			if (my z [1] [i] < intensityThreshold) {
 				if (! inSilenceInterval) {   // start of silence
@@ -100,7 +100,7 @@ autoTextGrid Intensity_to_TextGrid_detectSilences (Intensity me, double silenceT
 			if (addBoundary) {
 				time = my x1 + (i - 1) * my dx;
 				IntervalTier_addBoundaryUnsorted (it, iinterval, time, label);
-				iinterval++;
+				iinterval ++;
 			}
 		}
 
@@ -131,10 +131,10 @@ autoTextGrid Intensity_to_TextGrid_detectSilences (Intensity me, double silenceT
 
 autoIntensity IntensityTier_to_Intensity (IntensityTier me, double dt) {
 	try {
-		integer nt = Melder_iroundDown ((my xmax - my xmin) / dt);
+		integer nt = Melder_ifloor ((my xmax - my xmin) / dt);
 		double t1 = 0.5 * dt;
 		autoIntensity thee = Intensity_create (my xmin, my xmax, nt, dt, t1);
-		for (long i = 1; i <= nt; i ++) {
+		for (integer i = 1; i <= nt; i ++) {
 			double time = t1 + (i - 1) * dt;
 			thy z [1] [i] = RealTier_getValueAtTime (me, time);
 		}
@@ -145,7 +145,7 @@ autoIntensity IntensityTier_to_Intensity (IntensityTier me, double dt) {
 }
 
 autoTextGrid IntensityTier_to_TextGrid_detectSilences (IntensityTier me, double dt, double silenceThreshold_dB, double minSilenceDuration,
-	double minSoundingDuration, const char32 *silenceLabel, const char32 *soundingLabel)
+	double minSoundingDuration, conststring32 silenceLabel, conststring32 soundingLabel)
 {
 	try {
 		autoIntensity intensity = IntensityTier_to_Intensity (me, dt);

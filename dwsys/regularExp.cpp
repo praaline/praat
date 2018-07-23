@@ -22,7 +22,7 @@
  * | 2. The origin of this software must not be misrepresented, either |
  * |      by explicit claim or by omission.                            |
  * |                                                                   |
- * | 3. Altered versions must be plainly marked as such, and must not  |
+ * | 3. Altered versions should be plainly marked as such, and must not  |
  * |      be misrepresented as being the original software.            |
  * `-------------------------------------------------------------------'
  *
@@ -76,19 +76,16 @@
  *    of the string iso. matching till \0), and fixed several (probably
  *    very old) string overrun errors that could easily result in crashes,
  *    especially in client code.
- */
-/* Adapted by David Weenink for use in the Praat program.
- * The following (minimal) changes have been made:
  *
- * djmw 20060620 updated from version 1.12 to 1.25
- *		Changed reg_error to call Melder_error
- *      #include "melder.h"
- * 		Added #ifdef __MACH__ ... #endif for MacOS 10.3
- *  djmw 20061218 To Melder_information<x> format
- *  djmw 20070614 updated from version 1.25 to 1.30
- *  djmw 20080110 Extra parameter for SubstituteRE to allow error differentiation (not enough memory can be repaired upstream).
- *                Changed Melder_information in reg_error to Melder_error.
- * djmw 20101119 Changed NULL to '\0' in makeDelimiterTable
+ * June, 2008, David Weenink
+ *    Adaptation for use in the Praat program.
+ *    Changed reg_error to call Melder_error.
+ *    Extra parameter for SubstituteRE to allow error differentiation
+ *    (not enough memory can be repaired upstream).
+ *
+ * April, 2018, Paul Boersma
+ *    Added Unicode-based definitions of letters, digits, spaces and word boundaries.
+ *    Thereby removed shortcut escapes from classes.
  */
 
 #include <ctype.h>
@@ -259,29 +256,28 @@
    NOT_WORD_CHAR
       Operand(s): None
 
-      Implements shortcut escapes \d, \D, \l, \L, \s, \S, \w, \W.  The locale
-      aware ANSI functions isdigit(), isalpha(), isalnun(), and isspace() are
+      Implements shortcut escapes \d, \D, \l, \L, \s, \S, \w, \W.
+      The Unicode-aware functions Melder_isDecimalNumber(), Melder_isLetter(),
+      Melder_isHorizontalSpace(), and Melder_isWordCharacter are
       used to implement these in the hopes of increasing portability.
 
    NOT_BOUNDARY
       Operand(s): None
 
       Implements \B as a zero width assertion that the current character is
-      NOT on a word boundary.  Word boundaries are defined to be the position
-      between two characters where one of those characters is one of the
-      dynamically defined word delimiters, and the other character is not.
+      NOT on a word boundary. Word boundaries are defined to be the position
+      between two characters where one of those characters is
+      a Unicode word character and the other character is not.
 
    IS_DELIM
       Operand(s): None
 
-      Implements \y as any character that is one of the dynamically
-      specified word delimiters.
+      Implements \y as any character that is a Unicode word delimiter.
 
    NOT_DELIM
       Operand(s): None
 
-      Implements \Y as any character that is NOT one of the dynamically
-      specified word delimiters.
+      Implements \Y as any character that is NOT a Unicode word delimiter.
 
    STAR, PLUS, QUESTION, and complex '*', '+', and '?'
       Operand(s): None (Note: NEXT pointer is usually zero.  The code that
@@ -435,16 +431,8 @@
 /* Flags for function shortcut_escape() */
 
 #define CHECK_ESCAPE       0  /* Check an escape sequence for validity only. */
-#define CHECK_CLASS_ESCAPE 1  /* Check the validity of an escape within a
-character class */
-#define EMIT_CLASS_BYTES   2  /* Emit equivalent character class bytes,
-	e.g \d=0123456789 */
-#define EMIT_NODE          3  /* Emit the appropriate node. */
-
-       /* Array sizes for arrays used by function init_ansi_classes. */
-
-#define WHITE_SPACE_SIZE   16
-#define ALNUM_CHAR_SIZE   256
+#define CHECK_CLASS_ESCAPE 1  /* Check the validity of an escape within a character class */
+#define EMIT_NODE          2  /* Emit the appropriate node. */
 
        /* Number of bytes to offset from the beginning of the regex program to the start
           of the actual compiled regex code, i.e. skipping over the MAGIC number and
@@ -478,14 +466,6 @@ static const char32         **Error_Ptr;       /* Place to store error messages 
                                           they can be returned by `CompileRE' */
 static char32           Error_Text [128];/* Sting to build error messages in. */
 
-static char32  White_Space [WHITE_SPACE_SIZE]; /* Arrays used by       */
-static char32  Word_Char   [ALNUM_CHAR_SIZE];  /* functions            */
-static char32  Letter_Char [ALNUM_CHAR_SIZE];  /* init_ansi_classes () */
-/* and
-   shortcut_escape ().  */
-
-static char32  ASCII_Digits [] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '\0' }; /* Same for all */
-/* locales.     */
 static int            Is_Case_Insensitive;
 static int            Match_Newline;
 
@@ -520,8 +500,6 @@ static char32 *piece (int *flag_param, len_range *range_param);
 static void tail (char32 *search_from, char32 *point_t);
 static char32 *shortcut_escape (char32 c, int *flag_param, int emit);
 
-static int             init_ansi_classes ();
-
 /*----------------------------------------------------------------------*
  * CompileRE
  *
@@ -537,8 +515,8 @@ static int             init_ansi_classes ();
  * some of the structure of the compiled regexp.
  *----------------------------------------------------------------------*/
 
-regexp *CompileRE_throwable (const char32 *exp, int defaultFlags) {
-	const char32 *compileMessage;
+regexp *CompileRE_throwable (conststring32 exp, int defaultFlags) {
+	conststring32 compileMessage;
 	regexp *compiledRE = CompileRE (exp, & compileMessage, defaultFlags);
 	if (compiledRE == NULL) {
 		Melder_throw (U"Regular expression: ", compileMessage, U".");
@@ -546,7 +524,7 @@ regexp *CompileRE_throwable (const char32 *exp, int defaultFlags) {
 	return compiledRE;
 }
 
-regexp *CompileRE (const char32 *exp, const char32 **errorText, int defaultFlags) {
+regexp *CompileRE (conststring32 exp, conststring32 *errorText, int defaultFlags) {
 
 	regexp *comp_regex = NULL;
 	char32 *scan;
@@ -570,12 +548,6 @@ regexp *CompileRE (const char32 *exp, const char32 **errorText, int defaultFlags
 		REG_FAIL (U"NULL argument, `CompileRE\'");
 	}
 
-	/* Initialize arrays used by function `shortcut_escape'. */
-
-	if (!init_ansi_classes ()) {
-		REG_FAIL (U"internal error #1, `CompileRE\'");
-	}
-
 	Code_Emit_Ptr = &Compute_Size;
 	Reg_Size      = 0UL;
 
@@ -586,7 +558,7 @@ regexp *CompileRE (const char32 *exp, const char32 **errorText, int defaultFlags
 	   This also means that we don't allocate space until we are sure that the
 	   thing really will compile successfully, and we never have to move the
 	   code and thus invalidate pointers into it.  (Note that it has to be in
-	   one piece because free() must be able to free it all.) */
+	   one piece because free() should be able to free it all.) */
 
 	for (pass = 1; pass <= 2; pass++) {
 		/*-------------------------------------------*
@@ -841,7 +813,7 @@ static char32 *chunk (int paren, int *flag_param, len_range *range_param) {
 		}
 	}
 
-	/* For look ahead/behind, the length must be set to zero again */
+	/* For look ahead/behind, the length should be set to zero again */
 	if (look_only) {
 		range_param->lower = 0;
 		range_param->upper = 0;
@@ -1009,7 +981,7 @@ static char32 *piece (int *flag_param, len_range *range_param) {
 			   value for max and min of 65,535 is due to using 2 bytes to store
 			   each value in the compiled regex code. */
 
-			while (isdigit ((int) *Reg_Parse)) {
+			while (Melder_isAsciiDecimalNumber (*Reg_Parse)) {
 				/* (6553 * 10 + 6) > 65535 (16 bit max) */
 
 				if ( (min_max [i] == 6553UL && (*Reg_Parse - '0') <= 5) ||
@@ -1668,8 +1640,6 @@ static char32 *atom (int *flag_param, len_range *range_param) {
 			break;
 
 		case '[': {
-			unsigned int  second_value;
-			unsigned int  last_value;
 			char32 last_emit = 0;
 
 			/* Handle characters that can only occur at the start of a class. */
@@ -1720,7 +1690,7 @@ static char32 *atom (int *flag_param, len_range *range_param) {
 						   already emitted the first character of the class, we do
 						   not want to emit it again. */
 
-						second_value = ( (unsigned int) last_emit) + 1;
+						char32 second_value = last_emit + 1, last_value;
 
 						if (*Reg_Parse == '\\') {
 							/* Handle escaped characters within a class range.
@@ -1732,19 +1702,15 @@ static char32 *atom (int *flag_param, len_range *range_param) {
 
 							Reg_Parse++;
 
-							if ( (test = numeric_escape (*Reg_Parse, &Reg_Parse))) {
-								last_value = (unsigned int) test;
-							} else if ( (test = literal_escape (*Reg_Parse))) {
-								last_value = (unsigned int) test;
-							} else if (shortcut_escape (*Reg_Parse,
-							                            NULL,
-							                            CHECK_CLASS_ESCAPE)) {
+							if ((test = numeric_escape (*Reg_Parse, &Reg_Parse)) != U'\0') {
+								last_value = test;
+							} else if ((test = literal_escape (*Reg_Parse)) != U'\0') {
+								last_value = test;
+							} else if (shortcut_escape (*Reg_Parse, NULL, CHECK_CLASS_ESCAPE)) {
 								Melder_sprint (Error_Text, 128, U"\\", *Reg_Parse, U" is not allowed as range operand");
-
 								REG_FAIL (Error_Text);
 							} else {
 								Melder_sprint (Error_Text, 128, U"\\", *Reg_Parse, U" is an invalid char class escape sequence");
-
 								REG_FAIL (Error_Text);
 							}
 						} else {
@@ -1752,10 +1718,8 @@ static char32 *atom (int *flag_param, len_range *range_param) {
 						}
 
 						if (Is_Case_Insensitive) {
-							second_value =
-							    (unsigned int) tolower ( (int) second_value);
-							last_value =
-							    (unsigned int) tolower ( (int) last_value);
+							second_value = Melder_toLowerCase (second_value);   // TODO: this should do casefolding
+							last_value = Melder_toLowerCase (last_value);
 						}
 
 						/* For case insensitive, something like [A-_] will
@@ -1804,7 +1768,7 @@ static char32 *atom (int *flag_param, len_range *range_param) {
 							/* Emit the bytes that are part of the shortcut
 							   escape sequence's range (e.g. \d = 0123456789) */
 
-							shortcut_escape (*Reg_Parse, NULL, EMIT_CLASS_BYTES);
+							Melder_sprint (Error_Text,128, U"Cannot have escape sequences such as \\", *Reg_Parse, U" inside a class");
 						}
 					} else {
 						Melder_sprint (Error_Text,128, U"\\", *Reg_Parse, U" is an invalid char class escape sequence");
@@ -1910,7 +1874,7 @@ static char32 *atom (int *flag_param, len_range *range_param) {
 
 						if ( (test = numeric_escape (*Reg_Parse, &Reg_Parse))) {
 							if (Is_Case_Insensitive) {
-								emit_byte (tolower ((int) test));
+								emit_byte (Melder_toLowerCase (test));
 							} else {
 								emit_byte (test);
 							}
@@ -1940,7 +1904,7 @@ static char32 *atom (int *flag_param, len_range *range_param) {
 						/* Ordinary character */
 
 						if (Is_Case_Insensitive) {
-							emit_byte (tolower ((int) *Reg_Parse));
+							emit_byte (Melder_toLowerCase (*Reg_Parse));
 						} else {
 							emit_byte (*Reg_Parse);
 						}
@@ -2046,15 +2010,15 @@ static void emit_class_byte (char32 c) {
 	if (Code_Emit_Ptr == &Compute_Size) {
 		Reg_Size++;
 
-		if (Is_Case_Insensitive && iswalpha ((int) c)) {
+		if (Is_Case_Insensitive && Melder_isLetter (c)) {
 			Reg_Size++;
 		}
-	} else if (Is_Case_Insensitive && iswalpha ((int) c)) {
+	} else if (Is_Case_Insensitive && Melder_isLetter (c)) {
 		/* For case insensitive character classes, emit both upper and lower case
 		   versions of alphabetical characters. */
 
-		*Code_Emit_Ptr++ = tolower32 (c);
-		*Code_Emit_Ptr++ = toupper32 (c);
+		*Code_Emit_Ptr++ = Melder_toLowerCase (c);
+		*Code_Emit_Ptr++ = Melder_toUpperCase (c);
 	} else {
 		*Code_Emit_Ptr++ = c;
 	}
@@ -2262,8 +2226,8 @@ static void branch_tail (char32 *ptr, int offset, char32 *val) {
  *    \l     Letters                 [a-zA-Z]        |  at left
  *    \L     NOT a Letter            [^a-zA-Z]       |    are
  *    \s     Whitespace              [ \t\n\r\f\v]   |    for
- *    \S     NOT Whitespace          [^ \t\n\r\f\v]  |     C
- *    \w     "Word" character        [a-zA-Z0-9_]    |   Locale)
+ *    \S     NOT Whitespace          [^ \t\n\r\f\v]  |   ASCII)
+ *    \w     "Word" character        [a-zA-Z0-9_]    |
  *    \W     NOT a "Word" character  [^a-zA-Z0-9_]  _|
  *
  *    \B     Matches any character that is NOT a word-delimiter
@@ -2274,11 +2238,6 @@ static void branch_tail (char32 *ptr, int offset, char32 *val) {
  *       Emit a shortcut node.  Shortcut nodes have an implied set of
  *       class characters.  This helps keep the compiled regex string
  *       small.
- *
- *    EMIT_CLASS_BYTES
- *       Emit just the equivalent characters of the class.  This makes
- *       the escape usable from within a class, e.g. [a-fA-F\d].  Only
- *       \d, \D, \s, \S, \w, and \W can be used within a class.
  *
  *    CHECK_ESCAPE
  *       Only verify that this is a valid shortcut escape.
@@ -2295,12 +2254,12 @@ static char32 *shortcut_escape (
     int            emit) {
 
 	char32 *klas   = NULL;
-	static const char32 *codes = U"ByYdDlLsSwW";
+	static const conststring32 codes = U"ByYwWdDlLsS";
 	char32 *ret_val = (char32 *) 1; /* Assume success. */
-	const char32 *valid_codes;
+	conststring32 valid_codes;
 
-	if (emit == EMIT_CLASS_BYTES || emit == CHECK_CLASS_ESCAPE) {
-		valid_codes = codes + 3; /* \B, \y and \Y are not allowed in classes */
+	if (emit == CHECK_CLASS_ESCAPE) {
+		valid_codes = codes + 5; /* \B, \y, \Y, \w and \W are not allowed in classes */
 	} else {
 		valid_codes = codes;
 	}
@@ -2314,30 +2273,21 @@ static char32 *shortcut_escape (
 	switch (c) {
 		case 'd':
 		case 'D':
-			if (emit == EMIT_CLASS_BYTES) {
-				klas = ASCII_Digits;
-			} else if (emit == EMIT_NODE) {
+			if (emit == EMIT_NODE) {
 				ret_val = (iswlower ((int) c) ? emit_node (DIGIT) : emit_node (NOT_DIGIT));
 			}
 			break;
 
 		case 'l':
 		case 'L':
-			if (emit == EMIT_CLASS_BYTES) {
-				klas = Letter_Char;
-			} else if (emit == EMIT_NODE) {
+			if (emit == EMIT_NODE) {
 				ret_val = (iswlower ((int) c) ? emit_node (LETTER) : emit_node (NOT_LETTER));
 			}
 			break;
 
 		case 's':
 		case 'S':
-			if (emit == EMIT_CLASS_BYTES) {
-				if (Match_Newline) {
-					emit_byte ('\n');
-				}
-				klas = White_Space;
-			} else if (emit == EMIT_NODE) {
+			if (emit == EMIT_NODE) {
 				if (Match_Newline) {
 					ret_val = (iswlower ((int) c) ? emit_node (SPACE_NL) : emit_node (NOT_SPACE_NL));
 				} else {
@@ -2348,10 +2298,10 @@ static char32 *shortcut_escape (
 
 		case 'w':
 		case 'W':
-			if (emit == EMIT_CLASS_BYTES) {
-				klas = Word_Char;
-			} else if (emit == EMIT_NODE) {
+			if (emit == EMIT_NODE) {
 				ret_val = (iswlower ((int) c) ? emit_node (WORD_CHAR) : emit_node (NOT_WORD_CHAR));
+			} else {
+				REG_FAIL (U"internal error #105 `shortcut_escape\'");
 			}
 			break;
 
@@ -2441,22 +2391,20 @@ static char32 numeric_escape (
 	int   i, pos;
 
 	switch (c) {
-		case '0':
+		case U'0':
 			digit_str = digits + pos_delta; /* Only use Octal digits, i.e. 0-7. */
-
 			break;
 
-		case 'x':
-		case 'X':
+		case U'x':
+		case U'X':
 			width     =  2;     /* Can not be bigger than \0377 */
 			radix     = 16;
 			pos_delta =  0;
 			digit_str = digits; /* Use all of the digit characters. */
-
 			break;
 
 		default:
-			return ('\0'); /* Not a numeric escape */
+			return U'\0'; /* Not a numeric escape */
 	}
 
 	scan = *parse; scan++; /* Only change *parse on success. */
@@ -2528,19 +2476,13 @@ static char32 literal_escape (char32 c) {
 
 	static char32 value [] = {
 		'\a',  '\b',
-#ifdef EBCDIC_CHARSET
-		0x27,  /* Escape character in IBM's EBCDIC character set. */
-#else
-		0x1B,  /* Escape character in ASCII character set. */
-#endif
+		0x1B,  /* Escape character in Unicode character set. */
 		'\f',  '\n',  '\r',  '\t',  '\v',  '(',    ')',   '-',   '[',   ']',
 		'<',   '>',   '{',   '}',   '.',   '\\',   '|',   '^',   '$',   '*',
 		'+',   '?',   '&',   '\0'
 	};
 
-	int i;
-
-	for (i = 0; valid_escape [i] != '\0'; i++) {
+	for (int i = 0; valid_escape [i] != '\0'; i++) {
 		if (c == valid_escape [i]) {
 			return value [i];
 		}
@@ -2581,7 +2523,7 @@ static char32 *back_ref (
 
 	paren_no = (int) (* (c + c_offset) - (char32) ('0'));
 
-	if (!iswdigit ((int) * (c + c_offset)) || /* Only \1, \2, ... \9 are supported.  */
+	if (! Melder_isAsciiDecimalNumber (* (c + c_offset)) || /* Only \1, \2, ... \9 are supported.  */
 	        paren_no == 0) {              /* Should be caught by numeric_escape. */
 
 		return NULL;
@@ -2674,34 +2616,24 @@ typedef struct brace_counts {
 
 static struct brace_counts *Brace;
 
-/* Default table for determining whether a character is a word delimiter. */
-
-static char32 Default_Delimiters [UCHAR_MAX] = {0};
-
-static char32 *Current_Delimiters;  /* Current delimiter table */
-
 /* Forward declarations of functions used by `ExecRE' */
 
 static int             attempt (regexp *, char32 *);
 static int             match (char32 *, int *);
 static unsigned long   greedy (char32 *, long);
 static void            adjustcase (char32 *, int, char32);
-static char32 *        makeDelimiterTable (const char32 *, char32 *);
 
 /*
  * ExecRE - match a `regexp' structure against a string
  *
  * If `end' is non-NULL, matches may not BEGIN past end, but may extend past
- * it.  If reverse is true, `end' must be specified, and searching begins at
+ * it.  If reverse is true, `end' should be specified, and searching begins at
  * `end'.  "isbol" should be set to true if the beginning of the string is the
  * actual beginning of a line (since `ExecRE' can't look backwards from the
  * beginning to find whether there was a newline before).  Likewise, "isbow"
  * asks whether the string is preceded by a word delimiter.  End of string is
  * always treated as a word and line boundary (there may be cases where it
- * shouldn't be, in which case, this should be changed).  "delimit" (if
- * non-null) specifies a null-terminated string of characters to be considered
- * word delimiters matching "<" and ">".  if "delimit" is NULL, the default
- * delimiters (as set in SetREDefaultWordDelimiters) are used.
+ * shouldn't be, in which case, this should be changed).
  * Look_behind_to indicates the position till where it is safe to
  * perform look-behind matches. If set, it should be smaller than or equal
  * to the start position of the search (pointed at by string). If it is NULL,
@@ -2709,7 +2641,7 @@ static char32 *        makeDelimiterTable (const char32 *, char32 *);
  * Finally, match_to indicates the logical end of the string, till where
  * matches are allowed to extend. Note that look-ahead patterns may look
  * past that boundary. If match_to is set to NULL, the terminating \0 is
- * assumed to correspond to the logical boundary. Match_to, if set, must be
+ * assumed to correspond to the logical boundary. Match_to, if set, should be
  * larger than or equal to end, if set.
  */
 
@@ -2721,7 +2653,7 @@ int ExecRE (
     int     reverse,
     char32    prev_char,
     char32    succ_char,
-    const char32   *delimiters,
+    const char32   *delimiters_dummy,   // ignored; a fixed set of Unicode delimiters is always used
     const char32   *look_behind_to,
     const char32   *match_to) {
 
@@ -2729,7 +2661,6 @@ int ExecRE (
 	char32 **s_ptr;
 	char32 **e_ptr;
 	int    ret_val = 0;
-	char32 tempDelimitTable [256];
 	int    i;
 	(void) cross_regex_backref;
 
@@ -2750,14 +2681,6 @@ int ExecRE (
 		goto SINGLE_RETURN;
 	}
 
-	/* If caller has supplied delimiters, make a delimiter table */
-
-	if (delimiters == NULL) {
-		Current_Delimiters = Default_Delimiters;
-	} else {
-		Current_Delimiters = makeDelimiterTable (delimiters, tempDelimitTable);
-	}
-
 	/* Remember the logical end of the string. */
 
 	End_Of_String = match_to;
@@ -2771,12 +2694,6 @@ int ExecRE (
 		succ_char = '\n';
 	}
 
-	/* Initialize arrays used by shortcut_escape. */
-
-	if (!init_ansi_classes ()) {
-		goto SINGLE_RETURN;
-	}
-
 	/* Remember the beginning of the string for matching BOL */
 
 	Start_Of_String    = string;
@@ -2784,8 +2701,8 @@ int ExecRE (
 
 	Prev_Is_BOL        = ( (prev_char == '\n') || (prev_char == '\0') ? 1 : 0);
 	Succ_Is_EOL        = ( (succ_char == '\n') || (succ_char == '\0') ? 1 : 0);
-	Prev_Is_Delim      = (Current_Delimiters [prev_char] ? 1 : 0);
-	Succ_Is_Delim      = (Current_Delimiters [succ_char] ? 1 : 0);
+	Prev_Is_Delim      = ! Melder_isWordCharacter (prev_char);
+	Succ_Is_Delim      = ! Melder_isWordCharacter (succ_char);
 
 	Total_Paren        = (int) (prog->program [1]);
 	Num_Braces         = (int) (prog->program [2]);
@@ -2945,66 +2862,6 @@ SINGLE_RETURN: if (Brace) {
 	return (ret_val);
 }
 
-/*--------------------------------------------------------------------*
- * init_ansi_classes
- *
- * Generate character class sets using locale aware ANSI C functions.
- *
- *--------------------------------------------------------------------*/
-
-static int init_ansi_classes () {
-
-	static int initialized = 0;
-	static int underscore = (int) '_';
-	int i, word_count, letter_count, space_count;
-
-	if (!initialized) {
-		initialized  = 1; /* Only need to generate character sets once. */
-		word_count   = 0;
-		letter_count = 0;
-		space_count  = 0;
-
-		for (i = 1; i < (int) UCHAR_MAX; i++) {
-			if (isalnum (i) || i == underscore) {
-				Word_Char [word_count++] = (char32) i;
-			}
-
-			if (isalpha (i)) {
-				Letter_Char [letter_count++] = (char32) i;
-			}
-
-			/* Note: Whether or not newline is considered to be whitespace is
-			   handled by switches within the original regex and is thus omitted
-			   here. */
-
-			if (isspace (i) && (i != (int) '\n')) {
-				White_Space [space_count++] = (char32) i;
-			}
-
-			/* Make sure arrays are big enough.  ("- 2" because of zero array
-			   origin and we need to leave room for the NULL terminator.) */
-
-			if (word_count   > (ALNUM_CHAR_SIZE  - 2) ||
-			        space_count  > (WHITE_SPACE_SIZE - 2) ||
-			        letter_count > (ALNUM_CHAR_SIZE  - 2)) {
-
-				reg_error (U"internal error #9 `init_ansi_classes\'");
-				return (0);
-			}
-		}
-
-		Word_Char   [word_count]  = '\0';
-		Letter_Char [word_count]  = '\0';
-		White_Space [space_count] = '\0';
-	}
-
-	return (1);
-}
-
-/*----------------------------------------------------------------------*
- * attempt - try match at specific point, returns: 0 failure, 1 success
- *----------------------------------------------------------------------*/
-
 static int attempt (regexp *prog, char32 *string) {
 
 	int    i;
@@ -3149,10 +3006,8 @@ static int match (char32 *prog, int *branch_index_param) {
 				/* Note: the SIMILAR operand was converted to lower case during
 				   regex compile. */
 
-				while ( (test = *opnd++) != '\0') {
-					if (AT_END_OF_STRING (Reg_Input) ||
-					        tolower32 (*Reg_Input++) != test) {
-
+				while ((test = *opnd++) != U'\0') {
+					if (AT_END_OF_STRING (Reg_Input) || Melder_toLowerCase (*Reg_Input++) != test) {
 						MATCH_RETURN (0);
 					}
 				}
@@ -3186,14 +3041,14 @@ static int match (char32 *prog, int *branch_index_param) {
 				if (Reg_Input == Start_Of_String) {
 					prev_is_delim = Prev_Is_Delim;
 				} else {
-					prev_is_delim = Current_Delimiters [ * (Reg_Input - 1) ];
+					prev_is_delim = ! Melder_isWordCharacter (*(Reg_Input - 1));
 				}
 				if (prev_is_delim) {
 					int current_is_delim;
 					if (AT_END_OF_STRING (Reg_Input)) {
 						current_is_delim = Succ_Is_Delim;
 					} else {
-						current_is_delim = Current_Delimiters [ *Reg_Input ];
+						current_is_delim = ! Melder_isWordCharacter (*Reg_Input);
 					}
 					if (!current_is_delim) {
 						break;
@@ -3211,14 +3066,14 @@ static int match (char32 *prog, int *branch_index_param) {
 				if (Reg_Input == Start_Of_String) {
 					prev_is_delim = Prev_Is_Delim;
 				} else {
-					prev_is_delim = Current_Delimiters [ * (Reg_Input - 1) ];
+					prev_is_delim = ! Melder_isWordCharacter (*(Reg_Input - 1));
 				}
 				if (!prev_is_delim) {
 					int current_is_delim;
 					if (AT_END_OF_STRING (Reg_Input)) {
 						current_is_delim = Succ_Is_Delim;
 					} else {
-						current_is_delim = Current_Delimiters [ *Reg_Input ];
+						current_is_delim = ! Melder_isWordCharacter (*Reg_Input);
 					}
 					if (current_is_delim) {
 						break;
@@ -3234,12 +3089,12 @@ static int match (char32 *prog, int *branch_index_param) {
 				if (Reg_Input == Start_Of_String) {
 					prev_is_delim = Prev_Is_Delim;
 				} else {
-					prev_is_delim = Current_Delimiters [ * (Reg_Input - 1) ];
+					prev_is_delim = ! Melder_isWordCharacter (*(Reg_Input - 1));
 				}
 				if (AT_END_OF_STRING (Reg_Input)) {
 					current_is_delim = Succ_Is_Delim;
 				} else {
-					current_is_delim = Current_Delimiters [ *Reg_Input ];
+					current_is_delim = ! Melder_isWordCharacter (*Reg_Input);
 				}
 				if (! (prev_is_delim ^ current_is_delim)) {
 					break;
@@ -3249,118 +3104,87 @@ static int match (char32 *prog, int *branch_index_param) {
 			MATCH_RETURN (0);
 
 			case IS_DELIM: /* \y (A word delimiter character.) */
-				if (Current_Delimiters [ *Reg_Input ] &&
-				        !AT_END_OF_STRING (Reg_Input)) {
+				if (! Melder_isWordCharacter (*Reg_Input) && ! AT_END_OF_STRING (Reg_Input)) {
 					Reg_Input++; break;
 				}
-
 				MATCH_RETURN (0);
 
 			case NOT_DELIM: /* \Y (NOT a word delimiter character.) */
-				if (!Current_Delimiters [ *Reg_Input ] &&
-				        !AT_END_OF_STRING (Reg_Input)) {
+				if (Melder_isWordCharacter (*Reg_Input) && ! AT_END_OF_STRING (Reg_Input)) {
 					Reg_Input++; break;
 				}
-
 				MATCH_RETURN (0);
 
 			case WORD_CHAR: /* \w (word character; alpha-numeric or underscore) */
-				if ( (isalnum ( (int) *Reg_Input) || *Reg_Input == '_') &&
-				        !AT_END_OF_STRING (Reg_Input)) {
+				if (Melder_isWordCharacter (*Reg_Input) && ! AT_END_OF_STRING (Reg_Input)) {
 					Reg_Input++; break;
 				}
-
 				MATCH_RETURN (0);
 
 			case NOT_WORD_CHAR:/* \W (NOT a word character) */
-				if (isalnum ( (int) *Reg_Input) ||
-				        *Reg_Input == '_'          ||
-				        *Reg_Input == '\n'         ||
-				        AT_END_OF_STRING (Reg_Input)) {
+				if (Melder_isWordCharacter (*Reg_Input) || *Reg_Input == '\n' || AT_END_OF_STRING (Reg_Input)) {
 					MATCH_RETURN (0);
 				}
-
 				Reg_Input++; break;
 
 			case ANY: /* `.' (matches any character EXCEPT newline) */
 				if (AT_END_OF_STRING (Reg_Input) || *Reg_Input == '\n') {
 					MATCH_RETURN (0);
 				}
-
 				Reg_Input++; break;
 
 			case EVERY: /* `.' (matches any character INCLUDING newline) */
 				if (AT_END_OF_STRING (Reg_Input)) {
 					MATCH_RETURN (0);
 				}
-
 				Reg_Input++; break;
 
-			case DIGIT: /* \d, same as [0123456789] */
-				if (!isdigit ( (int) *Reg_Input) ||
-				        AT_END_OF_STRING (Reg_Input)) {
+			case DIGIT: /* \d; for ASCII, use [0-9] */
+				if (! Melder_isDecimalNumber (*Reg_Input) || AT_END_OF_STRING (Reg_Input)) {
 					MATCH_RETURN (0);
 				}
-
 				Reg_Input++; break;
 
-			case NOT_DIGIT: /* \D, same as [^0123456789] */
-				if (isdigit ( (int) *Reg_Input) ||
-				        *Reg_Input == '\n'         ||
-				        AT_END_OF_STRING (Reg_Input)) {
+			case NOT_DIGIT: /* \D; for ASCII, use [^0-9] */
+				if (Melder_isDecimalNumber (*Reg_Input) || *Reg_Input == '\n' || AT_END_OF_STRING (Reg_Input)) {
 					MATCH_RETURN (0);
 				}
-
 				Reg_Input++; break;
 
-			case LETTER: /* \l, same as [a-zA-Z] */
-				if (!isalpha ( (int) *Reg_Input) ||
-				        AT_END_OF_STRING (Reg_Input)) {
+			case LETTER: /* \l; for ASCII, use [a-zA-Z] */
+				if (! Melder_isLetter (*Reg_Input) || AT_END_OF_STRING (Reg_Input)) {
 					MATCH_RETURN (0);
 				}
-
 				Reg_Input++; break;
 
-			case NOT_LETTER: /* \L, same as [^0123456789] */
-				if (isalpha ( (int) *Reg_Input)  ||
-				        *Reg_Input == '\n' ||
-				        AT_END_OF_STRING (Reg_Input)) {
+			case NOT_LETTER: /* \L; for ASCII, use [^a-zA-Z] */
+				if (Melder_isLetter (*Reg_Input) || *Reg_Input == '\n' || AT_END_OF_STRING (Reg_Input)) {
 					MATCH_RETURN (0);
 				}
-
 				Reg_Input++; break;
 
-			case SPACE: /* \s, same as [ \t\r\f\v] */
-				if (!isspace ( (int) *Reg_Input) ||
-				        *Reg_Input == '\n'          ||
-				        AT_END_OF_STRING (Reg_Input)) {
+			case SPACE: /* \s; for ASCII, use [ \t] */
+				if (! Melder_isHorizontalSpace (*Reg_Input) || AT_END_OF_STRING (Reg_Input)) {
 					MATCH_RETURN (0);
 				}
-
 				Reg_Input++; break;
 
-			case SPACE_NL: /* \s, same as [\n \t\r\f\v] */
-				if (!isspace ( (int) *Reg_Input) ||
-				        AT_END_OF_STRING (Reg_Input)) {
+			case SPACE_NL: /* \s; for ASCII, use [\n \t\r\f\v] */
+				if (! Melder_isHorizontalOrVerticalSpace (*Reg_Input, kMelder_charset::UNICODE_) || AT_END_OF_STRING (Reg_Input)) {
 					MATCH_RETURN (0);
 				}
-
 				Reg_Input++; break;
 
-			case NOT_SPACE: /* \S, same as [^\n \t\r\f\v] */
-				if (isspace ( (int) *Reg_Input) ||
-				        AT_END_OF_STRING (Reg_Input)) {
+			case NOT_SPACE: /* \S; for ASCII, use [^\n \t\r\f\v] */
+				if (Melder_isHorizontalOrVerticalSpace (*Reg_Input, kMelder_charset::UNICODE_) || AT_END_OF_STRING (Reg_Input)) {
 					MATCH_RETURN (0);
 				}
-
 				Reg_Input++; break;
 
-			case NOT_SPACE_NL: /* \S, same as [^ \t\r\f\v] */
-				if ( (isspace ( (int) *Reg_Input) && *Reg_Input != '\n') ||
-				        AT_END_OF_STRING (Reg_Input)) {
+			case NOT_SPACE_NL: /* \S; for ASCII, use [^ \t\r\f\v] */
+				if (Melder_isHorizontalSpace (*Reg_Input) || AT_END_OF_STRING (Reg_Input)) {
 					MATCH_RETURN (0);
 				}
-
 				Reg_Input++; break;
 
 			case ANY_OF:  /* [...] character class. */
@@ -3373,7 +3197,6 @@ static int match (char32 *prog, int *branch_index_param) {
 				if (str32chr (OPERAND (scan), *Reg_Input) == NULL) {
 					MATCH_RETURN (0);
 				}
-
 				Reg_Input++; break;
 
 			case ANY_BUT: /* [^...] Negated character class-- does NOT normally
@@ -3383,11 +3206,9 @@ static int match (char32 *prog, int *branch_index_param) {
 				if (AT_END_OF_STRING (Reg_Input)) {
 					MATCH_RETURN (0);    /* See comment for ANY_OF. */
 				}
-
 				if (str32chr (OPERAND (scan), *Reg_Input) != NULL) {
 					MATCH_RETURN (0);
 				}
-
 				Reg_Input++; break;
 
 			case NOTHING:
@@ -3553,7 +3374,7 @@ static int match (char32 *prog, int *branch_index_param) {
 				finish   = Back_Ref_End   [paren_no];
 				/* } */
 
-				if ( (captured != NULL) && (finish != NULL)) {
+				if (captured && finish) {
 					if (captured > finish) {
 						MATCH_RETURN (0);
 					}
@@ -3562,20 +3383,17 @@ static int match (char32 *prog, int *branch_index_param) {
                      GET_OP_CODE (scan) == X_REGEX_BR_CI*/) {
 
 						while (captured < finish) {
-							if (AT_END_OF_STRING (Reg_Input) ||
-							        tolower (*captured++) != tolower (*Reg_Input++)) {
+							if (AT_END_OF_STRING (Reg_Input) || Melder_toLowerCase (*captured++) != Melder_toLowerCase (*Reg_Input++)) {   // TODO: should casefold
 								MATCH_RETURN (0);
 							}
 						}
 					} else {
 						while (captured < finish) {
-							if (AT_END_OF_STRING (Reg_Input) ||
-							        *captured++ != *Reg_Input++) {
+							if (AT_END_OF_STRING (Reg_Input) || *captured++ != *Reg_Input++) {
 								MATCH_RETURN (0);
 							}
 						}
 					}
-
 					break;
 				} else {
 					MATCH_RETURN (0);
@@ -3583,23 +3401,20 @@ static int match (char32 *prog, int *branch_index_param) {
 			}
 
 			case POS_AHEAD_OPEN:
-			case NEG_AHEAD_OPEN: {
-				char32 *save;
-				const char32 *saved_end;
-				int   answer;
-
-				save      = Reg_Input;
+			case NEG_AHEAD_OPEN:
+			{
+				char32 *save = Reg_Input;
 
 				/* Temporarily ignore the logical end of the string, to allow
 				   lookahead past the end. */
-				saved_end = End_Of_String;
+				const char32 *saved_end = End_Of_String;
 				End_Of_String = NULL;
 
-				answer    = match (next, NULL); /* Does the look-ahead regex match? */
+				int answer = match (next, NULL); /* Does the look-ahead regex match? */
 
 				CHECK_RECURSION_LIMIT
 
-				if ( (GET_OP_CODE (scan) == POS_AHEAD_OPEN) ? answer : !answer) {
+				if ( (GET_OP_CODE (scan) == POS_AHEAD_OPEN) ? answer : ! answer) {
 					/* Remember the last (most to the right) character position
 					   that we consume in the input for a successful match.  This
 					   is info that may be needed should an attempt be made to
@@ -3818,195 +3633,139 @@ static unsigned long greedy (char32 *p, long max) {
 	operand   = OPERAND (p); /* Literal char or start of class characters. */
 	max_cmp   = (max > 0) ? (unsigned long) max : ULONG_MAX;
 
-	switch (GET_OP_CODE (p)) {
-		case ANY:
-			/* Race to the end of the line or string. Dot DOESN'T match
-			   newline. */
-
-			while (count < max_cmp              &&
-			        *input_str != '\n'           &&
-			        !AT_END_OF_STRING (input_str)) {
-				count++; input_str++;
+	switch (GET_OP_CODE (p))
+	{
+		case ANY: /* Race to the end of the line or string. Dot DOESN'T match newline. */
+			while (count < max_cmp && *input_str != '\n' && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
-		case EVERY:
-			/* Race to the end of the line or string. Dot DOES match newline. */
-
-			while (count < max_cmp               &&
-			        !AT_END_OF_STRING (input_str)) {
-				count++; input_str++;
+		case EVERY: /* Race to the end of the line or string. Dot DOES match newline. */
+			while (count < max_cmp && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
 		case EXACTLY: /* Count occurrences of single character operand. */
-			while (count < max_cmp               &&
-			        *operand == *input_str        &&
-			        !AT_END_OF_STRING (input_str)) {
-				count++; input_str++;
+			while (count < max_cmp && *operand == *input_str && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
-		case SIMILAR: /* Case insensitive version of EXACTLY */
-			while (count < max_cmp                  &&
-			        *operand == tolower32 (*input_str) &&
-			        !AT_END_OF_STRING (input_str)) {
-				count++; input_str++;
+		case SIMILAR: /* Case-insensitive version of EXACTLY */
+			while (count < max_cmp && *operand == Melder_toLowerCase (*input_str) && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
 		case ANY_OF:  /* [...] character class. */
-			while (count < max_cmp                                      &&
-			        str32chr (operand, *input_str) != NULL  &&
-			        !AT_END_OF_STRING (input_str)) {
-
-				count++; input_str++;
+			while (count < max_cmp && str32chr (operand, *input_str) != NULL && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
 		case ANY_BUT: /* [^...] Negated character class- does NOT normally
                        match newline (\n added usually to operand at compile
                        time.) */
 
-			while (count < max_cmp                                      &&
-			        str32chr (operand, *input_str) == NULL  &&
-			        !AT_END_OF_STRING (input_str)) {
-
-				count++; input_str++;
+			while (count < max_cmp && str32chr (operand, *input_str) == NULL && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
 		case IS_DELIM: /* \y (not a word delimiter char)
                          NOTE: '\n' and '\0' are always word delimiters. */
 
-			while (count < max_cmp                   &&
-			        Current_Delimiters [ *input_str ] &&
-			        !AT_END_OF_STRING (input_str)) {
-				count++; input_str++;
+			while (count < max_cmp && ! Melder_isWordCharacter (*input_str) && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
 		case NOT_DELIM: /* \Y (not a word delimiter char)
                          NOTE: '\n' and '\0' are always word delimiters. */
 
-			while (count < max_cmp                    &&
-			        !Current_Delimiters [ *input_str ] &&
-			        !AT_END_OF_STRING (input_str)) {
-				count++; input_str++;
+			while (count < max_cmp && Melder_isWordCharacter (*input_str) && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
-		case WORD_CHAR: /* \w (word character, alpha-numeric or underscore) */
-			while (count < max_cmp                     &&
-			        (iswalnum ( (int) *input_str) ||
-			         *input_str == U'_') &&
-			        !AT_END_OF_STRING (input_str)) {
-
-				count++; input_str++;
+		case WORD_CHAR: /* \w (a word character: letter, number, mark or connector punctuation) */
+			while (count < max_cmp && Melder_isWordCharacter (*input_str) && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
-		case NOT_WORD_CHAR:/* \W (NOT a word character) */
-			while (count < max_cmp                      &&
-			        !iswalnum ( (int) *input_str)          &&
-			        *input_str != U'_'    &&
-			        *input_str != U'\n'   &&
-			        !AT_END_OF_STRING (input_str)) {
-
-				count++; input_str++;
+		case NOT_WORD_CHAR: /* \W (NOT a word character) */
+			while (count < max_cmp && ! Melder_isWordCharacter (*input_str) && *input_str != U'\n' && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
-		case DIGIT: /* same as [0123456789] */
-			while (count < max_cmp              &&
-			        isdigit ( (int) *input_str)   &&
-			        !AT_END_OF_STRING (input_str)) {
-				count++; input_str++;
+		case DIGIT: /* for ASCII, use [0-9] */
+			while (count < max_cmp && Melder_isDecimalNumber (*input_str) && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
-		case NOT_DIGIT: /* same as [^0123456789] */
-			while (count < max_cmp              &&
-			        !iswdigit ( (int) *input_str)  &&
-			        *input_str != U'\n'           &&
-			        !AT_END_OF_STRING (input_str)) {
-
-				count++; input_str++;
+		case NOT_DIGIT: /* for ASCII, use [^0-9] */
+			while (count < max_cmp && ! Melder_isDecimalNumber (*input_str) && *input_str != U'\n' && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
-		case SPACE: /* same as [ \t\r\f\v]-- doesn't match newline. */
-			while (count < max_cmp             &&
-			        iswspace ( (int) *input_str)  &&
-			        *input_str != U'\n'          &&
-			        !AT_END_OF_STRING (input_str)) {
-
-				count++; input_str++;
+		case SPACE: /* for ASCII, use [ \t\r\f\v]-- doesn't match newline. */
+			while (count < max_cmp && Melder_isHorizontalSpace (*input_str) && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
-		case SPACE_NL: /* same as [\n \t\r\f\v]-- matches newline. */
-			while (count < max_cmp             &&
-			        iswspace ( (int) *input_str)  &&
-			        !AT_END_OF_STRING (input_str)) {
-
-				count++; input_str++;
+		case SPACE_NL: /* for ASCII, use [\n \t\r\f\v]-- matches newline. */
+			while (count < max_cmp && Melder_isHorizontalOrVerticalSpace (*input_str, kMelder_charset::UNICODE_) && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
-		case NOT_SPACE: /* same as [^\n \t\r\f\v]-- doesn't match newline. */
-			while (count < max_cmp              &&
-			        !iswspace ( (int) *input_str)  &&
-			        !AT_END_OF_STRING (input_str)) {
-
-				count++; input_str++;
+		case NOT_SPACE: /* for ASCII, use [^\n \t\r\f\v]-- doesn't match newline. */
+			while (count < max_cmp && ! Melder_isHorizontalOrVerticalSpace (*input_str, kMelder_charset::UNICODE_) && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
-		case NOT_SPACE_NL: /* same as [^ \t\r\f\v]-- matches newline. */
-			while (count < max_cmp                                     &&
-			        (!iswspace ( (int) *input_str) || *input_str == '\n')  &&
-			        !AT_END_OF_STRING (input_str)) {
-
-				count++; input_str++;
+		case NOT_SPACE_NL: /* for ASCII, use [^ \t\r\f\v]-- matches newline. */
+			while (count < max_cmp && ! Melder_isHorizontalSpace (*input_str) && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
-		case LETTER: /* same as [a-zA-Z] */
-			while (count < max_cmp             &&
-			        iswalpha ( (int) *input_str)  &&
-			        !AT_END_OF_STRING (input_str)) {
-
-				count++; input_str++;
+		case LETTER: /* for ASCII, use [a-zA-Z] */
+			while (count < max_cmp && Melder_isLetter (*input_str) && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
-		case NOT_LETTER: /* same as [^a-zA-Z] */
-			while (count < max_cmp              &&
-			        !iswalpha ( (int) *input_str)  &&
-			        *input_str != '\n'           &&
-			        !AT_END_OF_STRING (input_str)) {
-
-				count++; input_str++;
+		case NOT_LETTER: /* for ASCII, use [^a-zA-Z] */
+			while (count < max_cmp && ! Melder_isLetter (*input_str) && *input_str != '\n' && ! AT_END_OF_STRING (input_str)) {
+				count ++;
+				input_str ++;
 			}
-
 			break;
 
 		default:
@@ -4060,7 +3819,7 @@ static char32 *next_ptr (char32 *ptr) {
 **  To give the caller a chance to react to this the function returns False
 **  on any error. The substitution will still be executed.
 */
-int SubstituteRE (const regexp *prog, const char32 *source, char32 *dest, int max, int *errorType) {
+int SubstituteRE (const regexp *prog, conststring32 source, char32 *dest, int max, int *errorType) {
 
 	const char32 *src;
 	const char32 *src_alias;
@@ -4070,20 +3829,20 @@ int SubstituteRE (const regexp *prog, const char32 *source, char32 *dest, int ma
 	int   paren_no;
 	int   len;
 	char32 chgcase;
-	int anyWarnings = FALSE;
+	bool anyWarnings = false;
 
 	*errorType = 0;
 	if (prog == NULL || source == NULL || dest == NULL) {
 		reg_error (U"NULL parm to `SubstituteRE\'");
 		*errorType = 2;
-		return FALSE;
+		return false;
 	}
 
 	if (U_CHAR_AT (prog->program) != MAGIC) {
 		*errorType = 3;
 		reg_error (U"damaged regexp passed to `SubstituteRE\'");
 
-		return FALSE;
+		return false;
 	}
 
 	src = source;
@@ -4094,7 +3853,7 @@ int SubstituteRE (const regexp *prog, const char32 *source, char32 *dest, int ma
 		paren_no = -1;
 
 		if (c == '\\') {
-			/* Process any case altering tokens, i.e \u, \U, \l, \L. */
+			/* Process any case-altering tokens, i.e \u, \U, \l, \L. */
 
 			if (*src == 'u' || *src == 'U' || *src == 'l' || *src == 'L') {
 				chgcase = *src;
@@ -4141,7 +3900,7 @@ int SubstituteRE (const regexp *prog, const char32 *source, char32 *dest, int ma
 			if ( (dst - dest) >= (max - 1)) {
 				*errorType = 1;
 				reg_error (U"replacing expression in `SubstituteRE\' too long; truncating");
-				anyWarnings = TRUE;
+				anyWarnings = true;
 				break;
 			} else {
 				*dst++ = c;
@@ -4154,7 +3913,7 @@ int SubstituteRE (const regexp *prog, const char32 *source, char32 *dest, int ma
 			if ( (dst + len - dest) >= max - 1) {
 				*errorType = 1;
 				reg_error (U"replacing expression in `SubstituteRE\' too long; truncating");
-				anyWarnings = TRUE;
+				anyWarnings = true;
 				len = max - (dst - dest) - 1;
 			}
 
@@ -4169,20 +3928,19 @@ int SubstituteRE (const regexp *prog, const char32 *source, char32 *dest, int ma
 			if (len != 0 && * (dst - 1) == '\0') { /* strncpy hit NUL. */
 				*errorType = 3;
 				reg_error (U"damaged match string in `SubstituteRE\'");
-				anyWarnings = TRUE;
+				anyWarnings = true;
 			}
 		}
 	}
 
 	*dst = '\0';
 
-	return !anyWarnings;
+	return ! anyWarnings;
 }
 
 static void adjustcase (char32 *str, int len, char32 chgcase) {
 
 	char32 *string = str;
-	int i;
 
 	/* The tokens \u and \l only modify the first character while the tokens
 	   \U and \L modify the entire string. */
@@ -4194,18 +3952,16 @@ static void adjustcase (char32 *str, int len, char32 chgcase) {
 	switch (chgcase) {
 		case 'u':
 		case 'U':
-			for (i = 0; i < len; i++) {
-				* (string + i) = toupper32 (* (string + i));
+			for (integer i = 0; i < len; i ++) {
+				* (string + i) = Melder_toUpperCase (* (string + i));
 			}
-
 			break;
 
 		case 'l':
 		case 'L':
-			for (i = 0; i < len; i++) {
-				* (string + i) = tolower32 (* (string + i));
+			for (integer i = 0; i < len; i ++) {
+				* (string + i) = Melder_toLowerCase (* (string + i));
 			}
-
 			break;
 	}
 }
@@ -4214,50 +3970,8 @@ static void adjustcase (char32 *str, int len, char32 chgcase) {
  * reg_error
  *----------------------------------------------------------------------*/
 
-static void reg_error (const char32 *str) {
+static void reg_error (conststring32 str) {
 	Melder_appendError (U"Internal error processing regular expression: ", str);
-}
-
-/*----------------------------------------------------------------------*
- * makeDelimiterTable
- *
- * Translate a null-terminated string of delimiters into a 256 byte
- * lookup table for determining whether a character is a delimiter or
- * not.
- *
- * Table must be allocated by the caller.
- *
- * Return value is a pointer to the table.
- *----------------------------------------------------------------------*/
-
-static char32 *makeDelimiterTable (
-    const char32 *delimiters,
-    char32 *table) {
-
-	const char32 *c;
-
-	memset (table, 0, 256);
-
-	for (c = delimiters; *c != '\0'; c++) {
-		table [*c] = 1;
-	}
-
-	table [ (int) '\0'] = 1; /* These       */
-	table [ (int) '\t'] = 1; /* characters  */
-	table [ (int) '\n'] = 1; /* are always  */
-	table [ (int) ' ' ] = 1; /* delimiters. */
-
-	return table;
-}
-
-/*----------------------------------------------------------------------*
- * SetREDefaultWordDelimiters
- *
- * Builds a default delimiter table that persists across `ExecRE' calls.
- *----------------------------------------------------------------------*/
-
-void SetREDefaultWordDelimiters (char32 *delimiters) {
-	makeDelimiterTable (delimiters, Default_Delimiters);
 }
 
 void EnableCountingQuantifier (int is_enabled) {

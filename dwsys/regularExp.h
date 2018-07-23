@@ -66,11 +66,11 @@ typedef enum {
 /* Compiles a regular expression into the internal format used by `ExecRE'. */
 
 regexp * CompileRE (
-   const char32  *exp,         /* String containing the regex specification. */
-   const char32 **errorText,   /* Text of any error message produced. */
+   conststring32 exp,         /* String containing the regex specification. */
+   conststring32 * errorText,   /* Text of any error message produced. */
    int  defaultFlags); /* Flags for default RE-operation */
 
-regexp *CompileRE_throwable (const char32 *exp, int defaultFlags);
+regexp *CompileRE_throwable (conststring32 exp, int defaultFlags);
 
 /* Match a `regexp' structure against a string. */
 
@@ -105,13 +105,6 @@ int SubstituteRE (
    char32   *dest,
    int     max,
    int *errorType); // djmw 20080110 0: ok; 1: is not enough memory
-
-/* Builds a default delimiter table that persists across `ExecRE' calls that
-   is identical to `delimiters'.  Pass NULL for "default default" set of
-   delimiters. */
-
-void SetREDefaultWordDelimiters (
-   char32 *delimiters);
 
 /* Enable (or disable) brace counting quantifiers, e.g. `(foo){0,3}'. */
 

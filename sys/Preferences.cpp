@@ -1,6 +1,6 @@
 /* Preferences.cpp
  *
- * Copyright (C) 1996-2012,2013,2015,2016,2017 Paul Boersma
+ * Copyright (C) 1996-2013,2015-2018 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@ Thing_define (Preference, SimpleString) {
 	int type;
 	void *value;
 	int min, max;
-	const char32 * (*getText) (int value);
-	int (*getValue) (const char32 *text);
+	conststring32 (*getText) (int value);
+	int (*getValue) (conststring32 text);
 
 	void v_destroy () noexcept
 		override;
@@ -33,13 +33,14 @@ Thing_define (Preference, SimpleString) {
 Thing_implement (Preference, SimpleString, 0);
 
 void structPreference :: v_destroy () noexcept {
-	Melder_free (string);
 	Preference_Parent :: v_destroy ();
 }
 
 static SortedSetOfStringOf <structPreference> thePreferences;
 
-static void Preferences_add (const char32 *string, int type, void *value, int min, int max, const char32 * (*getText) (int value), int (*getValue) (const char32 *text)) {
+static void Preferences_add (conststring32 string, int type, void *value, int min, int max,
+	conststring32 (*getText) (int value), int (*getValue) (conststring32 text))
+{
 	autoPreference me = Thing_new (Preference);
 	my string = Melder_dup (string);
 	for (char32 *p = & my string [0]; *p != U'\0'; p ++) if (*p == U'_') *p = U'.';
@@ -52,38 +53,38 @@ static void Preferences_add (const char32 *string, int type, void *value, int mi
 	thePreferences. addItem_move (me.move());
 }
 
-void Preferences_addByte (const char32 *string, signed char *value, signed char defaultValue)
+void Preferences_addByte (conststring32 string, signed char *value, signed char defaultValue)
 	{ *value = defaultValue; Preferences_add (string, bytewa, value, 0, 0, nullptr, nullptr); }
 
-void Preferences_addInt16 (const char32 *string, int *value, int defaultValue)
+void Preferences_addInt16 (conststring32 string, int *value, int defaultValue)
 	{ *value = defaultValue; Preferences_add (string, int16wa, value, 0, 0, nullptr, nullptr); }
 
-void Preferences_addInt (const char32 *string, int *value, int defaultValue)
+void Preferences_addInt (conststring32 string, int *value, int defaultValue)
 	{ *value = defaultValue; Preferences_add (string, intwa, value, 0, 0, nullptr, nullptr); }
 
-void Preferences_addInteger (const char32 *string, integer *value, integer defaultValue)
+void Preferences_addInteger (conststring32 string, integer *value, integer defaultValue)
 	{ *value = defaultValue; Preferences_add (string, integerwa, value, 0, 0, nullptr, nullptr); }
 
-void Preferences_addUbyte (const char32 *string, unsigned char *value, unsigned char defaultValue)
+void Preferences_addUbyte (conststring32 string, unsigned char *value, unsigned char defaultValue)
 	{ *value = defaultValue; Preferences_add (string, ubytewa, value, 0, 0, nullptr, nullptr); }
 
-void Preferences_addUint (const char32 *string, unsigned int *value, unsigned int defaultValue)
+void Preferences_addUint (conststring32 string, unsigned int *value, unsigned int defaultValue)
 	{ *value = defaultValue; Preferences_add (string, uintwa, value, 0, 0, nullptr, nullptr); }
 
-void Preferences_addUinteger (const char32 *string, uinteger *value, uinteger defaultValue)
+void Preferences_addUinteger (conststring32 string, uinteger *value, uinteger defaultValue)
 	{ *value = defaultValue; Preferences_add (string, uintegerwa, value, 0, 0, nullptr, nullptr); }
 
-void Preferences_addBool (const char32 *string, bool *value, bool defaultValue)
+void Preferences_addBool (conststring32 string, bool *value, bool defaultValue)
 	{ *value = defaultValue; Preferences_add (string, questionwa, value, 0, 0, nullptr, nullptr); }
 
-void Preferences_addDouble (const char32 *string, double *value, double defaultValue)
+void Preferences_addDouble (conststring32 string, double *value, double defaultValue)
 	{ *value = defaultValue; Preferences_add (string, doublewa, value, 0, 0, nullptr, nullptr); }
 
-void Preferences_addString (const char32 *string, char32 *value, const char32 *defaultValue)
+void Preferences_addString (conststring32 string, char32 *value, conststring32 defaultValue)
 	{ str32cpy (value, defaultValue); Preferences_add (string, stringwa, value, 0, 0, nullptr, nullptr); }
 
-void _Preferences_addEnum (const char32 *string, int *value, int min, int max,
-	const char32 *(*getText) (int value), int (*getValue) (const char32 *text), int defaultValue)
+void _Preferences_addEnum (conststring32 string, int *value, int min, int max,
+	conststring32 (*getText) (int value), int (*getValue) (conststring32 text), int defaultValue)
 {
 	{ *value = defaultValue; Preferences_add (string, enumwa, value, min, max, getText, getValue); }
 }
@@ -98,22 +99,22 @@ void Preferences_read (MelderFile file) {
 	try {
 		autoMelderReadText text = MelderReadText_createFromFile (file);
 		for (;;) {
-			char32 *line = MelderReadText_readLine (text.peek());
+			const mutablestring32 line = MelderReadText_readLine (text.get());
 			if (! line)
 				return;   // OK: we have read past the last line
 			char32 *value = str32str (line, U": ");
 			if (! value)
 				return;   // OK: we have read past the last key-value pair
 			*value = U'\0', value += 2;
-			long ipref = thePreferences. lookUp (line);
-			if (! ipref) {
+			integer ipref = thePreferences. lookUp (line);
+			if (ipref == 0) {
 				/*
-				 * Recognize some preference names that went obsolete in February 2013.
-				 */
+					Recognize some preference names that went obsolete in February 2013.
+				*/
 				if (Melder_nequ (line, U"FunctionEditor.", 15))
 					ipref = thePreferences. lookUp (Melder_cat (U"TimeSoundAnalysisEditor.", line + 15));
 			}
-			if (! ipref) continue;   // skip unrecognized keys
+			if (ipref == 0) continue;   // skip unrecognized keys
 			Preference pref = thePreferences.at [ipref];
 			switch (pref -> type) {
 				case bytewa: * (signed char *) pref -> value =
@@ -156,9 +157,9 @@ void Preferences_read (MelderFile file) {
 void Preferences_write (MelderFile file) {
 	if (thePreferences.size == 0) return;
 	static MelderString buffer { };
-	for (long ipref = 1; ipref <= thePreferences.size; ipref ++) {
+	for (integer ipref = 1; ipref <= thePreferences.size; ipref ++) {
 		Preference pref = thePreferences.at [ipref];
-		MelderString_append (& buffer, pref -> string, U": ");
+		MelderString_append (& buffer, pref -> string.get(), U": ");
 		switch (pref -> type) {
 			case bytewa:     MelderString_append (& buffer, (int) (* (signed char *)    pref -> value)); break;
 			case int16wa:    MelderString_append (& buffer,       (* (int16 *)          pref -> value)); break;
@@ -168,7 +169,7 @@ void Preferences_write (MelderFile file) {
 			case uintwa:     MelderString_append (& buffer,       (* (unsigned int *)   pref -> value)); break;
 			case uintegerwa: MelderString_append (& buffer,       (* (uinteger *)       pref -> value)); break;
 			case doublewa:   MelderString_append (& buffer,       (* (double *)         pref -> value)); break;
-			case stringwa:   MelderString_append (& buffer,         ((const char32 *)   pref -> value)); break;
+			case stringwa:   MelderString_append (& buffer,         ((conststring32)    pref -> value)); break;
 			case enumwa:     MelderString_append (& buffer,  pref -> getText (* (int *) pref -> value)); break;
 			case questionwa: MelderString_append (& buffer,       (* (bool *)           pref -> value)); break;
 		}

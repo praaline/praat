@@ -2,7 +2,7 @@
 #define _melder_h_
 /* melder.h
  *
- * Copyright (C) 1992-2017 Paul Boersma
+ * Copyright (C) 1992-2018 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,6 +31,17 @@
 #include <stdbool.h>
 #include <functional>
 
+#pragma mark - ASSERTION
+
+void Melder_assert_ (const char *fileName, int lineNumber, const char *condition);
+	/* Call Melder_fatal with a message based on the following template: */
+	/*    "Assertion failed in file <fileName> on line <lineNumber>: <condition>" */
+#ifdef NDEBUG
+	#define Melder_assert(x)   ((void) 0)
+#else
+	#define Melder_assert(x)   ((x) ? (void) (0) : (Melder_assert_ (__FILE__, __LINE__, #x), abort ()))
+#endif
+
 #pragma mark - INTEGERS
 /*
  * The following two lines are for obsolete (i.e. C99) versions of stdint.h
@@ -38,17 +49,18 @@
 #define __STDC_LIMIT_MACROS
 #define __STDC_CONSTANT_MACROS
 #include <stdint.h>
-typedef int8_t int8;
-typedef int16_t int16;
-typedef int32_t int32;
-typedef int64_t int64;
-typedef intptr_t integer;   // the default size of an integer (a "long" is only 32 bits on 64-bit Windows)
-typedef long long_not_integer;   // for cases where we explicitly need the type "long", such as when printfing to %ld
-typedef uintptr_t uinteger;
-typedef uint8_t uint8;
-typedef uint16_t uint16;
-typedef uint32_t uint32;
-typedef uint64_t uint64;
+using byte = unsigned char;
+using int8 = int8_t;
+using int16 = int16_t;
+using int32 = int32_t;
+using int64 = int64_t;
+using integer = intptr_t;   // the default size of an integer (a "long" is only 32 bits on 64-bit Windows)
+using long_not_integer = long;   // for cases where we explicitly need the type "long", such as when printfing to %ld
+using uinteger = uintptr_t;
+using uint8 = uint8_t;
+using uint16 = uint16_t;
+using uint32 = uint32_t;
+using uint64 = uint64_t;
 #ifndef INT12_MAX
 	#define INT12_MAX   2047
 	#define INT12_MIN  -2048
@@ -73,14 +85,23 @@ typedef uint64_t uint64;
 	#define INT54_MIN  -9007199254740991LL
 #endif
 
-#pragma mark - BOOLEANS
+/*
+	We assume that the types "integer" and "uinteger" are both large enough to contain
+	any possible value that Praat wants to assign to them.
+	This entails that we assume that these types can be converted to each other without bounds checking.
+	We therefore crash Praat if this second assumption is not met.
+*/
+inline static uinteger integer_to_uinteger (integer n) {
+	Melder_assert (n >= 0);
+	return (uinteger) n;
+}
+inline static integer uinteger_to_integer (uinteger n) {
+	Melder_assert (n <= INTEGER_MAX);
+	return (integer) n;
+}
 
-#ifndef TRUE
-	#define TRUE  1
-#endif
-#ifndef FALSE
-	#define FALSE  0
-#endif
+#pragma mark - NULL
+
 #ifndef NULL
 	#define NULL  ((void *) 0)
 #endif
@@ -89,10 +110,7 @@ typedef uint64_t uint64;
 /*
 	The following are checked in praat.h.
 */
-typedef float real32;
-typedef double real64;
-typedef long double real80;   // at least 80 bits ("extended") precision, but stored in 96 or 128 bits
-typedef double real;
+using longdouble = long double;   // typically 80 bits ("extended") precision, but stored in 96 or 128 bits; on some platforms only 64 bits
 #include "complex.h"
 
 #pragma mark - LAW OF DEMETER FOR CLASS FUNCTIONS DEFINED OUTSIDE CLASS DEFINITION
@@ -105,232 +123,6 @@ typedef double real;
 #define his  him ->
 #define her  she ->
 #define iam(klas)  klas me = (klas) void_me
-
-#pragma mark - DEBUGGING
-
-void Melder_assert_ (const char *fileName, int lineNumber, const char *condition);
-	/* Call Melder_fatal with a message based on the following template: */
-	/*    "Assertion failed in file <fileName> on line <lineNumber>: <condition>" */
-
-void Melder_setTracing (bool tracing);
-extern bool Melder_isTracing;
-
-#pragma mark - STRINGS
-
-typedef unsigned char char8;
-typedef char16_t char16;
-typedef char32_t char32;
-
-#define strequ  ! strcmp
-#define strnequ  ! strncmp
-
-inline static integer str16len (const char16 *string) noexcept {
-	const char16 *p = string;
-	while (*p != u'\0') ++ p;
-	return p - string;
-}
-inline static char16 * str16cpy (char16 *target, const char16 *source) noexcept {
-	char16 *p = target;
-	while (* source != u'\0') * p ++ = * source ++;
-	*p = u'\0';
-	return target;
-}
-
-inline static integer str32len (const char32 *string) noexcept {
-	const char32 *p = string;
-	while (*p != U'\0') ++ p;
-	return p - string;
-}
-inline static char32 * str32cpy (char32 *target, const char32 *source) noexcept {
-	char32 *p = target;
-	while (* source != U'\0') * p ++ = * source ++;
-	*p = U'\0';
-	return target;
-}
-inline static char32 * str32ncpy (char32 *target, const char32 *source, integer n) noexcept {
-	char32 *p = target;
-	for (; n > 0 && *source != U'\0'; -- n) * p ++ = * source ++;
-	for (; n > 0; -- n) * p ++ = U'\0';
-	return target;
-}
-
-inline static int str32cmp (const char32 *string1, const char32 *string2) noexcept {
-	for (;; ++ string1, ++ string2) {
-		int32 diff = (int32) *string1 - (int32) *string2;
-		if (diff) return (int) diff;
-		if (*string1 == U'\0') return 0;
-	}
-}
-inline static int str32ncmp (const char32 *string1, const char32 *string2, integer n) noexcept {
-	for (; n > 0; -- n, ++ string1, ++ string2) {
-		int32 diff = (int32) *string1 - (int32) *string2;
-		if (diff) return (int) diff;
-		if (*string1 == U'\0') return 0;
-	}
-	return 0;
-}
-int Melder_cmp (const char32 *string1, const char32 *string2);   // regards null string as empty string
-int Melder_ncmp (const char32 *string1, const char32 *string2, integer n);
-
-#define str32equ  ! str32cmp
-#define str32nequ  ! str32ncmp
-#define Melder_equ  ! Melder_cmp
-bool Melder_equ_firstCharacterCaseInsensitive (const char32 *string1, const char32 *string2);
-#define Melder_nequ  ! Melder_ncmp
-
-inline static char32 * str32chr (const char32 *string, char32 kar) noexcept {
-	for (; *string != kar; ++ string) {
-		if (*string == U'\0')
-			return nullptr;
-	}
-	return (char32 *) string;
-}
-inline static char32 * str32rchr (const char32 *string, char32 kar) noexcept {
-	char32 *result = nullptr;
-	for (; *string != U'\0'; ++ string) {
-		if (*string == kar) result = (char32 *) string;
-	}
-	return result;
-}
-inline static char32 * str32str (const char32 *string, const char32 *find) noexcept {
-	integer length = str32len (find);
-	if (length == 0) return (char32 *) string;
-	char32 firstCharacter = * find ++;   // optimization
-	do {
-		char32 kar;
-		do {
-			kar = * string ++;
-			if (kar == U'\0') return nullptr;
-		} while (kar != firstCharacter);
-	} while (str32ncmp (string, find, length - 1));
-	return (char32 *) (string - 1);
-}
-inline static integer str32spn (const char32 *string1, const char32 *string2) noexcept {
-	const char32 *p = string1;
-	char32 kar1, kar2;
-cont:
-	kar1 = * p ++;
-	for (const char32 * q = string2; (kar2 = * q ++) != U'\0';)
-		if (kar2 == kar1)
-			goto cont;
-	return p - 1 - string1;
-}
-inline static bool islower32 (char32 kar) { return iswlower ((int) kar); }
-inline static bool isupper32 (char32 kar) { return iswupper ((int) kar); }
-inline static char32 tolower32 (char32 kar) { return (char32) towlower ((int) kar); }
-inline static char32 toupper32 (char32 kar) { return (char32) towupper ((int) kar); }
-
-char32 * Melder_tok (char32 *string, const char32 *delimiter);
-
-#pragma mark - ENUMERATED TYPES
-
-#include "enums.h"
-#include "melder_enums.h"
-
-/*
- * Operating system version control.
- */
-#define ALLOW_GDK_DRAWING  (gtk && 1)   /* change to (gtk && 0) if you want to try out GTK 3 */
-/* */
-
-typedef struct { double red, green, blue, transparency; } double_rgbt;
-
-#pragma mark - NUMBER TO STRING CONVERSION
-
-/**
-	The following routines return a static string, chosen from a circularly used set of 32 buffers.
-	You can call at most 32 of them in one Melder_casual call, for instance.
-*/
-
-const char32 * Melder_integer  (int64 value) noexcept;
-const char   * Melder8_integer (int64 value) noexcept;
-
-const char32 * Melder_bigInteger  (int64 value) noexcept;
-const char   * Melder8_bigInteger (int64 value) noexcept;
-
-const char32 * Melder_boolean  (bool value) noexcept;
-const char   * Melder8_boolean (bool value) noexcept;
-	// "yes" or "no"
-
-/**
-	Format a double value as "--undefined--" or something in the "%.15g", "%.16g", or "%.17g" formats.
-*/
-const char32 * Melder_double  (double value) noexcept;
-const char   * Melder8_double (double value) noexcept;
-
-/**
-	Format a double value as "--undefined--" or something in the "%.9g" format.
-*/
-const char32 * Melder_single  (double value) noexcept;
-const char   * Melder8_single (double value) noexcept;
-
-/**
-	Format a double value as "--undefined--" or something in the "%.4g" format.
-*/
-const char32 * Melder_half  (double value) noexcept;
-const char   * Melder8_half (double value) noexcept;
-
-/**
-	Format a double value as "--undefined--" or something in the "%.*f" format.
-*/
-const char32 * Melder_fixed  (double value, int precision) noexcept;
-const char   * Melder8_fixed (double value, int precision) noexcept;
-
-/**
-	Format a double value with a specified precision. If exponent is -2 and precision is 2, you get things like 67E-2 or 0.00024E-2.
-*/
-const char32 * Melder_fixedExponent  (double value, int exponent, int precision) noexcept;
-const char   * Melder8_fixedExponent (double value, int exponent, int precision) noexcept;
-
-/**
-	Format a double value as a percentage. If precision is 3, you get things like "0" or "34.400%" or "0.014%" or "0.001%" or "0.0000007%".
-*/
-const char32 * Melder_percent  (double value, int precision) noexcept;
-const char   * Melder8_percent (double value, int precision) noexcept;
-
-/**
-	Format a dcomplex value as "--undefined--" or something in the "%.15g", "%.16g", or "%.17g" formats,
-	separated without spaces by "+" or "-" and followed by "i".
-*/
-const char32 * Melder_dcomplex  (dcomplex value) noexcept;
-const char   * Melder8_dcomplex (dcomplex value) noexcept;
-
-/**
-	Format a dcomplex value as "--undefined--" or something in the "%.9g" format,
-	separated without spaces by "+" or "-" and followed by "i".
-*/
-const char32 * Melder_scomplex  (dcomplex value) noexcept;
-const char   * Melder8_scomplex (dcomplex value) noexcept;
-
-/**
-	Convert a formatted floating-point string to something suitable for visualization with the Graphics library.
-	For instance, "1e+4" is turned into "10^^4", and "-1.23456e-78" is turned into "-1.23456\.c10^^-78".
-*/
-const char32 * Melder_float (const char32 *number) noexcept;
-
-/**
-	Format the number that is specified by its natural logarithm.
-	For instance, -10000 is formatted as "1.135483865315339e-4343", which is a floating-point representation of exp(-10000).
-*/
-const  char32 * Melder_naturalLogarithm  (double lnNumber) noexcept;
-const  char   * Melder8_naturalLogarithm (double lnNumber) noexcept;
-
-const  char32 * Melder_pointer  (void *pointer) noexcept;
-const  char   * Melder8_pointer (void *pointer) noexcept;
-
-const  char32 * Melder_character  (char32_t kar) noexcept;
-const  char   * Melder8_character (char32_t kar) noexcept;
-
-const char32 * Melder_pad (int64 width, const char32 *string);   // will append spaces to the left of 'string' until 'width' is reached; no truncation
-const char32 * Melder_pad (const char32 *string, int64 width);   // will append spaces to the right of 'string' until 'width' is reached; no truncation
-const char32 * Melder_truncate (int64 width, const char32 *string);   // will cut away the left of 'string' until 'width' is reached; no padding
-const char32 * Melder_truncate (const char32 *string, int64 width);   // will cut away the right of 'string' until 'width' is reached; no padding
-const char32 * Melder_padOrTruncate (int64 width, const char32 *string);   // will cut away, or append spaces to, the left of 'string' until 'width' is reached
-const char32 * Melder_padOrTruncate (const char32 *string, int64 width);   // will cut away, or append spaces to, the right of 'string' until 'width' is reached
-
-#pragma mark - CONSOLE
-
-void Melder_writeToConsole (const char32 *message, bool useStderr);
 
 #pragma mark - MEMORY ALLOCATION
 
@@ -386,6 +178,692 @@ int64 Melder_allocationSize ();
 int64 Melder_reallocationsInSituCount ();
 int64 Melder_movingReallocationsCount ();
 
+#pragma mark - STRINGS
+
+using char8 = unsigned char;
+using char16 = char16_t;
+using char32 = char32_t;
+
+/* USAGE: Constant strings.
+
+	For whole null-terminated strings whose contents will not be changed, use conststring32:
+		void writeString (conststring32 text);
+
+	For a pointer to a character in a conststring32, use "const char32 *".
+	This is appropriate if you need to cycle later:
+		const char32 *p = & text [0];
+		...
+		p ++;
+	This is also appropriate for character searches:
+		const char32 *semicolonLocation = str32chr (text, U';');
+
+	For an array of characters, use "const char32 []":
+		void displayCharacters (const char32 characters []);
+	Such an array may or may not be null-terminated.
+*/
+using conststring8 = const char *;
+using conststring16 = const char16 *;
+using conststringW = const wchar_t *;
+using conststring32 = const char32 *;
+
+/* USAGE: Mutable strings.
+
+	For whole null-terminated strings whose contents will be changed, use mutablestring32:
+		void changeCase (mutablestring32 string);
+
+	For a pointer to a character in a mutablestring32, use "char32 *".
+	This is appropriate if you need to cycle later:
+		char32 *p = & string [0];
+		...
+		p ++;
+	This is also appropriate for character searches:
+		char32 *semicolonLocation = str32chr (string, U';');
+
+	For an array of characters that will be changed, use "char32 []":
+		void modifyCodes (char32 codes []);
+	Such an array may or may not be null-terminated.
+*/
+using mutablestring8 = char *;
+using mutablestring16 = char16 *;
+using mutablestringW = wchar_t *;
+using mutablestring32 = char32 *;
+
+#define strequ  ! strcmp
+#define strnequ  ! strncmp
+
+template <class T>
+class _autostring {
+	T *ptr;
+public:
+	#if 1
+	_autostring () : ptr (nullptr) {
+		//if (Melder_debug == 39) Melder_casual (U"autostring: zero constructor");
+	}
+	#else
+	_autostring () = default;   // explicit default, so that it can be used in a union
+	#endif
+	_autostring (integer length, bool f = false) {
+		our ptr = ( f ? Melder_malloc_f (T, length + 1) : Melder_malloc (T, length + 1) );
+		our ptr [0] = '\0';
+		our ptr [length] = '\0';
+	}
+	//_autostring (T *string) : ptr (string) {
+		//if (Melder_debug == 39) Melder_casual (U"autostring: constructor from C-string ", Melder_pointer (ptr));
+	//}
+	~_autostring () {
+		//if (Melder_debug == 39) Melder_casual (U"autostring: entering destructor ptr = ", Melder_pointer (ptr));
+		if (our ptr) Melder_free (our ptr);
+		//if (Melder_debug == 39) Melder_casual (U"autostring: leaving destructor");
+	}
+	template <class U> T& operator[] (U i) {
+		return our ptr [i];
+	}
+	T * get () const {
+		return our ptr;
+	}
+	#if 0
+	operator T* () const {
+		return our ptr;
+	}
+	#endif
+	/*T ** operator& () {
+		return & our ptr;
+	}*/
+	T * transfer () {
+		T *tmp = our ptr;
+		our ptr = nullptr;
+		return tmp;
+	}
+	void reset () {
+		if (our ptr) Melder_free (our ptr);
+	}
+	void resize (int64 newLength) {
+		T *tmp = (T *) Melder_realloc (our ptr, (newLength + 1) * (int64) sizeof (T));
+		our ptr = tmp;
+		our ptr [newLength] = '\0';
+	}
+	_autostring& operator= (const _autostring&) = delete;   // disable copy assignment
+	_autostring (_autostring &) = delete;   // disable copy constructor
+	template <class Y> _autostring (_autostring<Y> &) = delete;   // disable copy constructor
+	explicit operator bool () const { return !! our ptr; }
+	/*
+		Enable moving.
+	*/
+	_autostring (_autostring&& other) noexcept {   // enable move constructor
+		our ptr = other.ptr;
+		other.ptr = nullptr;
+	}
+	_autostring& operator= (_autostring&& other) noexcept {   // enable move assignment
+		if (& other != this) {
+			if (our ptr) Melder_free (our ptr);
+			our ptr = other.ptr;
+			other.ptr = nullptr;
+		}
+		return *this;
+	}
+	_autostring&& move () noexcept { return static_cast <_autostring&&> (*this); }
+	void _unsafeTransplant (T* newStringPointer) {
+		our ptr = newStringPointer;
+	}
+};
+
+typedef _autostring <char> autostring8;
+typedef _autostring <char16> autostring16;
+typedef _autostring <wchar_t> autostringW;
+typedef _autostring <char32> autostring32;
+
+autostring32 Melder_dup (conststring32 string /* cattable */);
+autostring32 Melder_dup_f (conststring32 string /* cattable */);
+
+#pragma mark - CHARACTER PROPERTIES
+
+#define kUCD_TOP_OF_ASCII  127
+#define kUCD_TOP_OF_LIST  0x2FA1D
+#define kUCD_UNASSIGNED  0
+
+enum {
+	mUCD_UPPERCASE_LETTER = (1 << 0),
+	mUCD_LOWERCASE_LETTER = (1 << 1),
+	mUCD_TITLECASE_LETTER = (1 << 2),
+	mUCD_CASED_LETTER = (mUCD_UPPERCASE_LETTER | mUCD_LOWERCASE_LETTER | mUCD_TITLECASE_LETTER),
+	mUCD_MODIFIER_LETTER = (1 << 3),
+	mUCD_OTHER_LETTER = (1 << 4),
+	mUCD_LETTER = (mUCD_CASED_LETTER | mUCD_MODIFIER_LETTER | mUCD_OTHER_LETTER),
+
+	mUCD_NONSPACING_MARK = (1 << 5),
+	mUCD_SPACING_MARK = (1 << 6),
+	mUCD_ENCLOSING_MARK = (1 << 7),
+	mUCD_MARK = (mUCD_NONSPACING_MARK | mUCD_SPACING_MARK | mUCD_ENCLOSING_MARK),
+
+	mUCD_DECIMAL_NUMBER = (1 << 8),
+	mUCD_LETTER_NUMBER = (1 << 9),
+	mUCD_OTHER_NUMBER = (1 << 10),
+	mUCD_NUMBER = (mUCD_DECIMAL_NUMBER | mUCD_LETTER_NUMBER | mUCD_OTHER_NUMBER),
+
+	mUCD_CONNECTOR_PUNCTUATION = (1 << 11),
+	mUCD_DASH_PUNCTUATION = (1 << 12),
+	mUCD_OPEN_PUNCTUATION = (1 << 13),
+	mUCD_CLOSE_PUNCTUATION = (1 << 14),
+	mUCD_INITIAL_PUNCTUATION = (1 << 15),
+	mUCD_FINAL_PUNCTUATION = (1 << 16),
+	mUCD_OTHER_PUNCTUATION = (1 << 17),
+	mUCD_PUNCTUATION = (mUCD_CONNECTOR_PUNCTUATION | mUCD_DASH_PUNCTUATION | mUCD_OPEN_PUNCTUATION | mUCD_CLOSE_PUNCTUATION | mUCD_INITIAL_PUNCTUATION | mUCD_FINAL_PUNCTUATION | mUCD_OTHER_PUNCTUATION),
+
+	mUCD_MATH_SYMBOL = (1 << 18),
+	mUCD_CURRENCY_SYMBOL = (1 << 19),
+	mUCD_MODIFIER_SYMBOL = (1 << 20),
+	mUCD_OTHER_SYMBOL = (1 << 21),
+	mUCD_SYMBOL = (mUCD_MATH_SYMBOL | mUCD_CURRENCY_SYMBOL | mUCD_MODIFIER_SYMBOL | mUCD_OTHER_SYMBOL),
+
+	mUCD_BREAKING_SPACE = (1 << 22),
+	mUCD_NON_BREAKING_SPACE = (1 << 23),
+	mUCD_SPACE_SEPARATOR = (mUCD_BREAKING_SPACE | mUCD_NON_BREAKING_SPACE),
+	mUCD_LINE_SEPARATOR = (1 << 24),
+	mUCD_PARAGRAPH_SEPARATOR = (1 << 25),
+	mUCD_NEWLINE = (mUCD_LINE_SEPARATOR | mUCD_PARAGRAPH_SEPARATOR),
+	mUCD_SEPARATOR = (mUCD_SPACE_SEPARATOR | mUCD_NEWLINE),
+
+	mUCD_CONTROL = (1 << 26),
+	mUCD_FORMAT = (1 << 27),
+	mUCD_PRIVATE_USE = (1 << 28),
+
+	mUCD_WORD_CHARACTER = (1 << 29),
+	mUCD_NULL = (1 << 30),
+
+	mUCD_ALPHANUMERIC = (mUCD_LETTER | mUCD_NUMBER),
+	mUCD_END_OF_INK = (mUCD_SEPARATOR | mUCD_NULL),
+	mUCD_END_OF_LINE = (mUCD_NEWLINE | mUCD_NULL),
+};
+
+struct UCD_CodePointInfo {
+	uint32 features;
+	char32 upperCase, lowerCase, titleCase;
+	char first, second;
+};
+extern UCD_CodePointInfo theUnicodeDatabase [1+kUCD_TOP_OF_LIST];
+enum class kMelder_charset { ASCII_, UNICODE_ };
+
+/*
+	Praat is an internationalized program, which means it has to work in the same way
+	wherever on earth it is used. This means that Praat has to be blind to localized settings,
+	such as what counts as a space and what combinations of characters
+	count as pairs of lower case and upper case.
+
+	To be able to use Praat all over the world, we therefore define one single
+	"international locale", which is simply based on the Unicode features of each code point.
+*/
+
+/*
+	Internationalize std::isblank ():
+*/
+inline static bool Melder_isHorizontalSpace (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & mUCD_SPACE_SEPARATOR) != 0;
+}
+inline static void Melder_skipHorizontalSpace (char32 **p_text) {
+	while (Melder_isHorizontalSpace (**p_text)) (*p_text) ++;
+}
+inline static char32 * Melder_findEndOfHorizontalSpace (char32 *p) {
+	while (Melder_isHorizontalSpace (*p)) p ++;
+	return p;
+}
+inline static const char32 * Melder_findEndOfHorizontalSpace (const char32 *p) {
+	while (Melder_isHorizontalSpace (*p)) p ++;
+	return p;
+}
+
+inline static bool Melder_isAsciiHorizontalSpace (char32 kar) {
+	return kar == U'\t' || kar == U' ';
+}
+
+inline static bool Melder_isVerticalSpace (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & mUCD_NEWLINE) != 0;
+}
+inline static bool Melder_isAsciiVerticalSpace (char32 kar) {
+	return kar >= 10 && kar <= 13;   // \n, \v, \f, \r
+}
+
+/*
+	Internationalize std::isspace ():
+*/
+inline static bool Melder_isHorizontalOrVerticalSpace (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & mUCD_SEPARATOR) != 0;
+}
+inline static bool Melder_isHorizontalOrVerticalSpace (char32 kar, kMelder_charset charset) {
+	const char32 top = charset == kMelder_charset::ASCII_ ? kUCD_TOP_OF_ASCII : kUCD_TOP_OF_LIST;
+	return kar <= top && (theUnicodeDatabase [kar]. features & mUCD_SEPARATOR) != 0;
+}
+inline static bool Melder_isAsciiHorizontalOrVerticalSpace (char32 kar) {
+	return kar <= kUCD_TOP_OF_ASCII && (theUnicodeDatabase [kar]. features & mUCD_SEPARATOR) != 0;
+}
+
+inline static bool Melder_isEndOfInk (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & mUCD_END_OF_INK) != 0;
+}
+inline static bool Melder_isEndOfLine (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & mUCD_END_OF_LINE) != 0;
+}
+inline static bool Melder_isEndOfText (char32 kar) {
+	return kar == U'\0';
+}
+inline static bool Melder_staysWithinInk (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & mUCD_END_OF_INK) == 0;
+}
+inline static bool Melder_staysWithinLine (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & mUCD_END_OF_LINE) == 0;
+}
+inline static void Melder_skipToEndOfLine (char32 **p_text) {
+	while (Melder_staysWithinLine (**p_text)) (*p_text) ++;
+}
+inline static char32 * Melder_findEndOfInk (char32 *p) {
+	while (Melder_staysWithinInk (*p)) p ++;
+	return p;
+}
+inline static const char32 * Melder_findEndOfInk (const char32 *p) {
+	while (Melder_staysWithinInk (*p)) p ++;
+	return p;
+}
+inline static char32 * Melder_findEndOfLine (char32 *p) {
+	while (Melder_staysWithinLine (*p)) p ++;
+	return p;
+}
+inline static const char32 * Melder_findEndOfLine (const char32 *p) {
+	while (Melder_staysWithinLine (*p)) p ++;
+	return p;
+}
+/*
+	Internationalize std::isalpha ():
+*/
+inline static bool Melder_isLetter (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & mUCD_LETTER) != 0;
+}
+inline static bool Melder_isAsciiLetter (char32 kar) {
+	return kar <= kUCD_TOP_OF_ASCII && (theUnicodeDatabase [kar]. features & mUCD_LETTER) != 0;
+}
+
+/*
+	Internationalize std::isupper ():
+*/
+inline static bool Melder_isUpperCaseLetter (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & mUCD_UPPERCASE_LETTER) != 0;
+}
+inline static bool Melder_isAsciiUpperCaseLetter (char32 kar) {
+	return kar >= U'A' && kar <= U'Z';
+}
+
+/*
+	Internationalize std::islower ():
+*/
+inline static bool Melder_isLowerCaseLetter (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & mUCD_LOWERCASE_LETTER) != 0;
+}
+inline static bool Melder_isAsciiLowerCaseLetter (char32 kar) {
+	return kar >= U'a' && kar <= U'z';
+}
+
+inline static bool Melder_isTitleCaseLetter (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & mUCD_TITLECASE_LETTER) != 0;
+}
+inline static bool Melder_isAsciiTitleCaseLetter (char32 kar) {
+	return kar >= U'A' && kar <= U'Z';
+}
+
+/*
+	Internationalize std::isdigit ():
+*/
+inline static bool Melder_isDecimalNumber (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & mUCD_DECIMAL_NUMBER) != 0;
+}
+inline static bool Melder_isAsciiDecimalNumber (char32 kar) {
+	return kar >= U'0' && kar <= U'9';
+}
+
+/*
+	We cannot really internationalize std::isxdigit ():
+*/
+inline static bool Melder_isHexadecimalDigit (char32 kar) {
+	return kar >= U'0' && kar <= U'9' || kar >= U'A' && kar <= U'Z' || kar >= U'a' && kar <= U'z';
+}
+
+/*
+	Internationalize std::isalnum ():
+*/
+inline static bool Melder_isAlphanumeric (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & mUCD_ALPHANUMERIC) != 0;
+}
+inline static bool Melder_isAsciiAlphanumeric (char32 kar) {
+	return kar <= kUCD_TOP_OF_ASCII && (theUnicodeDatabase [kar]. features & mUCD_ALPHANUMERIC) != 0;
+}
+
+inline static bool Melder_isWordCharacter (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & mUCD_WORD_CHARACTER) != 0;
+}
+inline static bool Melder_isAsciiWordCharacter (char32 kar) {
+	return kar <= kUCD_TOP_OF_ASCII && (theUnicodeDatabase [kar]. features & mUCD_WORD_CHARACTER) != 0;
+}
+
+/*
+	The standard library further contains std::ispunct (), std::iscntrl (), std::isprint (), std::isgraph ().
+	These have very little use nowadays, so only for completeness do we include versions of them here,
+	which are correct at least for ASCII arguments.
+	Of these four functions, Melder_hasInk () is not yet correct for all Unicode points,
+	as approximately one half of the mUCD_FORMAT points are inkless as well.
+*/
+inline static bool Melder_isPunctuationOrSymbol (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & (mUCD_PUNCTUATION | mUCD_SYMBOL)) != 0;
+}
+inline static bool Melder_isAsciiPunctuationOrSymbol (char32 kar) {   // same as std::ispunct() with default C locale
+	return kar <= kUCD_TOP_OF_ASCII && (theUnicodeDatabase [kar]. features & (mUCD_PUNCTUATION | mUCD_SYMBOL)) != 0;
+}
+inline static bool Melder_isControl (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & mUCD_CONTROL) != 0;
+}
+inline static bool Melder_isAsciiControl (char32 kar) {   // same as std::iscntrl() with default C locale
+	return kar <= kUCD_TOP_OF_ASCII && (theUnicodeDatabase [kar]. features & mUCD_CONTROL) != 0;
+}
+inline static bool Melder_isPrintable (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & mUCD_CONTROL) == 0;
+}
+inline static bool Melder_isAsciiPrintable (char32 kar) {   // same as std::isprint() with default C locale
+	return kar <= kUCD_TOP_OF_ASCII && (theUnicodeDatabase [kar]. features & mUCD_CONTROL) == 0;
+}
+inline static bool Melder_hasInk (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST && (theUnicodeDatabase [kar]. features & (mUCD_CONTROL | mUCD_SEPARATOR)) == 0;
+}
+inline static bool Melder_hasAsciiInk (char32 kar) {   // same as std::isgraph() with default C locale
+	return kar <= kUCD_TOP_OF_ASCII && (theUnicodeDatabase [kar]. features & (mUCD_CONTROL | mUCD_SEPARATOR)) == 0;
+}
+
+/*
+	Internationalize std::toupper () and std::tolower ():
+*/
+inline static char32 Melder_toUpperCase (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST ? theUnicodeDatabase [kar]. upperCase : kar;
+}
+inline static char32 Melder_toLowerCase (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST ? theUnicodeDatabase [kar]. lowerCase : kar;
+}
+inline static char32 Melder_toTitleCase (char32 kar) {
+	return kar <= kUCD_TOP_OF_LIST ? theUnicodeDatabase [kar]. titleCase : kar;
+}
+
+inline static integer str16len (conststring16 string) noexcept {
+	const char16 *p = & string [0];
+	while (*p != u'\0') ++ p;
+	return p - string;
+}
+inline static mutablestring16 str16cpy (mutablestring16 target, conststring16 source) noexcept {
+	char16 *p = & target [0];
+	while (* source != u'\0') * p ++ = * source ++;
+	*p = u'\0';
+	return target;
+}
+
+inline static integer str32len (conststring32 string) noexcept {
+	const char32 *p = & string [0];
+	while (*p != U'\0') ++ p;
+	return p - string;
+}
+inline static mutablestring32 str32cpy (mutablestring32 target, conststring32 source) noexcept {
+	char32 *p = & target [0];
+	while (* source != U'\0') * p ++ = * source ++;
+	*p = U'\0';
+	return target;
+}
+inline static char32 * stp32cpy (mutablestring32 target, conststring32 source) noexcept {
+	char32 *p = & target [0];
+	while (* source != U'\0') * p ++ = * source ++;
+	*p = U'\0';
+	return p;
+}
+inline static mutablestring32 str32ncpy (mutablestring32 target, conststring32 source, integer n) noexcept {
+	char32 *p = & target [0];
+	for (; n > 0 && *source != U'\0'; -- n) * p ++ = * source ++;
+	for (; n > 0; -- n) * p ++ = U'\0';
+	return target;
+}
+
+inline static int str32cmp (conststring32 string1, conststring32 string2) noexcept {
+	for (;; ++ string1, ++ string2) {
+		int32 diff = (int32) *string1 - (int32) *string2;
+		if (diff) return (int) diff;
+		if (*string1 == U'\0') return 0;
+	}
+}
+inline static int str32cmp_caseInsensitive (conststring32 string1, conststring32 string2) noexcept {
+	for (;; ++ string1, ++ string2) {
+		int32 diff = (int32) Melder_toLowerCase (*string1) - (int32) Melder_toLowerCase (*string2);
+		if (diff) return (int) diff;
+		if (*string1 == U'\0') return 0;
+	}
+}
+inline static int str32cmp_optionallyCaseSensitive (conststring32 string1, conststring32 string2, bool caseSensitive) noexcept {
+	return caseSensitive ? str32cmp (string1, string2) : str32cmp_caseInsensitive (string1, string2);
+}
+inline static int str32ncmp (conststring32 string1, conststring32 string2, integer n) noexcept {
+	for (; n > 0; -- n, ++ string1, ++ string2) {
+		int32 diff = (int32) *string1 - (int32) *string2;
+		if (diff) return (int) diff;
+		if (*string1 == U'\0') return 0;
+	}
+	return 0;
+}
+inline static int str32ncmp_caseInsensitive (conststring32 string1, conststring32 string2, integer n) noexcept {
+	for (; n > 0; -- n, ++ string1, ++ string2) {
+		int32 diff = (int32) Melder_toLowerCase (*string1) - (int32) Melder_toLowerCase (*string2);
+		if (diff) return (int) diff;
+		if (*string1 == U'\0') return 0;
+	}
+	return 0;
+}
+inline static int str32ncmp_optionallyCaseSensitive (conststring32 string1, conststring32 string2, integer n, bool caseSensitive) noexcept {
+	return caseSensitive ? str32ncmp (string1, string2, n) : str32ncmp_caseInsensitive (string1, string2, n);
+}
+
+int Melder_cmp (conststring32 string1, conststring32 string2);   // regards null string as empty string
+int Melder_cmp_caseInsensitive (conststring32 string1, conststring32 string2);
+int Melder_ncmp (conststring32 string1, conststring32 string2, integer n);
+int Melder_ncmp_caseInsensitive (conststring32 string1, conststring32 string2, integer n);
+
+#define str32equ  ! str32cmp
+#define str32nequ  ! str32ncmp
+#define Melder_equ  ! Melder_cmp
+#define str32equ_caseInsensitive  ! str32cmp_caseInsensitive
+#define str32nequ_caseInsensitive  ! str32ncmp_caseInsensitive
+#define Melder_equ_caseInsensitive  ! Melder_cmp_caseInsensitive
+#define str32equ_optionallyCaseSensitive  ! str32cmp_optionallyCaseSensitive
+#define str32nequ_optionallyCaseSensitive  ! str32ncmp_optionallyCaseSensitive
+bool Melder_equ_firstCharacterCaseInsensitive (conststring32 string1, conststring32 string2);
+#define Melder_nequ  ! Melder_ncmp
+#define Melder_nequ_caseInsensitive  ! Melder_ncmp_caseInsensitive
+
+inline static char32 * str32chr (conststring32 string, char32 kar) noexcept {
+	for (; *string != kar; ++ string) {
+		if (*string == U'\0')
+			return nullptr;
+	}
+	return (char32 *) string;
+}
+inline static char32 * str32chr_caseInsensitive (conststring32 string, char32 kar) noexcept {
+	kar = Melder_toLowerCase (kar);
+	for (; Melder_toLowerCase (*string) != kar; ++ string) {
+		if (*string == U'\0')
+			return nullptr;
+	}
+	return (char32 *) string;
+}
+inline static char32 * str32rchr (conststring32 string, char32 kar) noexcept {
+	char32 *result = nullptr;
+	for (; *string != U'\0'; ++ string) {
+		if (*string == kar) result = (char32 *) string;
+	}
+	return result;
+}
+inline static char32 * str32rchr_caseInsensitive (conststring32 string, char32 kar) noexcept {
+	kar = Melder_toLowerCase (kar);
+	char32 *result = nullptr;
+	for (; *string != U'\0'; ++ string) {
+		if (Melder_toLowerCase (*string) == kar) result = (char32 *) string;
+	}
+	return result;
+}
+inline static char32 * str32str (conststring32 string, conststring32 find) noexcept {
+	integer length = str32len (find);
+	if (length == 0) return (char32 *) string;
+	char32 firstCharacter = * find ++;   // optimization
+	do {
+		char32 kar;
+		do {
+			kar = * string ++;
+			if (kar == U'\0') return nullptr;
+		} while (kar != firstCharacter);
+	} while (str32ncmp (string, find, length - 1));
+	return (char32 *) (string - 1);
+}
+inline static char32 * str32str_caseInsensitive (conststring32 string, conststring32 find) noexcept {
+	integer length = str32len (find);
+	if (length == 0) return (char32 *) string;
+	char32 firstCharacter = Melder_toLowerCase (* find ++);   // optimization
+	do {
+		char32 kar;
+		do {
+			kar = Melder_toLowerCase (* string ++);
+			if (kar == U'\0') return nullptr;
+		} while (kar != firstCharacter);
+	} while (str32ncmp_caseInsensitive (string, find, length - 1));
+	return (char32 *) (string - 1);
+}
+inline static char32 * str32str_optionallyCaseSensitive (conststring32 string, conststring32 find, bool caseSensitive) noexcept {
+	return caseSensitive ? str32str (string, find) : str32str_caseInsensitive (string, find);
+}
+inline static integer str32spn (conststring32 string1, conststring32 string2) noexcept {
+	const char32 *p = & string1 [0];
+	char32 kar1, kar2;
+cont:
+	kar1 = * p ++;
+	for (const char32 *q = & string2 [0]; (kar2 = * q ++) != U'\0';)
+		if (kar2 == kar1)
+			goto cont;
+	return p - 1 - string1;
+}
+
+char32 * Melder_tok (char32 *string, conststring32 delimiter);
+
+#pragma mark - ENUMERATED TYPES
+
+#include "enums.h"
+#include "melder_enums.h"
+
+/*
+ * Operating system version control.
+ */
+#define ALLOW_GDK_DRAWING  (gtk && 1)   /* change to (gtk && 0) if you want to try out GTK 3 */
+/* */
+
+typedef struct { double red, green, blue, transparency; } double_rgbt;
+
+#pragma mark - NUMBER TO STRING CONVERSION
+
+/*
+	The following functions return a static string, chosen from a circularly used set of 32 buffers.
+	You can call at most 32 of them in one Melder_casual call, for instance.
+*/
+
+conststring32 Melder_integer (int64 value) noexcept;
+conststring8 Melder8_integer (int64 value) noexcept;
+
+conststring32 Melder_bigInteger (int64 value) noexcept;
+conststring8 Melder8_bigInteger (int64 value) noexcept;
+
+conststring32 Melder_boolean (bool value) noexcept;
+conststring8 Melder8_boolean (bool value) noexcept;
+	// "yes" or "no"
+
+/**
+	Format a double value as "--undefined--" or something in the "%.15g", "%.16g", or "%.17g" formats.
+*/
+conststring32 Melder_double (double value) noexcept;
+conststring8 Melder8_double (double value) noexcept;
+
+/**
+	Format a double value as "--undefined--" or something in the "%.9g" format.
+*/
+conststring32 Melder_single (double value) noexcept;
+conststring8 Melder8_single (double value) noexcept;
+
+/**
+	Format a double value as "--undefined--" or something in the "%.4g" format.
+*/
+conststring32 Melder_half (double value) noexcept;
+conststring8 Melder8_half (double value) noexcept;
+
+/**
+	Format a double value as "--undefined--" or something in the "%.*f" format.
+*/
+conststring32 Melder_fixed (double value, integer precision) noexcept;
+conststring8 Melder8_fixed (double value, integer precision) noexcept;
+
+/**
+	Format a double value with a specified precision. If exponent is -2 and precision is 2, you get things like 67E-2 or 0.00024E-2.
+*/
+conststring32 Melder_fixedExponent (double value, integer exponent, integer precision) noexcept;
+conststring8 Melder8_fixedExponent (double value, integer exponent, integer precision) noexcept;
+
+/**
+	Format a double value as a percentage. If precision is 3, you get things like "0" or "34.400%" or "0.014%" or "0.001%" or "0.0000007%".
+*/
+conststring32 Melder_percent (double value, integer precision) noexcept;
+conststring8 Melder8_percent (double value, integer precision) noexcept;
+
+/**
+	Format an integer as a hexadecimal number. If precision is 4, you get things like "0000" or "1A3C" or "107FFFF".
+*/
+conststring8 Melder8_hexadecimal (integer value, integer precision) noexcept;
+conststring32 Melder_hexadecimal (integer value, integer precision) noexcept;
+
+/**
+	Format a dcomplex value as "--undefined--" or something in the "%.15g", "%.16g", or "%.17g" formats,
+	separated without spaces by "+" or "-" and followed by "i".
+*/
+conststring32 Melder_dcomplex (dcomplex value) noexcept;
+conststring8 Melder8_dcomplex (dcomplex value) noexcept;
+
+/**
+	Format a dcomplex value as "--undefined--" or something in the "%.9g" format,
+	separated without spaces by "+" or "-" and followed by "i".
+*/
+conststring32 Melder_scomplex (dcomplex value) noexcept;
+conststring8 Melder8_scomplex (dcomplex value) noexcept;
+
+/**
+	Convert a formatted floating-point string to something suitable for visualization with the Graphics library.
+	For instance, "1e+4" is turned into "10^^4", and "-1.23456e-78" is turned into "-1.23456\.c10^^-78".
+*/
+conststring32 Melder_float (conststring32 number) noexcept;
+
+/**
+	Format the number that is specified by its natural logarithm.
+	For instance, -10000 is formatted as "1.135483865315339e-4343", which is a floating-point representation of exp(-10000).
+*/
+conststring32 Melder_naturalLogarithm (double lnNumber) noexcept;
+conststring8 Melder8_naturalLogarithm (double lnNumber) noexcept;
+
+conststring32 Melder_pointer (void *pointer) noexcept;
+conststring8 Melder8_pointer (void *pointer) noexcept;
+
+conststring32 Melder_character (char32 kar) noexcept;
+conststring8 Melder8_character (char32 kar) noexcept;
+
+conststring32 Melder_pad (int64 width, conststring32 string);   // will append spaces to the left of 'string' until 'width' is reached; no truncation
+conststring32 Melder_pad (conststring32 string, int64 width);   // will append spaces to the right of 'string' until 'width' is reached; no truncation
+conststring32 Melder_truncate (int64 width, conststring32 string);   // will cut away the left of 'string' until 'width' is reached; no padding
+conststring32 Melder_truncate (conststring32 string, int64 width);   // will cut away the right of 'string' until 'width' is reached; no padding
+conststring32 Melder_padOrTruncate (int64 width, conststring32 string);   // will cut away, or append spaces to, the left of 'string' until 'width' is reached
+conststring32 Melder_padOrTruncate (conststring32 string, int64 width);   // will cut away, or append spaces to, the right of 'string' until 'width' is reached
+
+#pragma mark - CONSOLE
+
+void Melder_writeToConsole (conststring32 message, bool useStderr);
+
 /**
  * Text encodings.
  */
@@ -405,61 +883,61 @@ const uint32 kMelder_textOutputEncoding_ASCII = 0x41534349;
 const uint32 kMelder_textOutputEncoding_ISO_LATIN1 = 0x4C415401;
 const uint32 kMelder_textOutputEncoding_FLAC = 0x464C4143;
 
-bool Melder_isValidAscii (const char32 *string);
+bool Melder_isValidAscii (conststring32 string);
 bool Melder_str8IsValidUtf8 (const char *string);
-bool Melder_isEncodable (const char32 *string, int outputEncoding);
+bool Melder_isEncodable (conststring32 string, int outputEncoding);
 extern char32 Melder_decodeMacRoman [256];
 extern char32 Melder_decodeWindowsLatin1 [256];
 
-integer Melder_killReturns_inline (char32 *text);
-integer Melder_killReturns_inline (char *text);
+integer Melder_killReturns_inplace (mutablestring32 text);
+integer Melder_killReturns_inplace (mutablestring8 text);
 /*
 	 Replaces all bare returns (old Mac) or return-plus-linefeed sequences (Win) with bare linefeeds
 	 (generic: Unix and modern Mac).
 	 Returns new length of string (equal to or less than old length).
 */
 
-size_t str32len_utf8  (const char32 *string, bool nativizeNewlines);
-size_t str32len_utf16 (const char32 *string, bool nativizeNewlines);
+size_t str32len_utf8  (conststring32 string, bool nativizeNewlines);
+size_t str32len_utf16 (conststring32 string, bool nativizeNewlines);
 
-extern "C" char32 * Melder_peek8to32 (const char *string);
-void Melder_8to32_inline (const char *source, char32 *target, kMelder_textInputEncoding inputEncoding);
+extern "C" conststring32 Melder_peek8to32 (conststring8 string);
+void Melder_8to32_inplace (conststring8 source, mutablestring32 target, kMelder_textInputEncoding inputEncoding);
 	// errors: Text is not valid UTF-8.
-char32 * Melder_8to32 (const char *string, kMelder_textInputEncoding inputEncoding);
+autostring32 Melder_8to32 (conststring8 string, kMelder_textInputEncoding inputEncoding);
 	// errors: Out of memory; Text is not valid UTF-8.
-char32 * Melder_8to32 (const char *string);
+autostring32 Melder_8to32 (conststring8 string);
 	// errors: Out of memory; Text is not valid UTF-8.
 
-char32 * Melder_peek16to32 (const char16 *text);
-char32 * Melder_16to32 (const char16 *text);
+conststring32 Melder_peek16to32 (conststring16 text);
+autostring32 Melder_16to32 (conststring16 text);
 
-extern "C" char * Melder_peek32to8 (const char32 *string);
-void Melder_32to8_inline (const char32 *string, char *utf8);
-char * Melder_32to8 (const char32 *string);
-char16 * Melder_32to16 (const char32 *string);
+extern "C" conststring8 Melder_peek32to8 (conststring32 string);
+void Melder_32to8_inplace (conststring32 string, mutablestring8 utf8);
+autostring8 Melder_32to8 (conststring32 string);
+autostring16 Melder_32to16 (conststring32 string);
 	// errors: Out of memory.
 
-char16 * Melder_peek32to16 (const char32 *text, bool nativizeNewlines);
-extern "C" char16 * Melder_peek32to16 (const char32 *string);
+conststring16 Melder_peek32to16 (conststring32 text, bool nativizeNewlines);
+extern "C" conststring16 Melder_peek32to16 (conststring32 string);
 
 #ifdef _WIN32
-	inline static wchar_t * Melder_peek32toW (const char32 *string) { return (wchar_t *) Melder_peek32to16 (string); }
-	inline static wchar_t * Melder_32toW (const char32 *string) { return (wchar_t *) Melder_32to16 (string); }
-	inline static char32 * Melder_peekWto32 (const wchar_t *string) { return Melder_peek16to32 ((const char16 *) string); }
-	inline static char32 * Melder_Wto32 (const wchar_t *string) { return Melder_16to32 ((const char16 *) string); }
+	inline static conststringW Melder_peek32toW (conststring32 string) { return (conststringW) Melder_peek32to16 (string); }
+	autostringW Melder_32toW (conststring32 string);
+	inline static conststring32 Melder_peekWto32 (conststringW string) { return Melder_peek16to32 ((conststring16) string); }
+	inline static autostring32 Melder_Wto32 (conststringW string) { return Melder_16to32 ((conststring16) string); }
 #endif
 
-void Melder_str32To8bitFileRepresentation_inline (const char32 *string, char *utf8);
-void Melder_8bitFileRepresentationToStr32_inline (const char *utf8, char32 *string);
-const void * Melder_peek32toCfstring (const char32 *string);
-void Melder_fwrite32to8 (const char32 *ptr, FILE *f);
+void Melder_str32To8bitFileRepresentation_inplace (conststring32 string, mutablestring8 utf8);
+void Melder_8bitFileRepresentationToStr32_inplace (conststring8 utf8, mutablestring32 string);
+const void * Melder_peek32toCfstring (conststring32 string);
+void Melder_fwrite32to8 (conststring32 string, FILE *f);
 
 #pragma mark - STRING TO NUMBER CONVERSION
 
-bool Melder_isStringNumeric (const char32 *string) noexcept;
-double Melder_a8tof (const char *string) noexcept;
-double Melder_atof (const char32 *string) noexcept;
-int64 Melder_atoi (const char32 *string) noexcept;
+bool Melder_isStringNumeric (conststring32 string) noexcept;
+double Melder_a8tof (conststring8 string) noexcept;
+double Melder_atof (conststring32 string) noexcept;
+int64 Melder_atoi (conststring32 string) noexcept;
 	/*
 	 * "3.14e-3" -> 3.14e-3
 	 * "15.6%" -> 0.156
@@ -495,14 +973,14 @@ struct structMelderDir {
 };
 typedef struct structMelderDir *MelderDir;
 
-const char32 * MelderFile_name (MelderFile file);
-const char32 * MelderDir_name (MelderDir dir);
-void Melder_pathToDir (const char32 *path, MelderDir dir);
-void Melder_pathToFile (const char32 *path, MelderFile file);
-void Melder_relativePathToFile (const char32 *path, MelderFile file);
-const char32 * Melder_dirToPath (MelderDir dir);
+conststring32 MelderFile_name (MelderFile file);
+conststring32 MelderDir_name (MelderDir dir);
+void Melder_pathToDir (conststring32 path, MelderDir dir);
+void Melder_pathToFile (conststring32 path, MelderFile file);
+void Melder_relativePathToFile (conststring32 path, MelderFile file);
+conststring32 Melder_dirToPath (MelderDir dir);
 	/* Returns a pointer internal to 'dir', like "/u/paul/praats" or "D:\Paul\Praats" */
-const char32 * Melder_fileToPath (MelderFile file);
+conststring32 Melder_fileToPath (MelderFile file);
 void MelderFile_copy (MelderFile file, MelderFile copy);
 void MelderDir_copy (MelderDir dir, MelderDir copy);
 bool MelderFile_equal (MelderFile file1, MelderFile file2);
@@ -511,14 +989,14 @@ void MelderFile_setToNull (MelderFile file);
 bool MelderFile_isNull (MelderFile file);
 void MelderDir_setToNull (MelderDir dir);
 bool MelderDir_isNull (MelderDir dir);
-void MelderDir_getFile (MelderDir parent, const char32 *fileName, MelderFile file);
-void MelderDir_relativePathToFile (MelderDir dir, const char32 *path, MelderFile file);
+void MelderDir_getFile (MelderDir parent, conststring32 fileName, MelderFile file);
+void MelderDir_relativePathToFile (MelderDir dir, conststring32 path, MelderFile file);
 void MelderFile_getParentDir (MelderFile file, MelderDir parent);
 void MelderDir_getParentDir (MelderDir file, MelderDir parent);
 bool MelderDir_isDesktop (MelderDir dir);
-void MelderDir_getSubdir (MelderDir parent, const char32 *subdirName, MelderDir subdir);
+void MelderDir_getSubdir (MelderDir parent, conststring32 subdirName, MelderDir subdir);
 void Melder_rememberShellDirectory ();
-const char32 * Melder_getShellDirectory ();
+conststring32 Melder_getShellDirectory ();
 void Melder_getHomeDir (MelderDir homeDir);
 void Melder_getPrefDir (MelderDir prefDir);
 void Melder_getTempDir (MelderDir tempDir);
@@ -537,24 +1015,8 @@ void Melder_files_cleanUp ();
 /* Backslashes are replaced by "\bs". */
 /* The trick is that they return one of 11 cyclically used static strings, */
 /* so you can use up to 11 strings in a single Melder_* call. */
-char32 * Melder_peekExpandBackslashes (const char32 *message);
-const char32 * MelderFile_messageName (MelderFile file);   // calls Melder_peekExpandBackslashes ()
-
-struct structMelderReadText {
-	char32 *string32, *readPointer32;
-	char *string8, *readPointer8;
-	kMelder_textInputEncoding input8Encoding;
-};
-typedef struct structMelderReadText *MelderReadText;
-
-MelderReadText MelderReadText_createFromFile (MelderFile file);
-MelderReadText MelderReadText_createFromString (const char32 *string);
-char32 MelderReadText_getChar (MelderReadText text);
-char32 * MelderReadText_readLine (MelderReadText text);
-wchar_t * MelderReadText_readLineW (MelderReadText text);
-int64 MelderReadText_getNumberOfLines (MelderReadText me);
-const char32 * MelderReadText_getLineNumber (MelderReadText text);
-void MelderReadText_delete (MelderReadText text);
+char32 * Melder_peekExpandBackslashes (conststring32 message);
+conststring32 MelderFile_messageName (MelderFile file);   // calls Melder_peekExpandBackslashes ()
 
 /* "NUM" = "NUMerics" */
 /* More mathematical and numerical things than there are in <math.h>. */
@@ -584,7 +1046,6 @@ void MelderReadText_delete (MelderReadText text);
 #endif
 #include <stdio.h>
 #include <wchar.h>
-#include "../sys/abcio.h"
 #define NUMlog2(x)  (log (x) * NUMlog2e)
 
 void NUMinit ();
@@ -670,12 +1131,12 @@ void NUMscale (double *x, double xminfrom, double xmaxfrom, double xminto, doubl
 	as in dwsys/NUMcomplex.cpp.
 */
 //inline static bool isdefined (double x) { return ! isinf (x) && ! isnan (x); }   /* portable */
-inline static bool isdefined (double x) { return ((* (uint64_t *) & x) & 0x7FF0000000000000) != 0x7FF0000000000000; }
-inline static bool isundef (double x) { return ((* (uint64_t *) & x) & 0x7FF0000000000000) == 0x7FF0000000000000; }
+inline static bool isdefined (double x) { return ((* (uint64 *) & x) & 0x7FF0000000000000) != 0x7FF0000000000000; }
+inline static bool isundef (double x) { return ((* (uint64 *) & x) & 0x7FF0000000000000) == 0x7FF0000000000000; }
 
 /********** Arrays with one index (NUMarrays.cpp) **********/
 
-void * NUMvector (integer elementSize, integer lo, integer hi, bool zero);
+byte * NUMvector_generic (integer elementSize, integer lo, integer hi, bool zero);
 /*
 	Function:
 		create a vector [lo...hi]; if `zero`, then all values are initialized to 0.
@@ -683,7 +1144,7 @@ void * NUMvector (integer elementSize, integer lo, integer hi, bool zero);
 		hi >= lo;
 */
 
-void NUMvector_free (integer elementSize, void *v, integer lo) noexcept;
+void NUMvector_free_generic (integer elementSize, byte *v, integer lo) noexcept;
 /*
 	Function:
 		destroy a vector v that was created with NUMvector.
@@ -691,7 +1152,7 @@ void NUMvector_free (integer elementSize, void *v, integer lo) noexcept;
 		lo must have the same values as with the creation of the vector.
 */
 
-void * NUMvector_copy (integer elementSize, void *v, integer lo, integer hi);
+byte * NUMvector_copy_generic (integer elementSize, byte *v, integer lo, integer hi);
 /*
 	Function:
 		copy (part of) a vector v, which need not have been created with NUMvector, to a new one.
@@ -699,21 +1160,21 @@ void * NUMvector_copy (integer elementSize, void *v, integer lo, integer hi);
 		if v != nullptr, the values v [lo..hi] must exist.
 */
 
-void NUMvector_copyElements (integer elementSize, void *v, void *to, integer lo, integer hi);
+void NUMvector_copyElements_generic (integer elementSize, byte *v, byte *to, integer lo, integer hi);
 /*
 	copy the vector elements v [lo..hi] to those of a vector 'to'.
 	These vectors need not have been created by NUMvector.
 */
 
-bool NUMvector_equal (integer elementSize, void *v1, void *v2, integer lo, integer hi);
+bool NUMvector_equal_generic (integer elementSize, byte *v1, byte *v2, integer lo, integer hi);
 /*
 	return true if the vector elements v1 [lo..hi] are equal
 	to the corresponding elements of the vector v2; otherwise, return false.
 	The vectors need not have been created by NUMvector.
 */
 
-void NUMvector_append (integer elementSize, void **v, integer lo, integer *hi);
-void NUMvector_insert (integer elementSize, void **v, integer lo, integer *hi, integer position);
+void NUMvector_append_generic (integer elementSize, byte **v, integer lo, integer *hi);
+void NUMvector_insert_generic (integer elementSize, byte **v, integer lo, integer *hi, integer position);
 /*
 	add one element to the vector *v.
 	The new element is initialized to zero.
@@ -732,7 +1193,7 @@ void * NUMmatrix (integer elementSize, integer row1, integer row2, integer col1,
 		col2 >= col1;
 */
 
-void NUMmatrix_free (integer elementSize, void *m, integer row1, integer col1) noexcept;
+void NUMmatrix_free_ (integer elementSize, byte **m, integer row1, integer col1) noexcept;
 /*
 	Function:
 		destroy a matrix m created with NUM...matrix.
@@ -749,7 +1210,7 @@ void * NUMmatrix_copy (integer elementSize, void *m, integer row1, integer row2,
 		if m != nullptr: the values m [rowmin..rowmax] [colmin..colmax] must exist.
 */
 
-void NUMmatrix_copyElements (integer elementSize, void *m, void *to, integer row1, integer row2, integer col1, integer col2);
+void NUMmatrix_copyElements_ (integer elementSize, char **mfrom, char **mto, integer row1, integer row2, integer col1, integer col2);
 /*
 	copy the matrix elements m [r1..r2] [c1..c2] to those of a matrix 'to'.
 	These matrices need not have been created by NUMmatrix.
@@ -805,23 +1266,6 @@ double NUMsemitonesToHertz (double semitones);
 double NUMerb (double f);
 double NUMhertzToErb (double hertz);
 double NUMerbToHertz (double erb);
-
-/********** Sorting (NUMsort.cpp) **********/
-
-void NUMsort_d (integer n, double ra []);   // heap sort
-void NUMsort_i (integer n, int ra []);
-void NUMsort_integer (integer n, integer ra []);
-void NUMsort_str (integer n, char32 *a []);
-void NUMsort_p (integer n, void *a [], int (*compare) (const void *, const void *));
-
-double NUMquantile (integer n, double a [], double factor);
-/*
-	An estimate of the quantile 'factor' (between 0 and 1) of the distribution
-	from which the set 'a [1..n]' is a sorted array of random samples.
-	For instance, if 'factor' is 0.5, this function returns an estimate of
-	the median of the distribution underlying the sorted set a [].
-	If your array has not been sorted, first sort it with NUMsort (n, a).
-*/
 
 /********** Interpolation and optimization (NUM.cpp) **********/
 
@@ -891,7 +1335,7 @@ double NUMrandomGauss_mt (int threadNumber, double mean, double standardDeviatio
 
 double NUMrandomPoisson (double mean);
 
-uint32 NUMhashString (const char32 *string);
+uint32 NUMhashString (conststring32 string);
 
 void NUMfbtoa (double formant, double bandwidth, double dt, double *a1, double *a2);
 void NUMfilterSecondOrderSection_a (double x [], integer n, double a1, double a2);
@@ -902,64 +1346,6 @@ void NUMdeemphasize_a (double x [], integer n, double preemphasis);
 void NUMpreemphasize_f (double x [], integer n, double dt, double frequency);
 void NUMdeemphasize_f (double x [], integer n, double dt, double frequency);
 void NUMautoscale (double x [], integer n, double scale);
-
-/* The following ANSI-C power trick generates the declarations of 156 functions. */
-#define FUNCTION(type,storage)  \
-	void NUMvector_writeText_##storage (const type *v, integer lo, integer hi, MelderFile file, const char32 *name); \
-	void NUMvector_writeBinary_##storage (const type *v, integer lo, integer hi, FILE *f); \
-	type * NUMvector_readText_##storage (integer lo, integer hi, MelderReadText text, const char *name); \
-	type * NUMvector_readBinary_##storage (integer lo, integer hi, FILE *f); \
-	void NUMmatrix_writeText_##storage (type **v, integer r1, integer r2, integer c1, integer c2, MelderFile file, const char32 *name); \
-	void NUMmatrix_writeBinary_##storage (type **v, integer r1, integer r2, integer c1, integer c2, FILE *f); \
-	type ** NUMmatrix_readText_##storage (integer r1, integer r2, integer c1, integer c2, MelderReadText text, const char *name); \
-	type ** NUMmatrix_readBinary_##storage (integer r1, integer r2, integer c1, integer c2, FILE *f);
-FUNCTION (signed char, i8)
-FUNCTION (int, i16)
-FUNCTION (long, i32)
-FUNCTION (integer, integer)
-FUNCTION (unsigned char, u8)
-FUNCTION (unsigned int, u16)
-FUNCTION (unsigned long, u32)
-FUNCTION (double, r32)
-FUNCTION (double, r64)
-FUNCTION (dcomplex, c64)
-FUNCTION (dcomplex, c128)
-#undef FUNCTION
-
-/*
-void NUMvector_writeBinary_r64 (const double *v, integer lo, integer hi, FILE *f);   // etc
-	write the vector elements v [lo..hi] as machine-independent
-	binary data to the stream f.
-	Throw an error message if anything went wrong.
-	The vectors need not have been created by NUM...vector.
-double * NUMvector_readText_r64 (integer lo, integer hi, MelderReadText text, const char *name);   // etc
-	create and read a vector as text.
-	Throw an error message if anything went wrong.
-	Every element is supposed to be on the beginning of a line.
-double * NUMvector_readBinary_r64 (integer lo, integer hi, FILE *f);   // etc
-	create and read a vector as machine-independent binary data from the stream f.
-	Throw an error message if anything went wrong.
-void NUMvector_writeText_r64 (const double *v, integer lo, integer hi, MelderFile file, const char32 *name);   // etc
-	write the vector elements v [lo..hi] as text to the open file,
-	each element on its own line, preceded by "name [index]: ".
-	Throw an error message if anything went wrong.
-	The vectors need not have been created by NUMvector.
-void NUMmatrix_writeText_r64 (double **m, integer r1, integer r2, integer c1, integer c2, MelderFile file, const char32 *name);   // etc
-	write the matrix elements m [r1..r2] [c1..c2] as text to the open file.
-	Throw an error message if anything went wrong.
-	The matrices need not have been created by NUMmatrix.
-void NUMmatrix_writeBinary_r64 (double **m, integer r1, integer r2, integer c1, integer c2, FILE *f);   // etc
-	write the matrix elements m [r1..r2] [c1..c2] as machine-independent
-	binary data to the stream f.
-	Throw an error message if anything went wrong.
-	The matrices need not have been created by NUMmatrix.
-double ** NUMmatrix_readText_r64 (integer r1, integer r2, integer c1, integer c2, MelderReadText text, const char *name);   // etc
-	create and read a matrix as text.
-	Throw an error message if anything went wrong.
-double ** NUMmatrix_readBinary_r64 (integer r1, integer r2, integer c1, integer c2, FILE *f);   // etc
-	create and read a matrix as machine-independent binary data from the stream f.
-	Throw an error message if anything went wrong.
-*/
 
 typedef struct structNUMlinprog *NUMlinprog;
 void NUMlinprog_delete (NUMlinprog me);
@@ -972,45 +1358,45 @@ double NUMlinprog_getPrimalValue (NUMlinprog me, integer ivar);
 
 template <class T>
 T* NUMvector (integer from, integer to) {
-	T* result = static_cast <T*> (NUMvector (sizeof (T), from, to, true));
+	T* result = reinterpret_cast <T*> (NUMvector_generic (sizeof (T), from, to, true));
 	return result;
 }
 
 template <class T>
-T* NUMvector (integer from, integer to, bool zero) {
-	T* result = static_cast <T*> (NUMvector (sizeof (T), from, to, zero));
+T* NUMvector (integer from, integer to, bool initializeToZero) {
+	T* result = reinterpret_cast <T*> (NUMvector_generic (sizeof (T), from, to, initializeToZero));
 	return result;
 }
 
 template <class T>
 void NUMvector_free (T* ptr, integer from) noexcept {
-	NUMvector_free (sizeof (T), ptr, from);
+	NUMvector_free_generic (sizeof (T), reinterpret_cast <byte *> (ptr), from);
 }
 
 template <class T>
 T* NUMvector_copy (T* ptr, integer lo, integer hi) {
-	T* result = static_cast <T*> (NUMvector_copy (sizeof (T), ptr, lo, hi));
+	T* result = reinterpret_cast <T*> (NUMvector_copy_generic (sizeof (T), reinterpret_cast <byte *> (ptr), lo, hi));
 	return result;
 }
 
 template <class T>
 bool NUMvector_equal (T* v1, T* v2, integer lo, integer hi) {
-	return NUMvector_equal (sizeof (T), v1, v2, lo, hi);
+	return NUMvector_equal_generic (sizeof (T), reinterpret_cast <byte *> (v1), reinterpret_cast <byte *> (v2), lo, hi);
 }
 
 template <class T>
 void NUMvector_copyElements (T* vfrom, T* vto, integer lo, integer hi) {
-	NUMvector_copyElements (sizeof (T), vfrom, vto, lo, hi);
+	NUMvector_copyElements_generic (sizeof (T), reinterpret_cast <byte *> (vfrom), reinterpret_cast <byte *> (vto), lo, hi);
 }
 
 template <class T>
 void NUMvector_append (T** v, integer lo, integer *hi) {
-	NUMvector_append (sizeof (T), (void**) v, lo, hi);
+	NUMvector_append_generic (sizeof (T), reinterpret_cast <byte **> (v), lo, hi);
 }
 
 template <class T>
 void NUMvector_insert (T** v, integer lo, integer *hi, integer position) {
-	NUMvector_insert (sizeof (T), (void**) v, lo, hi, position);
+	NUMvector_insert_generic (sizeof (T), reinterpret_cast <byte **> (v), lo, hi, position);
 }
 
 template <class T>
@@ -1029,7 +1415,7 @@ public:
 	autoNUMvector () : d_ptr (nullptr), d_from (1) {
 	}
 	~autoNUMvector<T> () {
-		if (d_ptr) NUMvector_free (sizeof (T), d_ptr, d_from);
+		if (d_ptr) NUMvector_free (d_ptr, d_from);
 	}
 	T& operator[] (integer i) {
 		return d_ptr [i];
@@ -1044,7 +1430,7 @@ public:
 	}
 	void reset (integer from, integer to) {
 		if (d_ptr) {
-			NUMvector_free (sizeof (T), d_ptr, d_from);
+			NUMvector_free (d_ptr, d_from);
 			d_ptr = nullptr;
 		}
 		d_from = from;
@@ -1052,7 +1438,7 @@ public:
 	}
 	void reset (integer from, integer to, bool zero) {
 		if (d_ptr) {
-			NUMvector_free (sizeof (T), d_ptr, d_from);
+			NUMvector_free (d_ptr, d_from);
 			d_ptr = nullptr;
 		}
 		d_from = from;
@@ -1074,7 +1460,7 @@ T** NUMmatrix (integer row1, integer row2, integer col1, integer col2, bool zero
 
 template <class T>
 void NUMmatrix_free (T** ptr, integer row1, integer col1) noexcept {
-	NUMmatrix_free (sizeof (T), ptr, row1, col1);
+	NUMmatrix_free_ (sizeof (T), reinterpret_cast <byte **> (ptr), row1, col1);
 }
 
 template <class T>
@@ -1097,7 +1483,7 @@ bool NUMmatrix_equal (T** m1, T** m2, integer row1, integer row2, integer col1, 
 
 template <class T>
 void NUMmatrix_copyElements (T** mfrom, T** mto, integer row1, integer row2, integer col1, integer col2) {
-	NUMmatrix_copyElements (sizeof (T), mfrom, mto, row1, row2, col1, col2);
+	NUMmatrix_copyElements_ (sizeof (T), reinterpret_cast <char **> (mfrom), reinterpret_cast <char **> (mto), row1, row2, col1, col2);
 }
 
 template <class T>
@@ -1116,7 +1502,7 @@ public:
 	autoNUMmatrix () : d_ptr (nullptr), d_row1 (0), d_col1 (0) {
 	}
 	~autoNUMmatrix () {
-		if (d_ptr) NUMmatrix_free (sizeof (T), d_ptr, d_row1, d_col1);
+		if (d_ptr) NUMmatrix_free_ (sizeof (T), reinterpret_cast <byte **> (d_ptr), d_row1, d_col1);
 	}
 	T*& operator[] (integer row) {
 		return d_ptr [row];
@@ -1131,7 +1517,7 @@ public:
 	}
 	void reset (integer row1, integer row2, integer col1, integer col2) {
 		if (d_ptr) {
-			NUMmatrix_free (sizeof (T), d_ptr, d_row1, d_col1);
+			NUMmatrix_free_ (sizeof (T), reinterpret_cast <byte **> (d_ptr), d_row1, d_col1);
 			d_ptr = nullptr;
 		}
 		d_row1 = row1;
@@ -1140,7 +1526,7 @@ public:
 	}
 	void reset (integer row1, integer row2, integer col1, integer col2, bool zero) {
 		if (d_ptr) {
-			NUMmatrix_free (sizeof (T), d_ptr, d_row1, d_col1);
+			NUMmatrix_free_ (sizeof (T), reinterpret_cast <byte **> (d_ptr), d_row1, d_col1);
 			d_ptr = nullptr;
 		}
 		d_row1 = row1;
@@ -1149,65 +1535,108 @@ public:
 	}
 };
 
-template <class T>
-class autodatavector {
-	T* d_ptr;
-	integer d_from, d_to;
+template <typename T>
+class _stringvector {
 public:
-	autodatavector<T> (integer from, integer to) : d_from (from), d_to (to) {
-		d_ptr = NUMvector<T> (from, to, true);
+	T** at;
+	integer size;
+	T* & operator[] (integer i) {
+		return our at [i];
 	}
-	autodatavector<T> (integer from, integer to, bool zero) : d_from (from), d_to (to) {
-		d_ptr = NUMvector<T> (from, to, zero);
+};
+typedef _stringvector <char32> string32vector;
+typedef _stringvector <char> string8vector;
+
+template <class T>
+class _autostringvector {
+	_autostring <T> * _ptr;
+public:
+	integer size;
+	_autostringvector () {
+		our _ptr = nullptr;
+		our size = 0;
 	}
-	autodatavector (T *ptr, integer from, integer to) : d_ptr (ptr), d_from (from), d_to (to) {
+	_autostringvector<T> (integer initialSize) {
+		our _ptr = NUMvector <_autostring <T>> (1, initialSize, true);
+		our size = initialSize;
 	}
-	autodatavector () : d_ptr (nullptr), d_from (1), d_to (0) {
+	_autostringvector (const _autostringvector &) = delete;
+	_autostringvector (_autostringvector&& other) {
+		our _ptr = other. _ptr;
+		our size = other. size;
+		other. _ptr = nullptr;
+		other. size = 0;
 	}
-	~autodatavector<T> () {
-		if (d_ptr) {
-			for (integer i = d_from; i <= d_to; i ++)
-				Melder_free (d_ptr [i]);
-			NUMvector_free (sizeof (T), d_ptr, d_from);
+	_autostringvector& operator= (const _autostringvector &) = delete;   // disable copy assignment
+	_autostringvector& operator= (_autostringvector&& other) noexcept {   // enable move assignment
+		if (& other != this) {
+			our reset ();
+			our _ptr = other. _ptr;
+			our size = other. size;
+			other. _ptr = nullptr;
+			other. size = 0;
+		}
+		return *this;
+	}
+	~ _autostringvector<T> () {
+		our reset ();
+	}
+	explicit operator bool () const { return !! our _ptr; }
+	_autostring <T> & operator[] (integer i) {
+		return our _ptr [i];
+	}
+	_stringvector<T> get () const {
+		return _stringvector<T> { (T**) our _ptr, our size };
+	}
+	T** peek2 () const {
+		return (T**) our _ptr;
+	}
+	_autostring <T> * transfer () {
+		_autostring <T> * tmp = our _ptr;
+		our _ptr = nullptr;   // make the pointer non-automatic again
+		our size = 0;
+		return tmp;
+	}
+	T** transfer2 () {
+		T** tmp = (T**) our _ptr;
+		our _ptr = nullptr;   // make the pointer non-automatic again
+		our size = 0;
+		return tmp;
+	}
+	void reset () {
+		if (our _ptr) {
+			for (integer i = 1; i <= our size; i ++) {
+				our _ptr [i]. reset ();
+			}
+			NUMvector_free (our _ptr, 1);
+			our _ptr = nullptr;
+			our size = 0;
 		}
 	}
-	T& operator[] (integer i) {
-		return d_ptr [i];
-	}
-	T* peek () const {
-		return d_ptr;
-	}
-	T* transfer () {
-		T* temp = d_ptr;
-		d_ptr = nullptr;   // make the pointer non-automatic again
-		return temp;
-	}
-	void reset (integer from, integer to) {
-		if (d_ptr) {
-			for (integer i = d_from; i <= d_to; i ++)
-				Melder_free (d_ptr [i]);
-			NUMvector_free (sizeof (T), d_ptr, d_from);
-			d_ptr = nullptr;
+	void copyFrom (_autostringvector& other) {
+		our reset ();
+		our _ptr = NUMvector <_autostring <T>> (1, other. size, true);
+		our size = other. size;
+		for (integer i = 1; i <= our size; i ++) {
+			our _ptr [i] = Melder_dup (other. _ptr [i].get());
 		}
-		d_from = from;   // this assignment is safe, because d_ptr is null
-		d_to = to;
-		d_ptr = NUMvector<T> (from, to, true);
 	}
-	void reset (integer from, integer to, bool zero) {
-		if (d_ptr) {
-			for (integer i = d_from; i <= d_to; i ++)
-				Melder_free (d_ptr [i]);
-			NUMvector_free (sizeof (T), d_ptr, d_from);
-			d_ptr = nullptr;
+	void copyElementsFrom (_autostringvector& other) {
+		Melder_assert (other. size == our size);
+		for (integer i = 1; i <= our size; i ++) {
+			our _ptr [i] = Melder_dup (other. _ptr [i].get());
 		}
-		d_from = from;   // this assignment is safe, because d_ptr is null
-		d_to = to;
-		d_ptr = NUMvector<T> (from, to, zero);
+	}
+	void copyElementsFrom_upTo (_autostringvector& other, integer to) {
+		Melder_assert (to <= other. size && to <= our size);
+		for (integer i = 1; i <= to; i ++) {
+			our _ptr [i] = Melder_dup (other. _ptr [i].get());
+		}
 	}
 };
 
-typedef autodatavector <char32 *> autostring32vector;
-typedef autodatavector <char *> autostring8vector;
+typedef _autostringvector <char32> autostring32vector;
+typedef _autostringvector <char> autostring8vector;
 
 #pragma mark - TENSOR
 /*
@@ -1248,10 +1677,6 @@ public:
 public:
 	numvec () = default;   // for use in a union
 	numvec (double *givenAt, integer givenSize): at (givenAt), size (givenSize) { }
-	numvec (integer givenSize, kTensorInitializationType initializationType) {
-		our _initAt (givenSize, initializationType);
-		our size = givenSize;
-	}
 	numvec (const numvec& other) = default;
 	numvec (const autonumvec& other) = delete;
 	numvec& operator= (const numvec&) = default;
@@ -1259,7 +1684,7 @@ public:
 	double& operator[] (integer i) {
 		return our at [i];
 	}
-	void reset () noexcept {
+	void reset () noexcept {   // on behalf of ambiguous owners (otherwise this could be in autonumvec)
 		if (our at) {
 			our _freeAt ();
 			our at = nullptr;
@@ -1283,9 +1708,10 @@ protected:
 class autonumvec : public numvec {
 public:
 	autonumvec (): numvec (nullptr, 0) { }   // come into existence without a payload
-	autonumvec (integer givenSize, kTensorInitializationType initializationType): numvec (givenSize, initializationType) { }   // come into existence and manufacture a payload
-	autonumvec (double *givenAt, integer givenSize): numvec (givenAt, givenSize) { }   // come into existence and buy a payload from a non-autonumvec
-	explicit autonumvec (numvec x): numvec (x.at, x.size) { }   // come into existence and buy a payload from a non-autonumvec (disable implicit conversion)
+	autonumvec (integer givenSize, kTensorInitializationType initializationType) {   // come into existence and manufacture a payload
+		our _initAt (givenSize, initializationType);
+		our size = givenSize;
+	}
 	~autonumvec () {   // destroy the payload (if any)
 		if (our at) our _freeAt ();
 	}
@@ -1294,24 +1720,6 @@ public:
 		double *oldAt = our at;
 		our at = nullptr;   // disown ourselves, preventing automatic destruction of the payload
 		return { oldAt, our size };
-	}
-	void reset () {   // destroy the current payload (if any) and have no new payload
-		our numvec :: reset ();
-	}
-	void reset (integer newSize, kTensorInitializationType initializationType) {   // destroy the current payload (if any) and manufacture a new payload
-		our numvec :: reset ();   // exception guarantee: leave *this in a reasonable state...
-		our _initAt (newSize, initializationType);   // ...in case this line throws an exception
-		our size = newSize;
-	}
-	void reset (double *newAt, integer newSize) {   // destroy the current payload (if any) and buy a new payload
-		if (our at) our _freeAt ();
-		our at = newAt;
-		our size = newSize;
-	}
-	void reset (numvec newX) {   // destroy the current payload (if any) and buy a new payload
-		if (our at) our _freeAt ();
-		our at = newX.at;
-		our size = newX.size;
 	}
 	/*
 		Disable copying via construction or assignment (which would violate unique ownership of the payload).
@@ -1347,11 +1755,6 @@ public:
 public:
 	nummat () = default;   // for use in a union
 	nummat (double **givenAt, integer givenNrow, integer givenNcol): at (givenAt), nrow (givenNrow), ncol (givenNcol) { }
-	nummat (integer givenNrow, integer givenNcol, kTensorInitializationType initializationType) {
-		our _initAt (givenNrow, givenNcol, initializationType);
-		our nrow = givenNrow;
-		our ncol = givenNcol;
-	}
 	nummat (const nummat& other) = default;
 	nummat (const autonummat& other) = delete;
 	nummat& operator= (const nummat&) = default;
@@ -1359,7 +1762,7 @@ public:
 	double *& operator[] (integer i) {
 		return our at [i];
 	}
-	void reset () noexcept {
+	void reset () noexcept {   // on behalf of ambiguous owners (otherwise this could be in autonummat)
 		if (our at) {
 			our _freeAt ();
 			our at = nullptr;
@@ -1384,9 +1787,11 @@ protected:
 class autonummat : public nummat {
 public:
 	autonummat (): nummat { nullptr, 0, 0 } { }   // come into existence without a payload
-	autonummat (integer givenNrow, integer givenNcol, kTensorInitializationType initializationType): nummat { givenNrow, givenNcol, initializationType } { }   // come into existence and manufacture a payload
-	autonummat (double **givenAt, integer givenNrow, integer givenNcol): nummat (givenAt, givenNrow, givenNcol) { }   // come into existence and buy a payload from a non-autonummat
-	explicit autonummat (nummat x): nummat (x.at, x.nrow, x.ncol) { }   // come into existence and buy a payload from a non-autonummat (disable implicit conversion)
+	autonummat (integer givenNrow, integer givenNcol, kTensorInitializationType initializationType) {   // come into existence and manufacture a payload
+		our _initAt (givenNrow, givenNcol, initializationType);
+		our nrow = givenNrow;
+		our ncol = givenNcol;
+	}
 	~autonummat () {   // destroy the payload (if any)
 		if (our at) our _freeAt ();
 	}
@@ -1395,27 +1800,6 @@ public:
 		double **oldAt = our at;
 		our at = nullptr;   // disown ourselves, preventing automatic destruction of the payload
 		return { oldAt, our nrow, our ncol };
-	}
-	void reset () {   // destroy the current payload (if any) and have no new payload
-		our nummat :: reset ();
-	}
-	void reset (integer newNrow, integer newNcol, kTensorInitializationType initializationType) {   // destroy the current payload (if any) and manufacture a new payload
-		our nummat :: reset ();   // exception guarantee: leave *this in a reasonable state...
-		our _initAt (newNrow, newNcol, initializationType);   // ...in case this line throws an exception
-		our nrow = newNrow;
-		our ncol = newNcol;
-	}
-	void reset (double **newAt, integer newNrow, integer newNcol) {   // destroy the current payload (if any) and buy a new payload
-		if (our at) our _freeAt ();
-		our at = newAt;
-		our nrow = newNrow;
-		our ncol = newNcol;
-	}
-	void reset (nummat newX) {   // destroy the current payload (if any) and buy a new payload
-		if (our at) our _freeAt ();
-		our at = newX.at;
-		our nrow = newX.nrow;
-		our ncol = newX.ncol;
 	}
 	/*
 		Disable copying via construction or assignment (which would violate unique ownership of the payload).
@@ -1444,19 +1828,35 @@ public:
 	autonummat&& move () noexcept { return static_cast <autonummat&&> (*this); }
 };
 
+/********** Sorting (NUMsort.cpp) **********/
+
+void NUMsort_d (integer n, double ra []);   // heap sort
+void NUMsort_i (integer n, int ra []);
+void NUMsort_integer (integer n, integer ra []);
+void NUMsort_str (string32vector a);
+void NUMsort_p (integer n, void *a [], int (*compare) (const void *, const void *));
+
+double NUMquantile (integer n, double a [], double factor);
+/*
+	An estimate of the quantile 'factor' (between 0 and 1) of the distribution
+	from which the set 'a [1..n]' is a sorted array of random samples.
+	For instance, if 'factor' is 0.5, this function returns an estimate of
+	the median of the distribution underlying the sorted set a [].
+	If your array has not been sorted, first sort it with NUMsort (n, a).
+*/
+
 #pragma mark - ARGUMENTS
 
-const  char32 * Melder_numvec  (numvec value);
-const  char32 * Melder_nummat  (nummat value);
+conststring32 Melder_numvec (numvec value);
+conststring32 Melder_nummat (nummat value);
 typedef class structThing *Thing;   // forward declaration
-const char32 * Thing_messageName (Thing me);
+conststring32 Thing_messageName (Thing me);
 struct MelderArg {
-	const char32 *_arg;
+	conststring32 _arg;
 	/*
 		The types of arguments that never involve memory allocation:
 	*/
-	MelderArg (const char32 *            arg) : _arg (arg) { }
-	//MelderArg (const char   *            arg) : _arg (Melder_peek8to32 (arg)) { }
+	MelderArg (conststring32             arg) : _arg (arg) { }
 	MelderArg (const double              arg) : _arg (Melder_double          (arg)) { }
 	MelderArg (const          long long  arg) : _arg (Melder_integer         (arg)) { }
 	MelderArg (const unsigned long long  arg) : _arg (Melder_integer         ((int64) arg)) { }
@@ -1467,8 +1867,7 @@ struct MelderArg {
 	MelderArg (const          short      arg) : _arg (Melder_integer         (arg)) { }
 	MelderArg (const unsigned short      arg) : _arg (Melder_integer         (arg)) { }
 	MelderArg (const dcomplex            arg) : _arg (Melder_dcomplex        (arg)) { }
-	MelderArg (const char32_t            arg) : _arg (Melder_character       (arg)) { }
-	MelderArg (void *                    arg) : _arg (Melder_integer         ((int64) arg)) { }
+	MelderArg (const char32              arg) : _arg (Melder_character       (arg)) { }
 	/*
 		The types of arguments that sometimes involve memory allocation:
 	*/
@@ -1476,130 +1875,64 @@ struct MelderArg {
 	MelderArg (nummat                    arg) : _arg (Melder_nummat          (arg)) { }
 	MelderArg (Thing                     arg) : _arg (Thing_messageName      (arg)) { }
 	MelderArg (MelderFile                arg) : _arg (MelderFile_messageName (arg)) { }
+	/*
+		There could be more types of arguments, but those are rare;
+		you have to use explicit conversion to one of the types above.
+		For instance, you can write a char* string by using Melder_peek8to32()
+		(which sometimes involves memory allocation),
+		and you can write a void* by using Melder_pointer()
+		(which never involves memory allocation).
+	*/
 };
 
-#define Melder_1_ARG \
-	const MelderArg& arg1
-#define Melder_2_ARGS \
-	const MelderArg& arg1,  const MelderArg& arg2
-#define Melder_3_ARGS \
-	const MelderArg& arg1,  const MelderArg& arg2,  const MelderArg& arg3
-#define Melder_4_ARGS \
-	const MelderArg& arg1,  const MelderArg& arg2,  const MelderArg& arg3,  const MelderArg& arg4
-#define Melder_5_ARGS \
-	const MelderArg& arg1,  const MelderArg& arg2,  const MelderArg& arg3,  const MelderArg& arg4, \
-	const MelderArg& arg5
-#define Melder_6_ARGS \
-	const MelderArg& arg1,  const MelderArg& arg2,  const MelderArg& arg3,  const MelderArg& arg4, \
-	const MelderArg& arg5,  const MelderArg& arg6
-#define Melder_7_ARGS \
-	const MelderArg& arg1,  const MelderArg& arg2,  const MelderArg& arg3,  const MelderArg& arg4, \
-	const MelderArg& arg5,  const MelderArg& arg6,  const MelderArg& arg7
-#define Melder_8_ARGS \
-	const MelderArg& arg1,  const MelderArg& arg2,  const MelderArg& arg3,  const MelderArg& arg4, \
-	const MelderArg& arg5,  const MelderArg& arg6,  const MelderArg& arg7,  const MelderArg& arg8
-#define Melder_9_ARGS \
-	const MelderArg& arg1,  const MelderArg& arg2,  const MelderArg& arg3,  const MelderArg& arg4, \
-	const MelderArg& arg5,  const MelderArg& arg6,  const MelderArg& arg7,  const MelderArg& arg8, \
-	const MelderArg& arg9
-#define Melder_10_ARGS \
-	const MelderArg& arg1,  const MelderArg& arg2,  const MelderArg& arg3,  const MelderArg& arg4, \
-	const MelderArg& arg5,  const MelderArg& arg6,  const MelderArg& arg7,  const MelderArg& arg8, \
-	const MelderArg& arg9,  const MelderArg& arg10
-#define Melder_11_ARGS \
-	const MelderArg& arg1,  const MelderArg& arg2,  const MelderArg& arg3,  const MelderArg& arg4, \
-	const MelderArg& arg5,  const MelderArg& arg6,  const MelderArg& arg7,  const MelderArg& arg8, \
-	const MelderArg& arg9,  const MelderArg& arg10, const MelderArg& arg11
-#define Melder_12_OR_13_ARGS \
-	const MelderArg& arg1,  const MelderArg& arg2,  const MelderArg& arg3,  const MelderArg& arg4, \
-	const MelderArg& arg5,  const MelderArg& arg6,  const MelderArg& arg7,  const MelderArg& arg8, \
-	const MelderArg& arg9,  const MelderArg& arg10, const MelderArg& arg11, const MelderArg& arg12, \
-	const MelderArg& arg13 = U""
-#define Melder_13_ARGS \
-	const MelderArg& arg1,  const MelderArg& arg2,  const MelderArg& arg3,  const MelderArg& arg4, \
-	const MelderArg& arg5,  const MelderArg& arg6,  const MelderArg& arg7,  const MelderArg& arg8, \
-	const MelderArg& arg9,  const MelderArg& arg10, const MelderArg& arg11, const MelderArg& arg12, \
-	const MelderArg& arg13
-#define Melder_14_OR_15_ARGS \
-	const MelderArg& arg1,  const MelderArg& arg2,  const MelderArg& arg3,  const MelderArg& arg4, \
-	const MelderArg& arg5,  const MelderArg& arg6,  const MelderArg& arg7,  const MelderArg& arg8, \
-	const MelderArg& arg9,  const MelderArg& arg10, const MelderArg& arg11, const MelderArg& arg12, \
-	const MelderArg& arg13, const MelderArg& arg14, const MelderArg& arg15 = U""
-#define Melder_15_ARGS \
-	const MelderArg& arg1,  const MelderArg& arg2,  const MelderArg& arg3,  const MelderArg& arg4, \
-	const MelderArg& arg5,  const MelderArg& arg6,  const MelderArg& arg7,  const MelderArg& arg8, \
-	const MelderArg& arg9,  const MelderArg& arg10, const MelderArg& arg11, const MelderArg& arg12, \
-	const MelderArg& arg13, const MelderArg& arg14, const MelderArg& arg15
-#define Melder_16_TO_19_ARGS \
-	const MelderArg& arg1,  const MelderArg& arg2,  const MelderArg& arg3,  const MelderArg& arg4, \
-	const MelderArg& arg5,  const MelderArg& arg6,  const MelderArg& arg7,  const MelderArg& arg8, \
-	const MelderArg& arg9,  const MelderArg& arg10, const MelderArg& arg11, const MelderArg& arg12, \
-	const MelderArg& arg13, const MelderArg& arg14, const MelderArg& arg15, const MelderArg& arg16, \
-	const MelderArg& arg17 = U"", const MelderArg& arg18 = U"", const MelderArg& arg19 = U""
-#define Melder_19_ARGS \
-	const MelderArg& arg1,  const MelderArg& arg2,  const MelderArg& arg3,  const MelderArg& arg4, \
-	const MelderArg& arg5,  const MelderArg& arg6,  const MelderArg& arg7,  const MelderArg& arg8, \
-	const MelderArg& arg9,  const MelderArg& arg10, const MelderArg& arg11, const MelderArg& arg12, \
-	const MelderArg& arg13, const MelderArg& arg14, const MelderArg& arg15, const MelderArg& arg16, \
-	const MelderArg& arg17, const MelderArg& arg18, const MelderArg& arg19
-
-#define Melder_1_ARG_CALL \
-	arg1._arg
-#define Melder_2_ARGS_CALL \
-	arg1._arg, arg2._arg
-#define Melder_3_ARGS_CALL \
-	arg1._arg, arg2._arg, arg3._arg
-#define Melder_4_ARGS_CALL \
-	arg1._arg, arg2._arg, arg3._arg, arg4._arg
-#define Melder_5_ARGS_CALL \
-	arg1._arg, arg2._arg, arg3._arg, arg4._arg, arg5._arg
-#define Melder_6_ARGS_CALL \
-	arg1._arg, arg2._arg, arg3._arg, arg4._arg, arg5._arg, arg6._arg
-#define Melder_7_ARGS_CALL \
-	arg1._arg, arg2._arg, arg3._arg, arg4._arg, arg5._arg, arg6._arg, arg7._arg
-#define Melder_8_ARGS_CALL \
-	arg1._arg, arg2._arg, arg3._arg, arg4._arg, arg5._arg, arg6._arg, arg7._arg, arg8._arg
-#define Melder_9_ARGS_CALL \
-	arg1._arg, arg2._arg, arg3._arg, arg4._arg, arg5._arg, arg6._arg, arg7._arg, arg8._arg, arg9._arg
-#define Melder_10_ARGS_CALL \
-	arg1._arg, arg2._arg, arg3._arg, arg4._arg, arg5._arg, arg6._arg, arg7._arg, arg8._arg, arg9._arg, arg10._arg
-#define Melder_11_ARGS_CALL \
-	arg1._arg, arg2._arg, arg3._arg, arg4._arg, arg5._arg, arg6._arg, arg7._arg, arg8._arg, arg9._arg, arg10._arg, \
-	arg11._arg
-#define Melder_13_ARGS_CALL \
-	arg1._arg, arg2._arg, arg3._arg, arg4._arg, arg5._arg, arg6._arg, arg7._arg, arg8._arg, arg9._arg, arg10._arg, \
-	arg11._arg, arg12._arg, arg13._arg
-#define Melder_15_ARGS_CALL \
-	arg1._arg, arg2._arg, arg3._arg, arg4._arg, arg5._arg, arg6._arg, arg7._arg, arg8._arg, arg9._arg, arg10._arg, \
-	arg11._arg, arg12._arg, arg13._arg, arg14._arg, arg15._arg
-#define Melder_19_ARGS_CALL \
-	arg1._arg, arg2._arg, arg3._arg, arg4._arg, arg5._arg, arg6._arg, arg7._arg, arg8._arg, arg9._arg, arg10._arg, \
-	arg11._arg, arg12._arg, arg13._arg, arg14._arg, arg15._arg, arg16._arg, arg17._arg, arg18._arg, arg19._arg
+inline static integer MelderArg__length (const MelderArg& arg) {
+	return arg._arg ? str32len (arg._arg) : 0;
+}
+template <typename... Args>
+integer MelderArg__length (const MelderArg& first, Args... rest) {
+	integer length = MelderArg__length (first);
+	length += MelderArg__length (rest...);
+	return length;
+}
 
 void Melder_tracingToFile (MelderFile file);
-void Melder_trace (const char *fileName, int lineNumber, const char *functionName, Melder_1_ARG);
-void Melder_trace (const char *fileName, int lineNumber, const char *functionName, Melder_2_ARGS);
-void Melder_trace (const char *fileName, int lineNumber, const char *functionName, Melder_3_ARGS);
-void Melder_trace (const char *fileName, int lineNumber, const char *functionName, Melder_4_ARGS);
-void Melder_trace (const char *fileName, int lineNumber, const char *functionName, Melder_5_ARGS);
-void Melder_trace (const char *fileName, int lineNumber, const char *functionName, Melder_6_ARGS);
-void Melder_trace (const char *fileName, int lineNumber, const char *functionName, Melder_7_ARGS);
-void Melder_trace (const char *fileName, int lineNumber, const char *functionName, Melder_8_ARGS);
-void Melder_trace (const char *fileName, int lineNumber, const char *functionName, Melder_9_ARGS);
-void Melder_trace (const char *fileName, int lineNumber, const char *functionName, Melder_10_ARGS);
-void Melder_trace (const char *fileName, int lineNumber, const char *functionName, Melder_11_ARGS);
-void Melder_trace (const char *fileName, int lineNumber, const char *functionName, Melder_12_OR_13_ARGS);
-void Melder_trace (const char *fileName, int lineNumber, const char *functionName, Melder_14_OR_15_ARGS);
-void Melder_trace (const char *fileName, int lineNumber, const char *functionName, Melder_16_TO_19_ARGS);
+void Melder_setTracing (bool tracing);
+extern bool Melder_isTracing;
+
+namespace MelderTrace {
+	extern structMelderFile _file;
+	FILE * _open (conststring8 sourceCodeFileName, int lineNumber, conststring8 functionName);
+	void _close (FILE *f);
+	conststring8  _peek32to8  (conststring32 string);
+	conststring16 _peek32to16 (conststring32 string);
+};
+
+inline static void _recursiveTemplate_Melder_trace (FILE *f, const MelderArg& arg) {
+	if (arg._arg)
+		fprintf (f, "%s", MelderTrace::_peek32to8 (arg. _arg));
+}
+template <typename... Args>
+void _recursiveTemplate_Melder_trace (FILE *f, const MelderArg& first, Args... rest) {
+	_recursiveTemplate_Melder_trace (f, first);
+	_recursiveTemplate_Melder_trace (f, rest...);
+}
+
+template <typename... Args>
+void Melder_trace (conststring8 sourceCodeFileName, int lineNumber, conststring8 functionName, const MelderArg& first, Args... rest) {
+	if (! Melder_isTracing || MelderFile_isNull (& MelderTrace::_file))
+		return;
+	FILE *f = MelderTrace::_open (sourceCodeFileName, lineNumber, functionName);
+	_recursiveTemplate_Melder_trace (f, first, rest...);
+	MelderTrace::_close (f);
+}
+
 #ifdef NDEBUG
-	#define Melder_assert(x)   ((void) 0)
 	#define trace(x)   ((void) 0)
 #else
-	#define Melder_assert(x)   ((x) ? (void) (0) : (Melder_assert_ (__FILE__, __LINE__, #x), abort ()))
 	#define trace(...)   (! Melder_isTracing ? (void) 0 : Melder_trace (__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__))
 #endif
 
-/* So these will be the future replacements for the above, as soon as we rid of text files: */
+/* These will be the future replacements for Melder_fopen, as soon as we rid of text files: */
 MelderFile MelderFile_open (MelderFile file);
 MelderFile MelderFile_append (MelderFile file);
 MelderFile MelderFile_create (MelderFile file);
@@ -1607,20 +1940,25 @@ void * MelderFile_read (MelderFile file, integer nbytes);
 char * MelderFile_readLine (MelderFile file);
 void MelderFile_writeCharacter (MelderFile file, wchar_t kar);
 void MelderFile_writeCharacter (MelderFile file, char32 kar);
-void MelderFile_write (MelderFile file, Melder_1_ARG);
-void MelderFile_write (MelderFile file, Melder_2_ARGS);
-void MelderFile_write (MelderFile file, Melder_3_ARGS);
-void MelderFile_write (MelderFile file, Melder_4_ARGS);
-void MelderFile_write (MelderFile file, Melder_5_ARGS);
-void MelderFile_write (MelderFile file, Melder_6_ARGS);
-void MelderFile_write (MelderFile file, Melder_7_ARGS);
-void MelderFile_write (MelderFile file, Melder_8_ARGS);
-void MelderFile_write (MelderFile file, Melder_9_ARGS);
-void MelderFile_write (MelderFile file, Melder_10_ARGS);
-void MelderFile_write (MelderFile file, Melder_11_ARGS);
-void MelderFile_write (MelderFile file, Melder_12_OR_13_ARGS);
-void MelderFile_write (MelderFile file, Melder_14_OR_15_ARGS);
-void MelderFile_write (MelderFile file, Melder_16_TO_19_ARGS);
+
+void _MelderFile_write (MelderFile file, conststring32 string);
+
+inline static void _recursiveTemplate_MelderFile_write (MelderFile file, const MelderArg& arg) {
+	_MelderFile_write (file, arg. _arg);
+}
+template <typename... Args>
+void _recursiveTemplate_MelderFile_write (MelderFile file, const MelderArg& first, Args... rest) {
+	_recursiveTemplate_MelderFile_write (file, first);
+	_recursiveTemplate_MelderFile_write (file, rest...);
+}
+
+template <typename... Args>
+void MelderFile_write (MelderFile file, const MelderArg& first, Args... rest) {
+	if (! file -> filePointer)
+		return;
+	_recursiveTemplate_MelderFile_write (file, first, rest...);
+}
+
 void MelderFile_rewind (MelderFile file);
 void MelderFile_seek (MelderFile file, integer position, int direction);
 integer MelderFile_tell (MelderFile file);
@@ -1628,11 +1966,11 @@ void MelderFile_close (MelderFile file);
 void MelderFile_close_nothrow (MelderFile file);
 
 /* Read and write whole text files. */
-char32 * MelderFile_readText (MelderFile file);
-void MelderFile_writeText (MelderFile file, const char32 *text, kMelder_textOutputEncoding outputEncoding);
-void MelderFile_appendText (MelderFile file, const char32 *text);
+autostring32 MelderFile_readText (MelderFile file);
+void MelderFile_writeText (MelderFile file, conststring32 text, kMelder_textOutputEncoding outputEncoding);
+void MelderFile_appendText (MelderFile file, conststring32 text);
 
-void Melder_createDirectory (MelderDir parent, const char32 *subdirName, int mode);
+void Melder_createDirectory (MelderDir parent, conststring32 subdirName, int mode);
 
 void Melder_getDefaultDir (MelderDir dir);
 void Melder_setDefaultDir (MelderDir dir);
@@ -1674,42 +2012,41 @@ void MelderString_free (MelderString *me);   // frees the buffer (and sets other
 void MelderString16_empty (MelderString16 *me);   // sets to empty string (buffer shrunk if very large)
 void MelderString_empty (MelderString *me);   // sets to empty string (buffer shrunk if very large)
 void MelderString_expand (MelderString *me, int64 sizeNeeded);   // increases the buffer size; there's normally no need to call this
-void MelderString_copy (MelderString *me, Melder_1_ARG);
-void MelderString_copy (MelderString *me, Melder_2_ARGS);
-void MelderString_copy (MelderString *me, Melder_3_ARGS);
-void MelderString_copy (MelderString *me, Melder_4_ARGS);
-void MelderString_copy (MelderString *me, Melder_5_ARGS);
-void MelderString_copy (MelderString *me, Melder_6_ARGS);
-void MelderString_copy (MelderString *me, Melder_7_ARGS);
-void MelderString_copy (MelderString *me, Melder_8_ARGS);
-void MelderString_copy (MelderString *me, Melder_9_ARGS);
-void MelderString_copy (MelderString *me, Melder_10_ARGS);
-void MelderString_copy (MelderString *me, Melder_11_ARGS);
-void MelderString_copy (MelderString *me, Melder_12_OR_13_ARGS);
-void MelderString_copy (MelderString *me, Melder_14_OR_15_ARGS);
-void MelderString_copy (MelderString *me, Melder_16_TO_19_ARGS);
-void MelderString_ncopy (MelderString *me, const char32 *source, int64 n);
+void MelderString_ncopy (MelderString *me, conststring32 source, int64 n);
 
-inline static void MelderString_append (MelderString *me, Melder_1_ARG) {
-	const char32 *s1  = arg1._arg  ? arg1._arg  : U"";  integer length1  = str32len (s1);
-	integer sizeNeeded = me -> length + length1 + 1;
-	if (sizeNeeded > me -> bufferSize) MelderString_expand (me, sizeNeeded);
-	str32cpy (me -> string + me -> length, s1);   me -> length += length1;
+inline static void _recursiveTemplate_MelderString_append (MelderString *me, const MelderArg& arg) {
+	if (arg._arg) {
+		const char32 *newEndOfStringLocation = stp32cpy (& my string [my length], arg._arg);
+		my length = newEndOfStringLocation - & my string [0];
+	}
 }
-/*void MelderString_append (MelderString *me, Melder_1_ARG);*/
-void MelderString_append (MelderString *me, Melder_2_ARGS);
-void MelderString_append (MelderString *me, Melder_3_ARGS);
-void MelderString_append (MelderString *me, Melder_4_ARGS);
-void MelderString_append (MelderString *me, Melder_5_ARGS);
-void MelderString_append (MelderString *me, Melder_6_ARGS);
-void MelderString_append (MelderString *me, Melder_7_ARGS);
-void MelderString_append (MelderString *me, Melder_8_ARGS);
-void MelderString_append (MelderString *me, Melder_9_ARGS);
-void MelderString_append (MelderString *me, Melder_10_ARGS);
-void MelderString_append (MelderString *me, Melder_11_ARGS);
-void MelderString_append (MelderString *me, Melder_12_OR_13_ARGS);
-void MelderString_append (MelderString *me, Melder_14_OR_15_ARGS);
-void MelderString_append (MelderString *me, Melder_16_TO_19_ARGS);
+template <typename... Args>
+void _recursiveTemplate_MelderString_append (MelderString *me, const MelderArg& first, Args... rest) {
+	_recursiveTemplate_MelderString_append (me, first);
+	_recursiveTemplate_MelderString_append (me, rest...);
+}
+
+template <typename... Args>
+void MelderString_append (MelderString *me, const MelderArg& first, Args... rest) {
+	integer extraLength = MelderArg__length (first, rest...);
+	integer sizeNeeded = my length + extraLength + 1;
+	if (sizeNeeded > my bufferSize)
+		MelderString_expand (me, sizeNeeded);
+	_recursiveTemplate_MelderString_append (me, first, rest...);
+}
+
+template <typename... Args>
+void MelderString_copy (MelderString *me, const MelderArg& first, Args... rest) {
+	constexpr int64 FREE_THRESHOLD_BYTES = 10000;
+	if (my bufferSize * (int64) sizeof (char32) >= FREE_THRESHOLD_BYTES) MelderString_free (me);
+	integer length = MelderArg__length (first, rest...);
+	integer sizeNeeded = length + 1;
+	if (sizeNeeded > my bufferSize)
+		MelderString_expand (me, sizeNeeded);
+	my length = 0;
+	_recursiveTemplate_MelderString_append (me, first, rest...);
+}
+
 void MelderString16_appendCharacter (MelderString16 *me, char32 character);
 void MelderString_appendCharacter (MelderString *me, char32 character);
 void MelderString_get (MelderString *me, char32 *destination);   // performs no boundary checking
@@ -1718,42 +2055,50 @@ int64 MelderString_deallocationCount ();
 int64 MelderString_allocationSize ();
 int64 MelderString_deallocationSize ();
 
-const char32 * Melder_cat (Melder_2_ARGS);
-const char32 * Melder_cat (Melder_3_ARGS);
-const char32 * Melder_cat (Melder_4_ARGS);
-const char32 * Melder_cat (Melder_5_ARGS);
-const char32 * Melder_cat (Melder_6_ARGS);
-const char32 * Melder_cat (Melder_7_ARGS);
-const char32 * Melder_cat (Melder_8_ARGS);
-const char32 * Melder_cat (Melder_9_ARGS);
-const char32 * Melder_cat (Melder_10_ARGS);
-const char32 * Melder_cat (Melder_11_ARGS);
-const char32 * Melder_cat (Melder_12_OR_13_ARGS);
-const char32 * Melder_cat (Melder_14_OR_15_ARGS);
-const char32 * Melder_cat (Melder_16_TO_19_ARGS);
+namespace MelderCat {
+	constexpr int _k_NUMBER_OF_BUFFERS = 33;
+	extern MelderString _buffers [_k_NUMBER_OF_BUFFERS];
+	extern int _bufferNumber;
+};
 
-char32 * Melder_dup (const char32 *string /* cattable */);
-char32 * Melder_dup_f (const char32 *string /* cattable */);
+template <typename... Args>
+conststring32 Melder_cat (Args... args) {
+	if (++ MelderCat::_bufferNumber == MelderCat::_k_NUMBER_OF_BUFFERS)
+		MelderCat::_bufferNumber = 0;
+	MelderString_copy (& MelderCat::_buffers [MelderCat::_bufferNumber], args...);
+	return MelderCat::_buffers [MelderCat::_bufferNumber].string;
+}
 
-void Melder_sprint (char32 *buffer, int64 bufferSize, Melder_1_ARG);
-void Melder_sprint (char32 *buffer, int64 bufferSize, Melder_2_ARGS);
-void Melder_sprint (char32 *buffer, int64 bufferSize, Melder_3_ARGS);
-void Melder_sprint (char32 *buffer, int64 bufferSize, Melder_4_ARGS);
-void Melder_sprint (char32 *buffer, int64 bufferSize, Melder_5_ARGS);
-void Melder_sprint (char32 *buffer, int64 bufferSize, Melder_6_ARGS);
-void Melder_sprint (char32 *buffer, int64 bufferSize, Melder_7_ARGS);
-void Melder_sprint (char32 *buffer, int64 bufferSize, Melder_8_ARGS);
-void Melder_sprint (char32 *buffer, int64 bufferSize, Melder_9_ARGS);
-void Melder_sprint (char32 *buffer, int64 bufferSize, Melder_10_ARGS);
-void Melder_sprint (char32 *buffer, int64 bufferSize, Melder_11_ARGS);
-void Melder_sprint (char32 *buffer, int64 bufferSize, Melder_12_OR_13_ARGS);
-void Melder_sprint (char32 *buffer, int64 bufferSize, Melder_14_OR_15_ARGS);
-void Melder_sprint (char32 *buffer, int64 bufferSize, Melder_16_TO_19_ARGS);
+inline static void _recursiveTemplate_Melder_sprint (char32 **inout_pointer, const MelderArg& arg) {
+	if (arg._arg) {
+		char32 *newEndOfStringLocation = stp32cpy (*inout_pointer, arg._arg);
+		*inout_pointer = newEndOfStringLocation;
+	}
+}
+template <typename... Args>
+void _recursiveTemplate_Melder_sprint (char32 **inout_pointer, const MelderArg& first, Args... rest) {
+	_recursiveTemplate_Melder_sprint (inout_pointer, first);
+	_recursiveTemplate_Melder_sprint (inout_pointer, rest...);
+}
+
+template <typename... Args>
+void Melder_sprint (mutablestring32 buffer, int64 bufferSize, const MelderArg& first, Args... rest) {
+	integer length = MelderArg__length (first, rest...);
+	if (length >= bufferSize) {
+		for (int64 i = 0; i < bufferSize; i ++)
+			buffer [i] = U'?';
+		if (bufferSize > 0)
+			buffer [bufferSize - 1] = U'\0';
+		return;
+	}
+	char32 *p = & buffer [0];
+	_recursiveTemplate_Melder_sprint (& p, first, rest...);
+}
 
 /********** NUMBER AND STRING COMPARISON **********/
 
 bool Melder_numberMatchesCriterion (double value, kMelder_number which, double criterion);
-bool Melder_stringMatchesCriterion (const char32 *value, kMelder_string which, const char32 *criterion);
+bool Melder_stringMatchesCriterion (conststring32 value, kMelder_string which, conststring32 criterion, bool caseSensitive);
 
 /********** STRING PARSING **********/
 
@@ -1767,12 +2112,12 @@ bool Melder_stringMatchesCriterion (const char32 *value, kMelder_string which, c
 		}
 */
 
-integer Melder_countTokens (const char32 *string);
-char32 *Melder_firstToken (const char32 *string);
+integer Melder_countTokens (conststring32 string);
+char32 *Melder_firstToken (conststring32 string);
 char32 *Melder_nextToken ();
-char32 ** Melder_getTokens (const char32 *string, integer *n);
+char32 ** Melder_getTokens (conststring32 string, integer *n);
 void Melder_freeTokens (char32 ***tokens);
-integer Melder_searchToken (const char32 *string, char32 **tokens, integer n);
+integer Melder_searchToken (conststring32 string, char32 **tokens, integer n);
 
 /********** MESSAGING ROUTINES **********/
 
@@ -1782,87 +2127,86 @@ integer Melder_searchToken (const char32 *string, char32 **tokens, integer n);
 	Behaviour:
 		Writes to stderr on Unix, otherwise to a special window.
 */
-void Melder_casual (Melder_1_ARG);
-void Melder_casual (Melder_2_ARGS);
-void Melder_casual (Melder_3_ARGS);
-void Melder_casual (Melder_4_ARGS);
-void Melder_casual (Melder_5_ARGS);
-void Melder_casual (Melder_6_ARGS);
-void Melder_casual (Melder_7_ARGS);
-void Melder_casual (Melder_8_ARGS);
-void Melder_casual (Melder_9_ARGS);
-void Melder_casual (Melder_10_ARGS);
-void Melder_casual (Melder_11_ARGS);
-void Melder_casual (Melder_12_OR_13_ARGS);
-void Melder_casual (Melder_14_OR_15_ARGS);
-void Melder_casual (Melder_16_TO_19_ARGS);
 
-/**
+inline static void _recursiveTemplate_Melder_casual (const MelderArg& arg) {
+	Melder_writeToConsole (arg._arg, true);
+}
+template <typename... Args>
+void _recursiveTemplate_Melder_casual (const MelderArg& first, Args... rest) {
+	_recursiveTemplate_Melder_casual (first);
+	_recursiveTemplate_Melder_casual (rest...);
+}
+
+template <typename... Args>
+void Melder_casual (const MelderArg& first, Args... rest) {
+	_recursiveTemplate_Melder_casual (first, rest...);
+	Melder_writeToConsole (U"\n", true);
+}
+
+void MelderCasual_memoryUse (integer message = 0);
+
+/*
 	Give information to stdout (batch), or to an "Info" window (interactive), or to a diverted string.
 */
+
+namespace MelderInfo {
+	using Proc = void (*) (conststring32 message);
+	void _defaultProc (conststring32 message);
+	extern Proc _p_currentProc;
+	extern MelderString _foregroundBuffer, *_p_currentBuffer;
+};
+
 void MelderInfo_open ();   // clear the Info window in the background
-
-void MelderInfo_write (Melder_1_ARG);
-void MelderInfo_write (Melder_2_ARGS);
-void MelderInfo_write (Melder_3_ARGS);
-void MelderInfo_write (Melder_4_ARGS);
-void MelderInfo_write (Melder_5_ARGS);
-void MelderInfo_write (Melder_6_ARGS);
-void MelderInfo_write (Melder_7_ARGS);
-void MelderInfo_write (Melder_8_ARGS);
-void MelderInfo_write (Melder_9_ARGS);
-void MelderInfo_write (Melder_10_ARGS);
-void MelderInfo_write (Melder_11_ARGS);
-void MelderInfo_write (Melder_12_OR_13_ARGS);
-void MelderInfo_write (Melder_14_OR_15_ARGS);
-void MelderInfo_write (Melder_16_TO_19_ARGS);
-
-void MelderInfo_writeLine (Melder_1_ARG);
-void MelderInfo_writeLine (Melder_2_ARGS);
-void MelderInfo_writeLine (Melder_3_ARGS);
-void MelderInfo_writeLine (Melder_4_ARGS);
-void MelderInfo_writeLine (Melder_5_ARGS);
-void MelderInfo_writeLine (Melder_6_ARGS);
-void MelderInfo_writeLine (Melder_7_ARGS);
-void MelderInfo_writeLine (Melder_8_ARGS);
-void MelderInfo_writeLine (Melder_9_ARGS);
-void MelderInfo_writeLine (Melder_10_ARGS);
-void MelderInfo_writeLine (Melder_11_ARGS);
-void MelderInfo_writeLine (Melder_12_OR_13_ARGS);
-void MelderInfo_writeLine (Melder_14_OR_15_ARGS);
-void MelderInfo_writeLine (Melder_16_TO_19_ARGS);
-
 void MelderInfo_close ();   // drain the background info to the Info window, making sure there is a line break
 void MelderInfo_drain ();   // drain the background info to the Info window, without adding any extra line break
 
-void Melder_information (Melder_1_ARG);
-void Melder_information (Melder_2_ARGS);
-void Melder_information (Melder_3_ARGS);
-void Melder_information (Melder_4_ARGS);
-void Melder_information (Melder_5_ARGS);
-void Melder_information (Melder_6_ARGS);
-void Melder_information (Melder_7_ARGS);
-void Melder_information (Melder_8_ARGS);
-void Melder_information (Melder_9_ARGS);
-void Melder_information (Melder_10_ARGS);
-void Melder_information (Melder_11_ARGS);
-void Melder_information (Melder_12_OR_13_ARGS);
-void Melder_information (Melder_14_OR_15_ARGS);
-void Melder_information (Melder_16_TO_19_ARGS);
+inline static void _recursiveTemplate_MelderInfo_write (const MelderArg& arg) {
+	Melder_writeToConsole (arg._arg, false);
+}
+template <typename... Args>
+void _recursiveTemplate_MelderInfo_write (const MelderArg& first, Args... rest) {
+	_recursiveTemplate_MelderInfo_write (first);
+	_recursiveTemplate_MelderInfo_write (rest...);
+}
 
-void Melder_informationReal (double value, const char32 *units);   // %.17g or --undefined--; units may be null
+template <typename... Args>
+void MelderInfo_write (const MelderArg& first, Args... rest) {
+	MelderString_append (MelderInfo::_p_currentBuffer, first, rest...);
+	if (MelderInfo::_p_currentProc == & MelderInfo::_defaultProc && MelderInfo::_p_currentBuffer == & MelderInfo::_foregroundBuffer)
+		_recursiveTemplate_MelderInfo_write (first, rest...);
+}
 
-void Melder_divertInfo (MelderString *buffer);   // nullptr = back to normal
+template <typename... Args>
+void MelderInfo_writeLine (const MelderArg& first, Args... rest) {
+	MelderString_append (MelderInfo::_p_currentBuffer, first, rest...);
+	MelderString_appendCharacter (MelderInfo::_p_currentBuffer, U'\n');
+	if (MelderInfo::_p_currentProc == & MelderInfo::_defaultProc && MelderInfo::_p_currentBuffer == & MelderInfo::_foregroundBuffer) {
+		_recursiveTemplate_MelderInfo_write (first, rest...);
+		Melder_writeToConsole (U"\n", false);
+	}
+}
+
+template <typename... Args>
+void Melder_information (const MelderArg& first, Args... rest) {
+	MelderString_copy (MelderInfo::_p_currentBuffer, first, rest...);
+	if (MelderInfo::_p_currentProc == & MelderInfo::_defaultProc && MelderInfo::_p_currentBuffer == & MelderInfo::_foregroundBuffer)
+		_recursiveTemplate_MelderInfo_write (first, rest...);
+	MelderInfo_close ();
+}
+
+void Melder_informationReal (double value, conststring32 units);   // %.17g or --undefined--; units may be null
+
+void Melder_divertInfo (MelderString *p_buffer);   // nullptr = back to normal
 
 class autoMelderDivertInfo {
 	public:
-		autoMelderDivertInfo (MelderString *buffer) { Melder_divertInfo (buffer); }
+		autoMelderDivertInfo (MelderString *p_buffer) { Melder_divertInfo (p_buffer); }
 		~autoMelderDivertInfo () { Melder_divertInfo (nullptr); }
 };
 
 void Melder_clearInfo ();   // clear the Info window
-const char32 * Melder_getInfo ();
-void Melder_help (const char32 *query);
+conststring32 Melder_getInfo ();
+void Melder_help (conststring32 query);
 
 void Melder_search ();
 	
@@ -1875,7 +2219,10 @@ extern int Melder_debug;
 
 /********** ERROR **********/
 
-class MelderError { };
+class MelderError {
+public:
+	static void _append (conststring32 message);
+};
 
 void Melder_appendError_noLine (const MelderArg& arg1);
 
@@ -1896,67 +2243,65 @@ void Melder_appendError_noLine (const MelderArg& arg1);
 	and your prepended error text will be shown to the user out of context,
 	which is wrong.
 */
-void Melder_appendError (Melder_1_ARG);
-void Melder_appendError (Melder_2_ARGS);
-void Melder_appendError (Melder_3_ARGS);
-void Melder_appendError (Melder_4_ARGS);
-void Melder_appendError (Melder_5_ARGS);
-void Melder_appendError (Melder_6_ARGS);
-void Melder_appendError (Melder_7_ARGS);
-void Melder_appendError (Melder_8_ARGS);
-void Melder_appendError (Melder_9_ARGS);
-void Melder_appendError (Melder_10_ARGS);
-void Melder_appendError (Melder_11_ARGS);
-void Melder_appendError (Melder_12_OR_13_ARGS);
-void Melder_appendError (Melder_14_OR_15_ARGS);
-void Melder_appendError (Melder_16_TO_19_ARGS);
+
+inline static void _recursiveTemplate_Melder_appendError (const MelderArg& arg) {
+	MelderError::_append (arg._arg);
+}
+template <typename... Args>
+void _recursiveTemplate_Melder_appendError (const MelderArg& first, Args... rest) {
+	_recursiveTemplate_Melder_appendError (first);
+	_recursiveTemplate_Melder_appendError (rest...);
+}
+
+template <typename... Args>
+void Melder_appendError (const MelderArg& first, Args... rest) {
+	_recursiveTemplate_Melder_appendError (first, rest...);
+	MelderError::_append (U"\n");
+}
+
 #define Melder_throw(...)  do { Melder_appendError (__VA_ARGS__); throw MelderError (); } while (false)
 #define Melder_require(condition, ...)  do { if (! (condition)) Melder_throw (__VA_ARGS__); } while (false)
 
 void Melder_flushError ();
-void Melder_flushError (Melder_1_ARG);
-void Melder_flushError (Melder_2_ARGS);
-void Melder_flushError (Melder_3_ARGS);
-void Melder_flushError (Melder_4_ARGS);
-void Melder_flushError (Melder_5_ARGS);
-void Melder_flushError (Melder_6_ARGS);
-void Melder_flushError (Melder_7_ARGS);
-void Melder_flushError (Melder_8_ARGS);
-void Melder_flushError (Melder_9_ARGS);
-void Melder_flushError (Melder_10_ARGS);
-void Melder_flushError (Melder_11_ARGS);
-void Melder_flushError (Melder_12_OR_13_ARGS);
-void Melder_flushError (Melder_14_OR_15_ARGS);
-void Melder_flushError (Melder_16_TO_19_ARGS);
+
+template <typename... Args>
+void Melder_flushError (const MelderArg& first, Args... rest) {
+	Melder_appendError (first, rest...);
+	Melder_flushError ();
+}
 	/* Send all deferred error messages to stderr (batch) or to an "Error" dialog, */
 	/* including, if there are arguments, the error message generated by this routine. */
 
 bool Melder_hasError ();
-bool Melder_hasError (const char32 *partialError);
+bool Melder_hasError (conststring32 partialError);
 	/* Returns 1 if there is an error message in store, otherwise 0. */
 
 void Melder_clearError ();
 	/* Cancel all stored error messages. */
 
-char32 * Melder_getError ();
+conststring32 Melder_getError ();
 	/* Returns the error string. Mainly used with str32str. */
 
 /********** WARNING: give warning to stderr (batch) or to a "Warning" dialog **********/
 
-void Melder_warning (Melder_1_ARG);
-void Melder_warning (Melder_2_ARGS);
-void Melder_warning (Melder_3_ARGS);
-void Melder_warning (Melder_4_ARGS);
-void Melder_warning (Melder_5_ARGS);
-void Melder_warning (Melder_6_ARGS);
-void Melder_warning (Melder_7_ARGS);
-void Melder_warning (Melder_8_ARGS);
-void Melder_warning (Melder_9_ARGS);
-void Melder_warning (Melder_10_ARGS);
-void Melder_warning (Melder_11_ARGS);
-void Melder_warning (Melder_12_OR_13_ARGS);
-void Melder_warning (Melder_14_OR_15_ARGS);
-void Melder_warning (Melder_16_TO_19_ARGS);
+namespace MelderWarning {
+	extern int _depth;
+	extern MelderString _buffer;
+	using Proc = void (*) (conststring32 message);
+	void _defaultProc (conststring32 message);
+	extern Proc _p_currentProc;
+}
+
+template <typename... Args>
+void Melder_warning (const MelderArg& first, Args... rest);
+
+template <typename... Args>
+void Melder_warning (const MelderArg& first, Args... rest) {
+	if (MelderWarning::_depth < 0)
+		return;
+	MelderString_copy (& MelderWarning::_buffer, first, rest...);
+	MelderWarning::_p_currentProc (MelderWarning::_buffer.string);
+}
 
 void Melder_warningOff ();
 void Melder_warningOn ();
@@ -1973,41 +2318,36 @@ public:
 	Give error message, abort program.
 	Should only be caused by programming errors.
 */
-int Melder_fatal (Melder_1_ARG);
-int Melder_fatal (Melder_2_ARGS);
-int Melder_fatal (Melder_3_ARGS);
-int Melder_fatal (Melder_4_ARGS);
-int Melder_fatal (Melder_5_ARGS);
-int Melder_fatal (Melder_6_ARGS);
-int Melder_fatal (Melder_7_ARGS);
-int Melder_fatal (Melder_8_ARGS);
-int Melder_fatal (Melder_9_ARGS);
-int Melder_fatal (Melder_10_ARGS);
-int Melder_fatal (Melder_11_ARGS);
-int Melder_fatal (Melder_12_OR_13_ARGS);
-int Melder_fatal (Melder_14_OR_15_ARGS);
-int Melder_fatal (Melder_16_TO_19_ARGS);
+void Melder_fatal (const MelderArg&,
+	const MelderArg& = U"", const MelderArg& = U"", const MelderArg& = U"",
+	const MelderArg& = U"", const MelderArg& = U"", const MelderArg& = U"",
+	const MelderArg& = U"", const MelderArg& = U"", const MelderArg& = U""
+);
 
 #pragma mark - PROGRESS
 
-void Melder_progress (double progress);
-void Melder_progress (double progress, Melder_1_ARG);
-void Melder_progress (double progress, Melder_2_ARGS);
-void Melder_progress (double progress, Melder_3_ARGS);
-void Melder_progress (double progress, Melder_4_ARGS);
-void Melder_progress (double progress, Melder_5_ARGS);
-void Melder_progress (double progress, Melder_6_ARGS);
-void Melder_progress (double progress, Melder_7_ARGS);
-void Melder_progress (double progress, Melder_8_ARGS);
-void Melder_progress (double progress, Melder_9_ARGS);
-void Melder_progress (double progress, Melder_10_ARGS);
-void Melder_progress (double progress, Melder_11_ARGS);
-void Melder_progress (double progress, Melder_12_OR_13_ARGS);
-void Melder_progress (double progress, Melder_14_OR_15_ARGS);
-void Melder_progress (double progress, Melder_16_TO_19_ARGS);
+namespace MelderProgress {
+	extern int _depth;
+	using ProgressProc = void (*) (double progress, conststring32 message);
+	using MonitorProc = void * (*) (double progress, conststring32 message);
+	extern ProgressProc _p_progressProc;
+	extern MonitorProc _p_monitorProc;
+	void _doProgress (double progress, conststring32 message);
+	void * _doMonitor (double progress, conststring32 message);
+	extern MelderString _buffer;
+}
 
 void Melder_progressOff ();
 void Melder_progressOn ();
+
+inline static void Melder_progress (double progress) {
+	MelderProgress::_doProgress (progress, U"");
+}
+template <typename... Args>
+void Melder_progress (double progress, const MelderArg& first, Args... rest) {
+	MelderString_copy (& MelderProgress::_buffer, first, rest...);
+	MelderProgress::_doProgress (progress, MelderProgress::_buffer.string);
+}
 /*
 	Function:
 		Show the progress of a time-consuming process.
@@ -2040,7 +2380,7 @@ void Melder_progressOn ();
 */
 class autoMelderProgress {
 public:
-	autoMelderProgress (const char32 *message) {
+	autoMelderProgress (conststring32 message) {
 		Melder_progress (0.0, message);
 	}
 	~autoMelderProgress () {
@@ -2048,21 +2388,14 @@ public:
 	}
 };
 
-void * Melder_monitor (double progress);
-void * Melder_monitor (double progress, Melder_1_ARG);
-void * Melder_monitor (double progress, Melder_2_ARGS);
-void * Melder_monitor (double progress, Melder_3_ARGS);
-void * Melder_monitor (double progress, Melder_4_ARGS);
-void * Melder_monitor (double progress, Melder_5_ARGS);
-void * Melder_monitor (double progress, Melder_6_ARGS);
-void * Melder_monitor (double progress, Melder_7_ARGS);
-void * Melder_monitor (double progress, Melder_8_ARGS);
-void * Melder_monitor (double progress, Melder_9_ARGS);
-void * Melder_monitor (double progress, Melder_10_ARGS);
-void * Melder_monitor (double progress, Melder_11_ARGS);
-void * Melder_monitor (double progress, Melder_12_OR_13_ARGS);
-void * Melder_monitor (double progress, Melder_14_OR_15_ARGS);
-void * Melder_monitor (double progress, Melder_16_TO_19_ARGS);
+inline static void * Melder_monitor (double progress) {
+	return MelderProgress::_doMonitor (progress, U"");
+}
+template <typename... Args>
+void * Melder_monitor (double progress, const MelderArg& first, Args... rest) {
+	MelderString_copy (& MelderProgress::_buffer, first, rest...);
+	return MelderProgress::_doMonitor (progress, MelderProgress::_buffer.string);
+}
 /*
 	Function:
 		Show the progress of a time-consuming process.
@@ -2110,7 +2443,7 @@ typedef class structGraphics *Graphics;
 class autoMelderMonitor {
 	Graphics _graphics;
 public:
-	autoMelderMonitor (const char32 *message) {
+	autoMelderMonitor (conststring32 message) {
 		_graphics = (Graphics) Melder_monitor (0.0, message);
 	}
 	~autoMelderMonitor () {
@@ -2131,6 +2464,7 @@ inline static integer Melder_iroundDown (double x) {
 		U"When rounding down the real value ", x, U", the result cannot be represented in an integer.");
 	return (integer) xround;
 }
+#define Melder_ifloor  Melder_iroundDown
 
 inline static double Melder_roundUp (double x) {
 	return ceil (x);
@@ -2142,6 +2476,7 @@ inline static integer Melder_iroundUp (double x) {
 		U"When rounding up the real value ", x, U", the result cannot be represented in an integer.");
 	return (integer) xround;
 }
+#define Melder_iceiling  Melder_iroundUp
 
 inline static double Melder_roundTowardsZero (double x) {
 	return x >= 0.0 ? Melder_roundDown (x) : Melder_roundUp (x);
@@ -2174,6 +2509,7 @@ inline static integer Melder_iround_tieUp (double x) {
 		U"When rounding the real value ", x, U", the result cannot be represented in an integer.");
 	return (integer) xround;
 }
+#define Melder_iround  Melder_iround_tieUp
 
 inline static double Melder_round_tieDown (double x) {
 	return Melder_roundUp (x - 0.5);
@@ -2241,19 +2577,19 @@ extern bool Melder_asynchronous;   // true if specified by the "asynchronous" di
 
 /* Procedures to override default message methods. */
 /* They may chage the string arguments. */
-/* Many of these routines are called by MelderMotif_create and MelderXvt_create. */
+/* Many of these routines are called by MelderGui_create(). */
 
-void Melder_setCasualProc (void (*casualProc) (const char32 *message));
-void Melder_setProgressProc (int (*progressProc) (double progress, const char32 *message));
-void Melder_setMonitorProc (void * (*monitorProc) (double progress, const char32 *message));
-void Melder_setInformationProc (void (*informationProc) (const char32 *message));
-void Melder_setHelpProc (void (*help) (const char32 *query));
+void Melder_setCasualProc (void (*casualProc) (conststring32 message));
+void Melder_setProgressProc (int (*progressProc) (double progress, conststring32 message));
+void Melder_setMonitorProc (void * (*monitorProc) (double progress, conststring32 message));
+void Melder_setInformationProc (MelderInfo::Proc informationProc);
+void Melder_setHelpProc (void (*help) (conststring32 query));
 void Melder_setSearchProc (void (*search) ());
-void Melder_setWarningProc (void (*warningProc) (const char32 *message));
-void Melder_setProgressProc (void (*progress) (double, const char32 *));
-void Melder_setMonitorProc (void * (*monitor) (double, const char32 *));
-void Melder_setErrorProc (void (*errorProc) (const char32 *message));
-void Melder_setFatalProc (void (*fatalProc) (const char32 *message));
+void Melder_setWarningProc (void (*warningProc) (conststring32 message));
+void Melder_setProgressProc (void (*progress) (double, conststring32));
+void Melder_setMonitorProc (void * (*monitor) (double, conststring32));
+void Melder_setErrorProc (void (*errorProc) (conststring32 message));
+void Melder_setFatalProc (void (*fatalProc) (conststring32 message));
 void Melder_setRecordProc (int (*record) (double));
 void Melder_setRecordFromFileProc (int (*recordFromFile) (MelderFile));
 void Melder_setPlayProc (void (*play) ());
@@ -2300,7 +2636,7 @@ enum kMelder_asynchronicityLevel MelderAudio_getOutputMaximumAsynchronicity ();
 integer MelderAudio_getOutputBestSampleRate (integer fsamp);
 
 extern bool MelderAudio_isPlaying;
-void MelderAudio_play16 (int16_t *buffer, integer sampleRate, integer numberOfSamples, int numberOfChannels,
+void MelderAudio_play16 (int16 *buffer, integer sampleRate, integer numberOfSamples, int numberOfChannels,
 	bool (*playCallback) (void *playClosure, integer numberOfSamplesPlayed),   // return true to continue, false to stop
 	void *playClosure);
 bool MelderAudio_stopPlaying (bool isExplicit);   // returns true if sound was playing
@@ -2322,7 +2658,7 @@ void Melder_audio_prefs ();   // in init file
 #define Melder_FLAC 6
 #define Melder_MP3 7
 #define Melder_NUMBER_OF_AUDIO_FILE_TYPES  7
-const char32 * Melder_audioFileTypeString (int audioFileType);   // "AIFF", "AIFC", "WAV", "NeXT/Sun", "NIST", "FLAC", "MP3"
+conststring32 Melder_audioFileTypeString (int audioFileType);   // "AIFF", "AIFC", "WAV", "NeXT/Sun", "NIST", "FLAC", "MP3"
 /* Audio encodings. */
 #define Melder_LINEAR_8_SIGNED  1
 #define Melder_LINEAR_8_UNSIGNED  2
@@ -2366,7 +2702,7 @@ void Melder_readAudioToShort (FILE *f, integer numberOfChannels, int encoding, s
 void MelderFile_writeFloatToAudio (MelderFile file, integer numberOfChannels, int encoding, double **buffer, integer numberOfSamples, int warnIfClipped);
 void MelderFile_writeShortToAudio (MelderFile file, integer numberOfChannels, int encoding, const short *buffer, integer numberOfSamples);
 
-/********** QUANTITY **********/
+#pragma mark - QUANTITY
 
 #define MelderQuantity_NONE  0
 #define MelderQuantity_TIME_SECONDS  1
@@ -2374,16 +2710,137 @@ void MelderFile_writeShortToAudio (MelderFile file, integer numberOfChannels, in
 #define MelderQuantity_FREQUENCY_BARK  3
 #define MelderQuantity_DISTANCE_FROM_GLOTTIS_METRES  4
 #define MelderQuantity_NUMBER_OF_QUANTITIES  4
-const char32 * MelderQuantity_getText (int quantity);   // e.g. "Time"
-const char32 * MelderQuantity_getWithUnitText (int quantity);   // e.g. "Time (s)"
-const char32 * MelderQuantity_getLongUnitText (int quantity);   // e.g. "seconds"
-const char32 * MelderQuantity_getShortUnitText (int quantity);   // e.g. "s"
+conststring32 MelderQuantity_getText (int quantity);   // e.g. "Time"
+conststring32 MelderQuantity_getWithUnitText (int quantity);   // e.g. "Time (s)"
+conststring32 MelderQuantity_getLongUnitText (int quantity);   // e.g. "seconds"
+conststring32 MelderQuantity_getShortUnitText (int quantity);   // e.g. "s"
 
-/********** MISCELLANEOUS **********/
+#pragma mark - READING TEXT
 
-char32 * Melder_getenv (const char32 *variableName);
-void Melder_system (const char32 *command);   // spawn a system command
-void Melder_execv (const char32 *executableFileName, int narg, char32 **args);   // spawn a subprocess
+struct structMelderReadText {
+	autostring32 string32;
+	char32 *readPointer32;
+	autostring8 string8;
+	char *readPointer8;
+	kMelder_textInputEncoding input8Encoding;
+	structMelderReadText () : readPointer32 (nullptr), readPointer8 (nullptr) {
+		/*
+			Check that C++ default initialization has worked.
+		*/
+		Melder_assert (! our string32);
+		Melder_assert (! our string8);
+	}
+};
+typedef struct structMelderReadText *MelderReadText;
+
+#if 1
+	#include <memory>
+	using autoMelderReadText = std::unique_ptr<structMelderReadText>;
+#else
+struct autoMelderReadText {
+	MelderReadText text;
+	autoMelderReadText () {
+		our text = new structMelderReadText;
+	}
+	~ autoMelderReadText () {
+		delete (our text);
+	}
+	MelderReadText operator-> () const {   // as r-value
+		return our text;
+	}
+	MelderReadText get () const {
+		return our text;
+	}
+	autoMelderReadText (const autoMelderReadText&) = delete;   // disable copy constructor
+	autoMelderReadText (autoMelderReadText&& other) noexcept {   // enable move constructor
+		our text = other.text;
+		other.text = nullptr;
+	}
+	autoMelderReadText& operator= (const autoMelderReadText&) = delete;   // disable copy assignment
+	autoMelderReadText& operator= (autoMelderReadText&& other) noexcept {   // enable move assignment
+		if (& other != this) {
+			delete (our text);
+			our text = other.text;
+			other.text = nullptr;
+		}
+		return *this;
+	}
+	autoMelderReadText&& move () noexcept { return static_cast <autoMelderReadText&&> (*this); }
+	explicit operator bool () const { return !! our text; }
+};
+#endif
+
+autoMelderReadText MelderReadText_createFromFile (MelderFile file);
+char32 MelderReadText_getChar (MelderReadText text);
+mutablestring32 MelderReadText_readLine (MelderReadText text);
+int64 MelderReadText_getNumberOfLines (MelderReadText me);
+conststring32 MelderReadText_getLineNumber (MelderReadText text);
+
+#include "../sys/abcio.h"
+
+/* The following ANSI-C power trick generates the declarations of 88 functions. */
+#define FUNCTION(type,storage)  \
+	void NUMvector_writeText_##storage (const type *v, integer lo, integer hi, MelderFile file, conststring32 name); \
+	void NUMvector_writeBinary_##storage (const type *v, integer lo, integer hi, FILE *f); \
+	type * NUMvector_readText_##storage (integer lo, integer hi, MelderReadText text, const char *name); \
+	type * NUMvector_readBinary_##storage (integer lo, integer hi, FILE *f); \
+	void NUMmatrix_writeText_##storage (type **v, integer r1, integer r2, integer c1, integer c2, MelderFile file, conststring32 name); \
+	void NUMmatrix_writeBinary_##storage (type **v, integer r1, integer r2, integer c1, integer c2, FILE *f); \
+	type ** NUMmatrix_readText_##storage (integer r1, integer r2, integer c1, integer c2, MelderReadText text, const char *name); \
+	type ** NUMmatrix_readBinary_##storage (integer r1, integer r2, integer c1, integer c2, FILE *f);
+FUNCTION (signed char, i8)
+FUNCTION (int, i16)
+FUNCTION (long, i32)
+FUNCTION (integer, integer32BE)
+FUNCTION (unsigned char, u8)
+FUNCTION (unsigned int, u16)
+FUNCTION (unsigned long, u32)
+FUNCTION (double, r32)
+FUNCTION (double, r64)
+FUNCTION (dcomplex, c64)
+FUNCTION (dcomplex, c128)
+#undef FUNCTION
+
+/*
+void NUMvector_writeBinary_r64 (const double *v, integer lo, integer hi, FILE *f);   // etc
+	write the vector elements v [lo..hi] as machine-independent
+	binary data to the stream f.
+	Throw an error message if anything went wrong.
+	The vectors need not have been created by NUM...vector.
+double * NUMvector_readText_r64 (integer lo, integer hi, MelderReadText text, const char *name);   // etc
+	create and read a vector as text.
+	Throw an error message if anything went wrong.
+	Every element is supposed to be on the beginning of a line.
+double * NUMvector_readBinary_r64 (integer lo, integer hi, FILE *f);   // etc
+	create and read a vector as machine-independent binary data from the stream f.
+	Throw an error message if anything went wrong.
+void NUMvector_writeText_r64 (const double *v, integer lo, integer hi, MelderFile file, conststring32 name);   // etc
+	write the vector elements v [lo..hi] as text to the open file,
+	each element on its own line, preceded by "name [index]: ".
+	Throw an error message if anything went wrong.
+	The vectors need not have been created by NUMvector.
+void NUMmatrix_writeText_r64 (double **m, integer r1, integer r2, integer c1, integer c2, MelderFile file, conststring32 name);   // etc
+	write the matrix elements m [r1..r2] [c1..c2] as text to the open file.
+	Throw an error message if anything went wrong.
+	The matrices need not have been created by NUMmatrix.
+void NUMmatrix_writeBinary_r64 (double **m, integer r1, integer r2, integer c1, integer c2, FILE *f);   // etc
+	write the matrix elements m [r1..r2] [c1..c2] as machine-independent
+	binary data to the stream f.
+	Throw an error message if anything went wrong.
+	The matrices need not have been created by NUMmatrix.
+double ** NUMmatrix_readText_r64 (integer r1, integer r2, integer c1, integer c2, MelderReadText text, const char *name);   // etc
+	create and read a matrix as text.
+	Throw an error message if anything went wrong.
+double ** NUMmatrix_readBinary_r64 (integer r1, integer r2, integer c1, integer c2, FILE *f);   // etc
+	create and read a matrix as machine-independent binary data from the stream f.
+	Throw an error message if anything went wrong.
+*/
+
+#pragma mark - MISCELLANEOUS
+
+conststring32 Melder_getenv (conststring32 variableName);
+void Melder_system (conststring32 command);   // spawn a system command
+void Melder_execv (conststring32 executableFileName, integer narg, char32 **args);   // spawn a subprocess
 double Melder_clock ();   // seconds since 1969
 
 struct autoMelderProgressOff {
@@ -2396,26 +2853,6 @@ struct autoMelderString : MelderString {
 	~autoMelderString () { MelderString_free (this); }
 };
 
-struct autoMelderReadText {
-	MelderReadText text;
-	autoMelderReadText (MelderReadText a_text) : text (a_text) {
-	}
-	~autoMelderReadText () {
-		if (text) MelderReadText_delete (text);
-	}
-	MelderReadText operator-> () const {   // as r-value
-		return text;
-	}
-	MelderReadText peek () const {
-		return text;
-	}
-	MelderReadText transfer () {
-		MelderReadText tmp = text;
-		text = nullptr;
-		return tmp;
-	}
-};
-
 class autofile {
 	FILE *ptr;
 public:
@@ -2424,13 +2861,15 @@ public:
 	autofile () : ptr (nullptr) {
 	}
 	~autofile () {
-		if (ptr) fclose (ptr);   // no error checking, because this is a destructor, only called after a throw, because otherwise you'd use f.close(file)
+		if (ptr)
+			fclose (ptr);   // no error checking, because this is a destructor, only called after a throw, because otherwise you'd use f.close(file)
 	}
 	operator FILE * () {
 		return ptr;
 	}
 	void reset (FILE *f) {
-		if (ptr) fclose (ptr);   // BUG: not a normal closure
+		if (ptr)
+			fclose (ptr);   // BUG: not a normal closure
 		ptr = f;
 	}
 	void close (MelderFile file) {
@@ -2448,7 +2887,8 @@ public:
 	autoMelderFile (MelderFile file) : _file (file) {
 	}
 	~autoMelderFile () {
-		if (_file) MelderFile_close_nothrow (_file);
+		if (_file)
+			MelderFile_close_nothrow (_file);
 	}
 	void close () {
 		if (_file && _file -> filePointer) {
@@ -2521,7 +2961,7 @@ public:
 	autoMelderTokens () {
 		tokens = nullptr;
 	}
-	autoMelderTokens (const char32 *string) {
+	autoMelderTokens (conststring32 string) {
 		tokens = Melder_getTokens (string, & numberOfTokens);
 	}
 	~autoMelderTokens () {
@@ -2540,7 +2980,7 @@ public:
 	integer count () const {
 		return numberOfTokens;
 	}
-	void reset (const char32 *string) {
+	void reset (conststring32 string) {
 		if (tokens) {
 			for (integer itoken = 1; itoken <= numberOfTokens; itoken ++)
 				Melder_free (tokens [itoken]);
@@ -2549,60 +2989,6 @@ public:
 		tokens = Melder_getTokens (string, & numberOfTokens);
 	}
 };
-
-template <class T>
-class _autostring {
-	T *ptr;
-public:
-	_autostring (T *string) : ptr (string) {
-		//if (Melder_debug == 39) Melder_casual (U"autostring: constructor from C-string ", Melder_pointer (ptr));
-	}
-	_autostring () : ptr (nullptr) {
-		//if (Melder_debug == 39) Melder_casual (U"autostring: zero constructor");
-	}
-	~_autostring () {
-		//if (Melder_debug == 39) Melder_casual (U"autostring: entering destructor ptr = ", Melder_pointer (ptr));
-		if (ptr) Melder_free (ptr);
-		//if (Melder_debug == 39) Melder_casual (U"autostring: leaving destructor");
-	}
-	#if 0
-	void operator= (T *string) {
-		//if (Melder_debug == 39) Melder_casual (U"autostring: entering assignment from C-string; old = ", Melder_pointer (ptr));
-		if (ptr) Melder_free (ptr);
-		ptr = string;
-		//if (Melder_debug == 39) Melder_casual (U"autostring: leaving assignment from C-string; new = ", Melder_pointer (ptr));
-	}
-	#endif
-	template <class U> T& operator[] (U i) {
-		return ptr [i];
-	}
-	T * peek () const {
-		return ptr;
-	}
-	T ** operator& () {
-		return & ptr;
-	}
-	T * transfer () {
-		T *tmp = ptr;
-		ptr = nullptr;
-		return tmp;
-	}
-	void reset (T *string) {
-		if (ptr) Melder_free (ptr);
-		ptr = string;
-	}
-	void resize (int64 new_size) {
-		T *tmp = (T *) Melder_realloc (ptr, new_size * (int64) sizeof (T));
-		ptr = tmp;
-	}
-	_autostring& operator= (const _autostring&) = delete;   // disable copy assignment
-	//_autostring (_autostring &) = delete;   // disable copy constructor (trying it this way also disables good things like autostring s1 = str32dup(U"hello");)
-	template <class Y> _autostring (_autostring<Y> &) = delete;   // disable copy constructor
-};
-
-typedef _autostring <char> autostring8;
-typedef _autostring <char16> autostring16;
-typedef _autostring <char32> autostring32;
 
 class autoMelderAudioSaveMaximumAsynchronicity {
 	bool _disowned;

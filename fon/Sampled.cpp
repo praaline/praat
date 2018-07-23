@@ -52,7 +52,7 @@ void structSampled :: v_scaleX (double xminfrom, double xmaxfrom, double xminto,
 }
 
 integer Sampled_getWindowSamples (Sampled me, double xmin, double xmax, integer *ixmin, integer *ixmax) {
-	double rixmin = 1.0 + ceil ((xmin - my x1) / my dx);
+	double rixmin = 1.0 + Melder_roundUp   ((xmin - my x1) / my dx);
 	double rixmax = 1.0 + Melder_roundDown ((xmax - my x1) / my dx);   // could be above 32-bit LONG_MAX
 	*ixmin = rixmin < 1.0 ? 1 : (integer) rixmin;
 	*ixmax = rixmax > (double) my nx ? my nx : (integer) rixmax;
@@ -90,7 +90,7 @@ double Sampled_getValueAtX (Sampled me, double x, integer ilevel, int unit, bool
 	if (x < my xmin || x > my xmax) return undefined;
 	if (interpolate) {
 		double ireal = Sampled_xToIndex (me, x);
-		integer ileft = Melder_iroundDown (ireal), inear, ifar;
+		integer ileft = Melder_ifloor (ireal), inear, ifar;
 		double phase = ireal - ileft;
 		if (phase < 0.5) {
 			inear = ileft, ifar = ileft + 1;
@@ -164,7 +164,7 @@ static void Sampled_getSumAndDefinitionRange
 		Outside [x1-dx/2, xN+dx/2], the curve is undefined and neither times nor values are counted.
 		In [x1-dx/2,x1] and [xN,xN+dx/2], the curve is linearly extrapolated.
 	*/
-	real80 sum = 0.0, definitionRange = 0.0;
+	longdouble sum = 0.0, definitionRange = 0.0;
 	Function_unidirectionalAutowindow (me, & xmin, & xmax);
 	if (Function_intersectRangeWithDomain (me, & xmin, & xmax)) {
 		if (interpolate) {
@@ -250,8 +250,8 @@ static void Sampled_getSumAndDefinitionRange
 		} else {   // no interpolation
 			double rimin = Sampled_xToIndex (me, xmin), rimax = Sampled_xToIndex (me, xmax);
 			if (rimax >= 0.5 && rimin < my nx + 0.5) {
-				integer imin = rimin < 0.5 ? 0 : Melder_iround_tieUp (rimin);
-				integer imax = rimax >= my nx + 0.5 ? my nx + 1 : Melder_iround_tieUp (rimax);
+				integer imin = rimin < 0.5 ? 0 : Melder_iround (rimin);
+				integer imax = rimax >= my nx + 0.5 ? my nx + 1 : Melder_iround (rimax);
 				for (integer isamp = imin + 1; isamp < imax; isamp ++) {
 					double value = my v_getValueAtSample (isamp, ilevel, unit);
 					if (isdefined (value)) {
@@ -287,8 +287,8 @@ static void Sampled_getSumAndDefinitionRange
 			}
 		}
 	}
-	if (return_sum) *return_sum = (real) sum;
-	if (return_definitionRange) *return_definitionRange = (real) definitionRange;
+	if (return_sum) *return_sum = (double) sum;
+	if (return_definitionRange) *return_definitionRange = (double) definitionRange;
 }
 
 double Sampled_getMean (Sampled me, double xmin, double xmax, integer ilevel, int unit, bool interpolate) {
@@ -319,7 +319,7 @@ static void Sampled_getSum2AndDefinitionRange
 		Outside [x1-dx/2, xN+dx/2], the curve is undefined and neither times nor values are counted.
 		In [x1-dx/2,x1] and [xN,xN+dx/2], the curve is linearly extrapolated.
 	*/
-	real80 sum2 = 0.0, definitionRange = 0.0;
+	longdouble sum2 = 0.0, definitionRange = 0.0;
 	Function_unidirectionalAutowindow (me, & xmin, & xmax);
 	if (Function_intersectRangeWithDomain (me, & xmin, & xmax)) {
 		if (interpolate) {
@@ -425,8 +425,8 @@ static void Sampled_getSum2AndDefinitionRange
 		} else {   // no interpolation
 			double rimin = Sampled_xToIndex (me, xmin), rimax = Sampled_xToIndex (me, xmax);
 			if (rimax >= 0.5 && rimin < my nx + 0.5) {
-				integer imin = rimin < 0.5 ? 0 : lround (rimin);
-				integer imax = rimax >= my nx + 0.5 ? my nx + 1 : lround (rimax);
+				integer imin = rimin < 0.5 ? 0 : Melder_iround (rimin);
+				integer imax = rimax >= my nx + 0.5 ? my nx + 1 : Melder_iround (rimax);
 				for (integer isamp = imin + 1; isamp < imax; isamp ++) {
 					double value = my v_getValueAtSample (isamp, ilevel, unit);
 					if (isdefined (value)) {
@@ -470,8 +470,8 @@ static void Sampled_getSum2AndDefinitionRange
 			}
 		}
 	}
-	if (return_sum2) *return_sum2 = (real) sum2;
-	if (return_definitionRange) *return_definitionRange = (real) definitionRange;
+	if (return_sum2) *return_sum2 = (double) sum2;
+	if (return_definitionRange) *return_definitionRange = (double) definitionRange;
 }
 
 double Sampled_getStandardDeviation (Sampled me, double xmin, double xmax, integer ilevel, int unit, bool interpolate) {

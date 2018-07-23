@@ -67,10 +67,10 @@ void Eigen_sort (Eigen me);
 void Eigen_invertEigenvector (Eigen me, integer ivec);
 
 void Eigen_drawEigenvalues (Eigen me, Graphics g, integer first, integer last, double ymin, double ymax,
-	bool fractionOfTotal, bool cumulative, double size_mm, const char32 *mark, bool garnish);
+	bool fractionOfTotal, bool cumulative, double size_mm, conststring32 mark, bool garnish);
 
 void Eigen_drawEigenvector (Eigen me, Graphics g, integer ivec, integer first, integer last, double minimum, double maximum, bool weigh,
-	double size_mm, const char32 *mark, bool connect, char32 **rowLabels, bool garnish);
+	double size_mm, conststring32 mark, bool connect, char32 **rowLabels, bool garnish);
 /*
 	Draw eigenvector. When rowLabels != nullptr, draw row text labels on bottom axis.
 */
@@ -86,7 +86,7 @@ double Eigens_getAngleBetweenEigenplanes_degrees (Eigen me, Eigen thee);
 	Get angle between the eigenplanes, spanned by the first two eigenvectors, .
 */
 
-void Eigen_and_matrix_into_matrix_principalComponents (Eigen me, double **from, integer numberOfRows, integer from_colbegin, double **to, integer numberOfDimensionsToKeep, integer to_colbegin);
+void Eigen_matrix_into_matrix_principalComponents (Eigen me, double **from, integer numberOfRows, integer from_colbegin, double **to, integer numberOfDimensionsToKeep, integer to_colbegin);
 /*
  * Preconditions:
  * 

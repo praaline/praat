@@ -1,6 +1,6 @@
 /* Praat_tests.cpp
  *
- * Copyright (C) 2001-2012,2015,2016,2017 Paul Boersma
+ * Copyright (C) 2001-2007,2009,2011-2018 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 /* 24 May 2011: C++ */
 /* 5 June 2015: char32 */
 
+#include "FileInMemoryManager.h"
 #include "Praat_tests.h"
 
 #include "Graphics.h"
@@ -36,25 +37,25 @@
 #include <string>
 
 static void testAutoData (autoDaata data) {
-	fprintf (stderr, "testAutoData: %p %p\n", data.get(), data -> name);
+	fprintf (stderr, "testAutoData: %p %p\n", data.get(), data -> name.get());
 }
 static void testAutoDataRef (autoDaata& data) {
-	fprintf (stderr, "testAutoDataRef: %p %p\n", data.get(), data -> name);
+	fprintf (stderr, "testAutoDataRef: %p %p\n", data.get(), data -> name.get());
 }
 static void testData (Daata data) {
-	fprintf (stderr, "testData: %p %s\n", data, Melder_peek32to8 (data -> name));
+	fprintf (stderr, "testData: %p %s\n", data, Melder_peek32to8 (data -> name.get()));
 }
 static autoDaata newAutoData () {
 	autoDaata data (Thing_new (Daata));
 	return data;
 }
-static int length (const char32 *s) {
+static int length (conststring32 s) {
 	int result = str32len (s);
 	Melder_free (s);
 	return result;
 }
 
-int Praat_tests (kPraatTests itest, char32 *arg1, char32 *arg2, char32 *arg3, char32 *arg4) {
+int Praat_tests (kPraatTests itest, conststring32 arg1, conststring32 arg2, conststring32 arg3, conststring32 arg4) {
 	int64 n = Melder_atoi (arg1);
 	double t = 0.0;
 	(void) arg1;
@@ -102,7 +103,7 @@ int Praat_tests (kPraatTests itest, char32 *arg1, char32 *arg2, char32 *arg3, ch
 			MelderInfo_writeLine (sum);
 		} break;
 		case kPraatTests::TIME_FLOAT_TO_UNSIGNED_BUILTIN: {
-			uint64_t sum = 0;
+			uint64 sum = 0;
 			double fn = n;
 			for (double fi = 1.0; fi <= fn; fi += 1.0)
 				sum += (uint32) fi;
@@ -110,7 +111,7 @@ int Praat_tests (kPraatTests itest, char32 *arg1, char32 *arg2, char32 *arg3, ch
 			MelderInfo_writeLine (sum);
 		} break;
 		case kPraatTests::TIME_FLOAT_TO_UNSIGNED_EXTERN: {
-			uint64_t sum = 0;
+			uint64 sum = 0;
 			double fn = n;
 			for (double fi = 1.0; fi <= fn; fi += 1.0)
 				sum += (uint32) ((int32) (fi - 2147483648.0) + 2147483647L + 1);
@@ -289,7 +290,7 @@ int Praat_tests (kPraatTests itest, char32 *arg1, char32 *arg2, char32 *arg3, ch
 			double x = 0.0;
 			for (int64 i = 1; i <= n; i ++) {
 				x += (double) i;
-				isAllDefined &= ((* (uint64_t *) & x) & 0x7FF0000000000000) != 0x7FF0000000000000;
+				isAllDefined &= ((* (uint64 *) & x) & 0x7FF0000000000000) != 0x7FF0000000000000;
 			}
 			t = Melder_stopwatch ();   // 0.90 ns
 			MelderInfo_writeLine (isAllDefined, U" ", x);
@@ -301,7 +302,7 @@ int Praat_tests (kPraatTests itest, char32 *arg1, char32 *arg2, char32 *arg3, ch
 				x [i] = NUMrandomGauss (0.0, 1.0);
 				y [i] = NUMrandomGauss (0.0, 1.0);
 			}
-			real z = 0.0;
+			double z = 0.0;
 			for (int64 i = 1; i <= n; i ++) {
 				z += inner_scalar (x.get(), y.get());
 			}
@@ -326,7 +327,7 @@ int Praat_tests (kPraatTests itest, char32 *arg1, char32 *arg2, char32 *arg3, ch
 			MelderInfo_writeLine (NUMinvFisherQ (0.003, 1, 100000));
 		} break;
 		case kPraatTests::TIME_AUTOSTRING: {
-			const char32 *strings [6] = { U"ghdg", U"jhd", U"hkfjjd", U"fhfj", U"jhksfd", U"hfjs" };
+			conststring32 strings [6] = { U"ghdg", U"jhd", U"hkfjjd", U"fhfj", U"jhksfd", U"hfjs" };
 			int64 sumOfLengths = 0;
 			for (int64 i = 1; i <= n; i ++) {
 				int istring = i % 6;
@@ -337,11 +338,11 @@ int Praat_tests (kPraatTests itest, char32 *arg1, char32 *arg2, char32 *arg3, ch
 			MelderInfo_writeLine (sumOfLengths);
 		} break;
 		case kPraatTests::TIME_CHAR32: {
-			const char32 *strings [6] = { U"ghdg", U"jhd", U"hkfjjd", U"fhfj", U"jhksfd", U"hfjs" };
+			conststring32 strings [6] = { U"ghdg", U"jhd", U"hkfjjd", U"fhfj", U"jhksfd", U"hfjs" };
 			int64 sumOfLengths = 0;
 			for (int64 i = 1; i <= n; i ++) {
 				int istring = i % 6;
-				char32 *s = Melder_dup (strings [istring]);
+				char32 *s = Melder_dup (strings [istring]).transfer();
 				sumOfLengths += length (s);
 			}
 			t = Melder_stopwatch ();   // 72 ns
@@ -354,7 +355,7 @@ int Praat_tests (kPraatTests itest, char32 *arg1, char32 *arg2, char32 *arg3, ch
 				x [i] = NUMrandomGauss (0.0, 1.0);
 			double z = 0.0;
 			for (int64 i = 1; i <= n; i ++) {
-				real sum = sum_scalar (x.get());
+				double sum = sum_scalar (x.get());
 				z += sum;
 			}
 			t = Melder_stopwatch () / size;   // for size == 100: 0.31 ns
@@ -367,7 +368,7 @@ int Praat_tests (kPraatTests itest, char32 *arg1, char32 *arg2, char32 *arg3, ch
 				x [i] = NUMrandomGauss (0.0, 1.0);
 			double z = 0.0;
 			for (int64 i = 1; i <= n; i ++) {
-				real sum = mean_scalar (x.get());
+				double sum = mean_scalar (x.get());
 				z += sum;
 			}
 			t = Melder_stopwatch () / size;   // for size == 100: 0.34 ns
@@ -380,7 +381,7 @@ int Praat_tests (kPraatTests itest, char32 *arg1, char32 *arg2, char32 *arg3, ch
 				x [i] = NUMrandomGauss (0.0, 1.0);
 			double z = 0.0;
 			for (int64 i = 1; i <= n; i ++) {
-				real stdev = stdev_scalar (x.get());
+				double stdev = stdev_scalar (x.get());
 				z += stdev;
 			}
 			t = Melder_stopwatch () / size;
@@ -406,7 +407,7 @@ int Praat_tests (kPraatTests itest, char32 *arg1, char32 *arg2, char32 *arg3, ch
 			double z = 0.0;
 			for (int64 iteration = 1; iteration <= n; iteration ++) {
 				for (integer i = 1; i <= size; i ++) {
-					result [i] = (real) i;
+					result [i] = (double) i;
 				}
 				z += result [size - 1];
 			}
@@ -419,7 +420,7 @@ int Praat_tests (kPraatTests itest, char32 *arg1, char32 *arg2, char32 *arg3, ch
 			for (int64 iteration = 1; iteration <= n; iteration ++) {
 				double *result = (double *) malloc (sizeof (double) * (size_t) size);
 				for (integer i = 0; i < size; i ++) {
-					result [i] = (real) i;
+					result [i] = (double) i;
 				}
 				z += result [size - 1];
 				free (result);
@@ -433,7 +434,7 @@ int Praat_tests (kPraatTests itest, char32 *arg1, char32 *arg2, char32 *arg3, ch
 			for (int64 iteration = 1; iteration <= n; iteration ++) {
 				double *result = (double *) calloc (sizeof (double), (size_t) size);
 				for (integer i = 0; i < size; i ++) {
-					result [i] = (real) i;
+					result [i] = (double) i;
 				}
 				z += result [size - 1];
 				free (result);
@@ -524,8 +525,10 @@ int Praat_tests (kPraatTests itest, char32 *arg1, char32 *arg2, char32 *arg3, ch
 				autonumvec b = a.move();
 				const autonumvec c;
 				const autonumvec d { };
+				#if 0
 				double *e;
 				const autonumvec f { e, 10 };
+				#endif
 				const autonumvec g { 100, kTensorInitializationType::ZERO };
 				//return f;   // call to deleted constructor
 				numvec h;
@@ -539,6 +542,9 @@ int Praat_tests (kPraatTests itest, char32 *arg1, char32 *arg2, char32 *arg3, ch
 				sound = Sound_create (1, 0.0, 1.0, 10000, 0.0001, 0.00005);
 				Melder_casual (U"hello ", sound -> dx);
 			}
+		} break;
+		case kPraatTests::FILEINMEMORYMANAGER_IO: {
+			test_FileInMemoryManager_io ();
 		} break;
 	}
 	MelderInfo_writeLine (Melder_single (t / n * 1e9), U" nanoseconds");

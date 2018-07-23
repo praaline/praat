@@ -37,14 +37,6 @@
 #include "oo_DESCRIPTION.h"
 #include "Simple_def.h"
 
-Thing_implement (SimpleInt, Daata, 0);
-
-autoSimpleInt SimpleInt_create (int number) {
-	autoSimpleInt me = Thing_new (SimpleInt);
-	my number = number;
-	return me;
-}
-
 Thing_implement (SimpleInteger, Daata, 0);
 
 autoSimpleInteger SimpleInteger_create (integer number) {
@@ -63,14 +55,14 @@ autoSimpleDouble SimpleDouble_create (double number) {
 
 Thing_implement (SimpleString, Daata, 0);
 
-autoSimpleString SimpleString_create (const char32 *string) {
+autoSimpleString SimpleString_create (conststring32 string) {
 	autoSimpleString me = Thing_new (SimpleString);
 	my string = Melder_dup (string);
 	return me;
 }
 
 int SimpleString_compare (SimpleString me, SimpleString thee) noexcept {
-	return str32cmp (my string, thy string);
+	return str32cmp (my string.get(), thy string.get());
 }
 
 /* End of file Simple.cpp */

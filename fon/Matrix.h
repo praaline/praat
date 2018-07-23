@@ -137,19 +137,19 @@ double Matrix_rowToY (Matrix me, double row);   // return my y1 + (row - 1) * my
 
 double Matrix_xToColumn (Matrix me, double x);   // return (x - xmin) / my dx + 1
 
-integer Matrix_xToLowColumn (Matrix me, double x);   // return floor (Matrix_xToColumn (me, x))
+integer Matrix_xToLowColumn (Matrix me, double x);   // return Melder_ifloor (Matrix_xToColumn (me, x))
 
-integer Matrix_xToHighColumn (Matrix me, double x);   // return ceil (Matrix_xToColumn (me, x))
+integer Matrix_xToHighColumn (Matrix me, double x);   // return Melder_iceiling (Matrix_xToColumn (me, x))
 
-integer Matrix_xToNearestColumn (Matrix me, double x);   // return floor (Matrix_xToColumn (me, x) + 0.5)
+integer Matrix_xToNearestColumn (Matrix me, double x);   // return Melder_iround (Matrix_xToColumn (me, x))
 
 double Matrix_yToRow (Matrix me, double y);   // return (y - ymin) / my dy + 1
 
-integer Matrix_yToLowRow (Matrix me, double y);   // return floor (Matrix_yToRow (me, y))
+integer Matrix_yToLowRow (Matrix me, double y);   // return Melder_ifloor (Matrix_yToRow (me, y))
 
-integer Matrix_yToHighRow (Matrix me, double x);   // return ceil (Matrix_yToRow (me, y))
+integer Matrix_yToHighRow (Matrix me, double x);   // return Melder_iceiling (Matrix_yToRow (me, y))
 
-integer Matrix_yToNearestRow (Matrix me, double y);   // return floor (Matrix_yToRow (me, y) + 0.5)
+integer Matrix_yToNearestRow (Matrix me, double y);   // return Melder_iround (Matrix_yToRow (me, y))
 
 integer Matrix_getWindowSamplesY (Matrix me, double ymin, double ymax, integer *iymin, integer *iymax);
 
@@ -166,7 +166,7 @@ integer Matrix_getWindowExtrema (Matrix me, integer ixmin, integer ixmax, intege
 		if result == 0, *minimum and *maximum are not changed;
 */
 
-void Matrix_formula (Matrix me, const char32 *expression, Interpreter interpreter, Matrix target);
+void Matrix_formula (Matrix me, conststring32 expression, Interpreter interpreter, Matrix target);
 /*
 	Arguments:
 		"me" is the Matrix referred to as "self" or with "nx" etc. in the expression
@@ -182,7 +182,7 @@ void Matrix_formula (Matrix me, const char32 *expression, Interpreter interprete
 		0 in case of failure, otherwise 1.
 */
 void Matrix_formula_part (Matrix me, double xmin, double xmax, double ymin, double ymax,
-	const char32 *expression, Interpreter interpreter, Matrix target);
+	conststring32 expression, Interpreter interpreter, Matrix target);
 
 /***** Graphics routines. *****/
 /*

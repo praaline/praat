@@ -66,7 +66,7 @@ bool _CollectionOfDaata_v_equal (_CollectionOfDaata* me, _CollectionOfDaata* the
 bool _CollectionOfDaata_v_canWriteAsEncoding (_CollectionOfDaata* me, int encoding) {
 	for (integer i = 1; i <= my size; i ++) {
 		Daata data = my at [i];
-		if (data -> name && ! Melder_isEncodable (data -> name, encoding)) return false;
+		if (data -> name && ! Melder_isEncodable (data -> name.get(), encoding)) return false;
 		if (! Data_canWriteAsEncoding (data, encoding)) return false;
 	}
 	return true;
@@ -86,7 +86,7 @@ void _CollectionOfDaata_v_writeText (_CollectionOfDaata* me, MelderFile file) {
 				Melder_cat (classInfo -> className, U" ", classInfo -> version) :
 				classInfo -> className,
 			U"class", 0,0,0,0,0);
-		texputw16 (file, thing -> name, U"name", 0,0,0,0,0);
+		texputw16 (file, thing -> name.get(), U"name", 0,0,0,0,0);
 		Data_writeText (thing, file);
 		texexdent (file);
 	}
@@ -97,19 +97,19 @@ void _CollectionOfDaata_v_readText (_CollectionOfDaata* me, MelderReadText text,
 	if (formatVersion < 0) {
 		long_not_integer l_size;
 		autostring8 line = Melder_32to8 (MelderReadText_readLine (text));
-		if (! line.peek() || ! sscanf (line.peek(), "%ld", & l_size) || l_size < 0)
+		if (! line || ! sscanf (line.get(), "%ld", & l_size) || l_size < 0)
 			Melder_throw (U"Collection::readText: cannot read size.");
 		my _grow (l_size);
 		for (integer i = 1; i <= l_size; i ++) {
 			long_not_integer itemNumberRead;
-			int n = 0, length, stringsRead;
+			integer n = 0, length, stringsRead;
 			char klas [200], nameTag [2000];
 			do {
-				line.reset (Melder_32to8 (MelderReadText_readLine (text)));
-				if (! line.peek())
+				line = Melder_32to8 (MelderReadText_readLine (text));
+				if (! line)
 					Melder_throw (U"Missing object line.");
-			} while (strncmp (line.peek(), "Object ", 7));
-			stringsRead = sscanf (line.peek(), "Object %ld: class %199s %1999s%n", & itemNumberRead, klas, nameTag, & n);
+			} while (! strnequ (line.get(), "Object ", 7));
+			stringsRead = sscanf (line.get(), "Object %ld: class %199s %1999s%n", & itemNumberRead, klas, nameTag, & n);
 			if (stringsRead < 2)
 				Melder_throw (U"Collection::readText: cannot read header of object ", i, U".");
 			if (itemNumberRead != i)
@@ -123,25 +123,26 @@ void _CollectionOfDaata_v_readText (_CollectionOfDaata* me, MelderReadText text,
 				Melder_throw (U"Cannot read item of class ", Thing_className (my at [i]), U" in collection.");
 			Data_readText (my at [i], text, -1);
 			if (stringsRead == 3) {
-				if (line [n] == U' ') n ++;   // skip space character
-				length = strlen (line.peek()+n);
-				if (length > 0 && (line.peek()+n) [length - 1] == '\n')
-					(line.peek()+n) [length - 1] = '\0';
-				Thing_setName (my at [i], Melder_peek8to32 (line.peek()+n));
+				char *location = & line [n];
+				if (*location == U' ') n ++;   // skip space character
+				length = strlen (location);
+				if (length > 0 && location [length - 1] == '\n')
+					location [length - 1] = '\0';
+				Thing_setName (my at [i], Melder_peek8to32 (line.get()+n));
 			}
 		}
 	} else {
-		int32_t l_size = texgeti32 (text);
+		int32 l_size = texgeti32 (text);
 		my _grow (l_size);
-		for (int32_t i = 1; i <= l_size; i ++) {
+		for (int32 i = 1; i <= l_size; i ++) {
 			autostring32 className = texgetw16 (text);
 			int elementFormatVersion;
-			my at [i] = (Daata) Thing_newFromClassName (className.peek(), & elementFormatVersion).releaseToAmbiguousOwner();
+			my at [i] = (Daata) Thing_newFromClassName (className.get(), & elementFormatVersion).releaseToAmbiguousOwner();
 			my size ++;
 			if (! Thing_isa (my at [i], classDaata) || ! Data_canReadText (my at [i]))
 				Melder_throw (U"Cannot read item of class ", Thing_className (my at [i]), U" in collection.");
 			autostring32 objectName = texgetw16 (text);
-			Thing_setName (my at [i], objectName.peek());
+			Thing_setName (my at [i], objectName.get());
 			Data_readText (my at [i], text, elementFormatVersion);
 		}
 	}
@@ -156,7 +157,7 @@ void _CollectionOfDaata_v_writeBinary (_CollectionOfDaata* me, FILE *f) {
 			Melder_throw (U"Objects of class ", classInfo -> className, U" cannot be written.");
 		binputw8 (classInfo -> version > 0 ?
 			Melder_cat (classInfo -> className, U" ", classInfo -> version) : classInfo -> className, f);
-		binputw16 (thing -> name, f);
+		binputw16 (thing -> name.get(), f);
 		Data_writeBinary ((Daata) thing, f);
 	}
 }
@@ -167,7 +168,7 @@ void _CollectionOfDaata_v_readBinary (_CollectionOfDaata* me, FILE *f, int forma
 		if (l_size < 0)
 			Melder_throw (U"Empty collection.");
 		my _grow (l_size);
-		for (int32_t i = 1; i <= l_size; i ++) {
+		for (int32 i = 1; i <= l_size; i ++) {
 			char klas [200], name [2000];
 			if (fscanf (f, "%199s%1999s", klas, name) < 2)
 				Melder_throw (U"Cannot read class and name.");
@@ -182,23 +183,23 @@ void _CollectionOfDaata_v_readBinary (_CollectionOfDaata* me, FILE *f, int forma
 				Thing_setName (my at [i], Melder_peek8to32 (name));
 		}
 	} else {
-		int32_t l_size = bingeti32 (f);
+		int32 l_size = bingeti32 (f);
 		if (Melder_debug == 44)
 			Melder_casual (U"structCollection :: v_readBinary: Reading ", l_size, U" objects");
 		my _grow (l_size);
-		for (int32_t i = 1; i <= l_size; i ++) {
+		for (int32 i = 1; i <= l_size; i ++) {
 			autostring8 klas = bingets8 (f);
 			if (Melder_debug == 44)
-				Melder_casual (U"structCollection :: v_readBinary: Reading object of type ", Melder_peek8to32 (klas.peek()));
+				Melder_casual (U"structCollection :: v_readBinary: Reading object of type ", Melder_peek8to32 (klas.get()));
 			int elementFormatVersion;
-			my at [i] = (Daata) Thing_newFromClassName (Melder_peek8to32 (klas.peek()), & elementFormatVersion).releaseToAmbiguousOwner();
+			my at [i] = (Daata) Thing_newFromClassName (Melder_peek8to32 (klas.get()), & elementFormatVersion).releaseToAmbiguousOwner();
 			my size ++;
 			if (! Thing_isa (my at [i], classDaata) || ! Data_canReadBinary (my at [i]))
 				Melder_throw (U"Objects of class ", Thing_className (my at [i]), U" cannot be read.");
 			autostring32 name = bingetw16 (f);
 			if (Melder_debug == 44)
-				Melder_casual (U"structCollection :: v_readBinary: Reading object with name ", name.peek());
-			Thing_setName (my at [i], name.peek());
+				Melder_casual (U"structCollection :: v_readBinary: Reading object with name ", name.get());
+			Thing_setName (my at [i], name.get());
 			Data_readBinary (my at [i], f, elementFormatVersion);
 		}
 	}

@@ -25,40 +25,37 @@
 #include "Interpreter.h"
 #include "NUM2.h"
 
-
-int NUMstring_containsPrintableCharacter (const char32 *s) {
-	long len;
-	if (s == NULL || ( (len = str32len (s)) == 0)) {
-		return 0;
+bool NUMstring_containsPrintableCharacter (conststring32 s) {
+	if (! s) return false;
+	integer len = str32len (s);
+	if (len == 0) return false;
+	for (integer i = 0; i < len; i ++) {
+		if (isgraph ((int) s [i]))
+			return true;
 	}
-	for (long i = 0; i < len; i++) {
-		if (isgraph ((int) s[i])) {
-			return 1;
-		}
-	}
-	return 0;
+	return false;
 }
 
-void NUMstring_chopWhiteSpaceAtExtremes_inline (char32 *string) {
+void NUMstring_chopWhiteSpaceAtExtremes_inplace (char32 *string) {
 	int64 start = 0;
-	while (iswspace ((int) string[start]) != 0) {
-		start++;
+	while (Melder_isHorizontalOrVerticalSpace (string [start])) {
+		start ++;
 	}
 	int64 end = str32len (string);
-	while (end != start && iswspace((int) string[end - 1]) != 0) {
-		end--;
+	while (end != start && Melder_isHorizontalOrVerticalSpace (string [end - 1])) {
+		end --;
 	}
 	int64 n = end - start;
 	memmove (string, string + start, (size_t) (n * (int64) sizeof (char32)));
-	string[n] = 0;
+	string [n] = 0;
 }
 
-real *NUMstring_to_numbers (const char32 *s, integer *p_numbers_found) {
+double *NUMstring_to_numbers (conststring32 s, integer *p_numbers_found) {
 	integer numbers_found = Melder_countTokens (s);
 	if (numbers_found < 1) {
 		Melder_throw (U"Empty string.");
 	}
-	autoNUMvector <real> numbers (1, numbers_found);
+	autoNUMvector <double> numbers (1, numbers_found);
 	integer inum = 1;
 	for (char32 *token = Melder_firstToken (s); token; token = Melder_nextToken (), inum ++) {
 		Interpreter_numericExpression (0, token, & numbers [inum]);
@@ -69,148 +66,82 @@ real *NUMstring_to_numbers (const char32 *s, integer *p_numbers_found) {
 	return numbers.transfer();
 }
 
-void NUMstrings_copyElements (char32 **from, char32 **to, integer lo, integer hi) {
-	for (integer i = lo; i <= hi; i ++) {
-		Melder_free (to [i]);
-		if (from [i]) {
-			to [i] = Melder_dup (from [i]);
-		}
-	}
-}
-
-void NUMstrings_free (char32 **s, integer lo, integer hi) {
-	if (! s) {
-		return;
-	}
-	for (integer i = lo; i <= hi; i ++) {
-		Melder_free (s [i]);
-	}
-	NUMvector_free <char32 *> (s, lo);
-}
-
-char32 **NUMstrings_copy (char32 **from, integer lo, integer hi) {
-	autoNUMvector <char32 *> to (lo, hi);
-	NUMstrings_copyElements (from, to.peek(), lo, hi);
-	return to.transfer();
-}
-
-static char32 *appendNumberToString (const char32 *s, long number, int asArray) {
-	return Melder_dup (
-		asArray == 0 ? Melder_cat (s, number) :
-		asArray == 1 ? Melder_cat (s, U"[", number, U"]") :
-		Melder_cat (s, U"(", number, U")"));
-}
-
-int NUMstrings_setSequentialNumbering (char32 **s, integer lo, integer hi, const char32 *pre, integer number, integer increment, int asArray) {
-	for (integer i = lo; i <= hi; i ++, number += increment) {
-		char32 *newc = appendNumberToString (pre, number, asArray);
-		if (newc == NULL) {
-			return 0;
-		}
-		Melder_free (s [i]);
-		s [i] = newc;
-	}
-	return 1;
-}
-
-#define HIGHBYTE(x) ((unsigned char) ((x) & 0xFF))
-#define LOWBYTE(x)  ((unsigned char) ((x) >> 8 & 0xFF))
-
-/* a+b=c in radix 256 */
-void NUMstring_add (unsigned char *a, unsigned char *b, unsigned char *c, long n);
-void NUMstring_add (unsigned char *a, unsigned char *b, unsigned char *c, long n) {
-	int j;
-	unsigned short reg = 0;
-
-	for (j = n; j > 1; j--) {
-		reg = a[j] + b[j] + HIGHBYTE (reg);
-		c[j + 1] = LOWBYTE (reg);
-	}
-}
-
-char32 *strstr_regexp (const char32 *string, const char32 *search_regexp) {
+char32 *strstr_regexp (conststring32 string, conststring32 search_regexp) {
 	char32 *charp = nullptr;
 	regexp *compiled_regexp = CompileRE_throwable (search_regexp, 0);
 
-	if (ExecRE (compiled_regexp, NULL, string, NULL, 0, '\0', '\0', NULL, NULL, NULL)) {
-		charp = compiled_regexp -> startp[0];
+	if (ExecRE (compiled_regexp, nullptr, string, nullptr, false, U'\0', U'\0', nullptr, nullptr, nullptr)) {
+		charp = compiled_regexp -> startp [0];
 	}
 
 	free (compiled_regexp);
 	return charp;
 }
 
-char32 *str_replace_literal (const char32 *string, const char32 *search, const char32 *replace,
-                              integer maximumNumberOfReplaces, integer *nmatches) {
-	if (string == 0 || search == 0 || replace == 0) {
-		return NULL;
-	}
+autostring32 str_replace_literal (conststring32 string,
+	conststring32 search, conststring32 replace, integer maximumNumberOfReplaces,
+	integer *nmatches)
+{
+	if (string == 0 || search == 0 || replace == 0)
+		return autostring32();
 
+	integer len_string = str32len (string);
+	if (len_string == 0)
+		maximumNumberOfReplaces = 1;
 
-	int len_string = str32len (string);
-	if (len_string == 0) {
+	integer len_search = str32len (search);
+	if (len_search == 0)
 		maximumNumberOfReplaces = 1;
-	}
-	int len_search = str32len (search);
-	if (len_search == 0) {
-		maximumNumberOfReplaces = 1;
-	}
 
 	/*
 		To allocate memory for 'result' only once, we have to know how many
 		matches will occur.
 	*/
 
-	const char32 *pos = string; //current position / start of current match
+	const char32 *pos = & string [0];   // current position / start of current match
 	*nmatches = 0;
-	if (maximumNumberOfReplaces <= 0) {
-		maximumNumberOfReplaces = LONG_MAX;
-	}
+	if (maximumNumberOfReplaces <= 0)
+		maximumNumberOfReplaces = INTEGER_MAX;
 
 	if (len_search == 0) { /* Search is empty string... */
-		if (len_string == 0) {
+		if (len_string == 0)
 			*nmatches = 1;    /* ...only matches empty string */
-		}
 	} else {
 		if (len_string != 0) { /* Because empty string always matches */
-			while ( (pos = str32str (pos, search)) && *nmatches < maximumNumberOfReplaces) {
+			while (!! (pos = str32str (pos, search)) && *nmatches < maximumNumberOfReplaces) {
 				pos += len_search;
 				(*nmatches) ++;
 			}
 		}
 	}
 
-	int64 len_replace = str32len (replace);
-	int64 len_result = len_string + *nmatches * (len_replace - len_search);
-	char32 *result = Melder_malloc (char32, (len_result + 1) * (int64) sizeof (char32));
-	result[len_result] = '\0';
+	integer len_replace = str32len (replace);
+	integer len_result = len_string + *nmatches * (len_replace - len_search);
+	autostring32 result (len_result);
 
-	const char32 *posp = pos = string;
-	int nchar = 0, result_nchar = 0;
-	for (long i = 1; i <= *nmatches; i++) {
+	const char32 *posp = pos = & string [0];
+	integer nchar = 0, result_nchar = 0;
+	for (integer i = 1; i <= *nmatches; i ++) {
 		pos = str32str (pos, search);
 
 		/*
 			Copy gap between end of previous match and start of current.
 		*/
-
 		nchar = (pos - posp);
 		if (nchar > 0) {
-			str32ncpy (result + result_nchar, posp, nchar);
+			str32ncpy (& result [result_nchar], posp, nchar);
 			result_nchar += nchar;
 		}
 
 		/*
 			Insert the replace string in result.
 		*/
-
-		str32ncpy (result + result_nchar, replace, len_replace);
+		str32ncpy (& result [result_nchar], replace, len_replace);
 		result_nchar += len_replace;
 
 		/*
 			Next search starts after the match.
 		*/
-
 		pos += len_search;
 		posp = pos;
 	}
@@ -218,38 +149,37 @@ char32 *str_replace_literal (const char32 *string, const char32 *search, const c
 	/*
 		Copy gap between end of match and end of string.
 	*/
-
 	pos = string + len_string;
 	nchar = pos - posp;
-	if (nchar > 0) {
-		str32ncpy (result + result_nchar, posp, nchar);
-	}
+	if (nchar > 0)
+		str32ncpy (& result [result_nchar], posp, nchar);
 	return result;
 }
 
-char32 *str_replace_regexp (const char32 *string, regexp *compiledSearchRE,
-                             const char32 *replaceRE, integer maximumNumberOfReplaces, integer *nmatches) {
-	int buf_nchar = 0;				/* # characters in 'buf' */
-	int gap_copied = 0;
-	int nchar, reverse = 0;
+autostring32 str_replace_regexp (conststring32 string,
+	regexp *compiledSearchRE, conststring32 replaceRE, integer maximumNumberOfReplaces,
+	integer *nmatches)
+{
+	integer buf_nchar = 0;   // number of characters in 'buf'
+	integer gap_copied = 0;
+	integer nchar;
+	bool reverse = false;
 	int errorType;
 	char32 prev_char = U'\0';
-	const char32 *pos; 	/* current position in 'string' / start of current match */
-	const char32 *posp; /* end of previous match */
+	const char32 *pos;   // current position in 'string' / start of current match
+	const char32 *posp;   // end of previous match
 	autostring32 buf;
 
 	*nmatches = 0;
-	if (string == 0 || compiledSearchRE == 0 || replaceRE == 0) {
+	if (string == 0 || compiledSearchRE == 0 || replaceRE == 0)
 		return 0;
-	}
 
-	int string_length = str32len (string);
+	integer string_length = str32len (string);
 	//int replace_length = str32len (replaceRE);
-	if (string_length == 0) {
+	if (string_length == 0)
 		maximumNumberOfReplaces = 1;
-	}
 
-	long i = maximumNumberOfReplaces > 0 ? 0 : - string_length;
+	integer i = maximumNumberOfReplaces > 0 ? 0 : - string_length;
 
 	/*
 		We do not know the size of the replaced string in advance,
@@ -261,26 +191,25 @@ char32 *str_replace_regexp (const char32 *string, regexp *compiledSearchRE,
 		we double its size and restart the replace.
 	*/
 
-	int buf_size = 2 * string_length;
-	buf_size = buf_size < 100 ? 100 : buf_size;
-	buf.resize (buf_size);
+	integer bufferLength = 2 * string_length;
+	bufferLength = bufferLength < 100 ? 100 : bufferLength;
+	buf.resize (bufferLength);
 
 	pos = posp = string;
-	while (ExecRE (compiledSearchRE, 0, pos, 0, reverse, prev_char, '\0', 0, 0, 0) && i++ < maximumNumberOfReplaces) {
+	while (ExecRE (compiledSearchRE, nullptr, pos, nullptr, reverse, prev_char, U'\0', nullptr, nullptr, nullptr) && i ++ < maximumNumberOfReplaces) {
 		/*
 			Copy gap between the end of the previous match and the start
 			of the current match.
-			Check buffer overflow. pos == posp ? '\0' : pos[-1],
+			Check buffer overflow. pos == posp ? '\0' : pos [-1],
 		*/
-
-		pos = compiledSearchRE -> startp[0];
+		pos = compiledSearchRE -> startp [0];
 		nchar = pos - posp;
 		if (nchar > 0 && ! gap_copied) {
-			if (buf_nchar + nchar + 1 > buf_size) {
-				buf_size *= 2;
-				buf.resize (buf_size);
+			if (buf_nchar + nchar > bufferLength) {
+				bufferLength *= 2;
+				buf.resize (bufferLength);
 			}
-			str32ncpy (buf.peek() + buf_nchar, posp, nchar);
+			str32ncpy (buf.get() + buf_nchar, posp, nchar);
 			buf_nchar += nchar;
 		}
 
@@ -290,13 +219,12 @@ char32 *str_replace_regexp (const char32 *string, regexp *compiledSearchRE,
 			Do the substitution. We can only check afterwards for buffer
 			overflow. SubstituteRE puts null byte at last replaced position and signals when overflow.
 		*/
-
-		if ( (SubstituteRE (compiledSearchRE, replaceRE, buf.peek() + buf_nchar, buf_size - buf_nchar, &errorType)) == false) {
-			if (errorType == 1) { // not enough memory
-				buf_size *= 2;
-				buf.resize (buf_size);
+		if (! SubstituteRE (compiledSearchRE, replaceRE, buf.get() + buf_nchar, bufferLength + 1 - buf_nchar, & errorType)) {
+			if (errorType == 1) {   // not enough memory
+				bufferLength *= 2;
+				buf.resize (bufferLength);
 				Melder_clearError ();
-				i--; // retry
+				i --;   // retry
 				continue;
 			}
 			Melder_throw (U"Error during substitution.");
@@ -304,47 +232,44 @@ char32 *str_replace_regexp (const char32 *string, regexp *compiledSearchRE,
 
 		// Buffer is not full, get number of characters added;
 
-		nchar = str32len (buf.peek() + buf_nchar);
+		nchar = str32len (buf.get() + buf_nchar);
 		buf_nchar += nchar;
 
 		// Update next start position in search string.
 
 		posp = pos;
-		pos = (char32 *) compiledSearchRE -> endp[0];
-		if (pos != posp) {
-			prev_char = pos[-1];
-		}
+		pos = (char32 *) compiledSearchRE -> endp [0];
+		if (pos != posp)
+			prev_char = pos [-1];
 		gap_copied = 0;
 		posp = pos; //pb 20080121
 		(*nmatches) ++;
 		// at end of string?
 		// we need this because .* matches at end of a string
-		if (pos - string == string_length) {
+		if (pos - string == string_length)
 			break;
-		}
 	}
 
 	// Copy last part of string to destination string
 
 	nchar = (string + string_length) - pos;
-	buf_size = buf_nchar + nchar + 1;
-	buf.resize (buf_size);
-
-	str32ncpy (buf.peek() + buf_nchar, pos, nchar);
-	buf[buf_size - 1] = '\0';
-	return buf.transfer();
+	bufferLength = buf_nchar + nchar;
+	buf.resize (bufferLength);
+	str32ncpy (buf.get() + buf_nchar, pos, nchar);
+	return buf;
 }
 
-static char32 **strs_replace_literal (char32 **from, integer lo, integer hi, const char32 *search,
-	const char32 *replace, int maximumNumberOfReplaces, integer *p_nmatches, integer *p_nstringmatches) {
-	if (search == NULL || replace == NULL) {
-		return NULL;
-	}
-	autostring32vector result (lo, hi);
+static autostring32vector string32vector_searchAndReplace_literal (string32vector me,
+	conststring32 search, conststring32 replace, int maximumNumberOfReplaces,
+	integer *out_numberOfMatches, integer *out_numberOfStringMatches)
+{
+	if (! search || ! replace)
+		return autostring32vector();
+	autostring32vector result (me.size);
 
 	integer nmatches_sub = 0, nmatches = 0, nstringmatches = 0;
-	for (integer i = lo; i <= hi; i ++) {
-		const char32 *string = ( from [i] ? from [i] : U"" );   // treat null as an empty string
+	for (integer i = 1; i <= me.size; i ++) {
+		conststring32 string = ( me [i] ? me [i] : U"" );   // treat null as an empty string
 
 		result [i] = str_replace_literal (string, search, replace, maximumNumberOfReplaces, & nmatches_sub);
 		if (nmatches_sub > 0) {
@@ -352,176 +277,176 @@ static char32 **strs_replace_literal (char32 **from, integer lo, integer hi, con
 			nstringmatches ++;
 		}
 	}
-	if (p_nmatches) {
-		*p_nmatches = nmatches;
-	}
-	if (p_nstringmatches) {
-		*p_nstringmatches = nstringmatches;
-	}
-	return result.transfer();
+	if (out_numberOfMatches)
+		*out_numberOfMatches = nmatches;
+	if (out_numberOfStringMatches)
+		*out_numberOfStringMatches = nstringmatches;
+	return result;
 }
 
-static char32 **strs_replace_regexp (char32 **from, integer lo, integer hi, const char32 *searchRE,
-	const char32 *replaceRE, int maximumNumberOfReplaces, integer *p_nmatches, integer *p_nstringmatches) {
-	if (searchRE == NULL || replaceRE == NULL) {
-		return NULL;
-	}
-	autostring32vector result;
+static autostring32vector string32vector_searchAndReplace_regexp (string32vector me,
+	conststring32 searchRE, conststring32 replaceRE, int maximumNumberOfReplaces,
+	integer *out_numberOfMatches, integer *out_numberOfStringMatches)
+{
+	if (! searchRE || ! replaceRE)
+		return autostring32vector();
 
 	integer nmatches_sub = 0;
 
 	regexp *compiledRE = CompileRE_throwable (searchRE, 0);
 
-	result.reset (lo, hi);
+	autostring32vector result (me.size);
 
 	integer nmatches = 0, nstringmatches = 0;
-	for (integer i = lo; i <= hi; i ++) {
-		const char32 *string = ( from [i] ? from [i] : U"" );   // treat null as an empty string
-
+	for (integer i = 1; i <= me.size; i ++) {
+		conststring32 string = ( me [i] ? me [i] : U"" );   // treat null as an empty string
 		result [i] = str_replace_regexp (string, compiledRE, replaceRE, maximumNumberOfReplaces, & nmatches_sub);
 		if (nmatches_sub > 0) {
 			nmatches += nmatches_sub;
 			nstringmatches ++;
 		}
 	}
-	if (p_nmatches) {
-		*p_nmatches = nmatches;
-	}
-	if (p_nstringmatches) {
-		*p_nstringmatches = nstringmatches;
-	}
-	return result.transfer();
+	if (out_numberOfMatches)
+		*out_numberOfMatches = nmatches;
+	if (out_numberOfStringMatches)
+		*out_numberOfStringMatches = nstringmatches;
+	return result;
 }
 
-char32 **strs_replace (char32 **from, integer lo, integer hi, const char32 *search, const char32 *replace, int maximumNumberOfReplaces, integer *nmatches, integer *nstringmatches, int use_regexp) {
-	return use_regexp ? strs_replace_regexp (from, lo, hi, search, replace, maximumNumberOfReplaces, nmatches, nstringmatches) :
-		strs_replace_literal (from, lo, hi, search, replace, maximumNumberOfReplaces, nmatches, nstringmatches);
+autostring32vector string32vector_searchAndReplace (string32vector me,
+	conststring32 search, conststring32 replace, int maximumNumberOfReplaces,
+	integer *nmatches, integer *nstringmatches, bool use_regexp)
+{
+	return use_regexp ?
+		string32vector_searchAndReplace_regexp (me, search, replace, maximumNumberOfReplaces, nmatches, nstringmatches) :
+		string32vector_searchAndReplace_literal (me, search, replace, maximumNumberOfReplaces, nmatches, nstringmatches);
 }
-
 
 /*
  * Acceptable ranges e.g. "1 4 2 3:7 4:3 3:5:2" -->
  * 1, 4, 2, 3, 4, 5, 6, 7, 4, 3, 3, 4, 5, 4, 3, 2
  * Overlap is allowed. Ranges can go up and down.
  */
-static integer *getElementsOfRanges (const char32 *ranges, integer maximumElement, integer *numberOfElements, const char32 *elementType) {
+static integer *getElementsOfRanges (conststring32 ranges, integer maximumElement, integer *numberOfElements, conststring32 elementType) {
 	/*
 		Count the elements.
-	 */
+	*/
 	integer previousElement = 0;
 	*numberOfElements = 0;
 	const char32 *p = & ranges [0];
 	for (;;) {
-		while (*p == U' ' || *p == U'\t') p ++;
-		if (*p == U'\0') break;
-		if (isdigit ((int) *p)) {
-			long currentElement = Melder_atoi (p);
-			if (currentElement == 0)
-				Melder_throw (U"No such ", elementType, U": 0 (minimum is 1).");
-			if (currentElement > maximumElement)
-				Melder_throw (U"No such ", elementType, U": ", currentElement, U" (maximum is ", maximumElement, U").");
+		while (Melder_isHorizontalSpace (*p)) p ++;
+		if (*p == U'\0')
+			break;
+		if (Melder_isAsciiDecimalNumber (*p)) {
+			integer currentElement = Melder_atoi (p);
+			Melder_require (currentElement != 0,
+				U"No such ", elementType, U": 0 (minimum is 1).");
+			Melder_require (currentElement <= maximumElement,
+				U"No such ", elementType, U": ", currentElement, U" (maximum is ", maximumElement, U").");
+			
 			*numberOfElements += 1;
 			previousElement = currentElement;
-			do { p ++; } while (isdigit ((int) *p));
+			do { p ++; } while (Melder_isAsciiDecimalNumber (*p));
 		} else if (*p == ':') {
-			if (previousElement == 0)
-				Melder_throw (U"Cannot start range with colon.");
-			do { p ++; } while (*p == U' ' || *p == U'\t');
-			if (*p == U'\0')
-				Melder_throw (U"Cannot end range with colon.");
-			if (! isdigit ((int) *p))
-				Melder_throw (U"End of range should be a positive whole number.");
-			long currentElement = Melder_atoi (p);
-			if (currentElement == 0)
-				Melder_throw (U"No such ", elementType, U": 0 (minimum is 1).");
-			if (currentElement > maximumElement)
-				Melder_throw (U"No such ", elementType, U": ", currentElement, U" (maximum is ", maximumElement, U").");
+			Melder_require (previousElement != 0, U"The range should not start with a colon.");
+			
+			do { p ++; } while (Melder_isHorizontalSpace (*p));
+			Melder_require (*p != U'\0',
+				U"The range should not end with a colon.");
+			Melder_require (Melder_isAsciiDecimalNumber (*p),
+				U"End of range should be a positive whole number.");
+			
+			integer currentElement = Melder_atoi (p);
+			Melder_require (currentElement != 0,
+				U"No such ", elementType, U": 0 (minimum is 1).");
+			Melder_require (currentElement <= maximumElement,
+				U"No such ", elementType, U": ", currentElement, U" (maximum is ", maximumElement, U").");
+			
 			if (currentElement > previousElement) {
 				*numberOfElements += currentElement - previousElement;
 			} else {
 				*numberOfElements += previousElement - currentElement;
 			}
 			previousElement = currentElement;
-			do { p ++; } while (isdigit ((int) *p));
+			do { p ++; } while (Melder_isAsciiDecimalNumber (*p));
 		} else {
 			Melder_throw (U"Start of range should be a positive whole number.");
 		}
 	}
+
 	/*
 		Create room for the elements.
-	 */
-	if (*numberOfElements == 0) {
+	*/
+	if (*numberOfElements == 0)
 		return nullptr;
-	}
 	autoNUMvector <integer> elements (1, *numberOfElements);
 	
 	/*
 		Store the elements.
-	 */
-	
+	*/
 	previousElement = 0;
 	*numberOfElements = 0;
 	p = & ranges [0];
 	for (;;) {
-		while (*p == U' ' || *p == U'\t') p ++;
-		if (*p == U'\0') break;
-		if (isdigit ((int) *p)) {
-			long currentElement = Melder_atoi (p);
+		while (Melder_isHorizontalSpace (*p)) p ++;
+		if (*p == U'\0')
+			break;
+		if (Melder_isAsciiDecimalNumber (*p)) {
+			integer currentElement = Melder_atoi (p);
 			elements [++ *numberOfElements] = currentElement;
 			previousElement = currentElement;
-			do { p ++; } while (isdigit ((int) *p));
+			do { p ++; } while (Melder_isAsciiDecimalNumber (*p));
 		} else if (*p == U':') {
-			do { p ++; } while (*p == U' ' || *p == U'\t');
-			long currentElement = Melder_atoi (p);
+			do { p ++; } while (Melder_isHorizontalSpace (*p));
+			integer currentElement = Melder_atoi (p);
 			if (currentElement > previousElement) {
-				for (long ielement = previousElement + 1; ielement <= currentElement; ielement ++) {
+				for (integer ielement = previousElement + 1; ielement <= currentElement; ielement ++)
 					elements [++ *numberOfElements] = ielement;
-				}
 			} else {
-				for (long ielement = previousElement - 1; ielement >= currentElement; ielement --) {
+				for (integer ielement = previousElement - 1; ielement >= currentElement; ielement --)
 					elements [++ *numberOfElements] = ielement;
-				}
 			}
 			previousElement = currentElement;
-			do { p ++; } while (isdigit ((int) *p));
+			do { p ++; } while (Melder_isAsciiDecimalNumber (*p));
 		}
 	}
 	return elements.transfer();
 }
 
-static void NUMlvector_getUniqueNumbers (integer *numbers, integer *numberOfElements, integer *p_numberOfMultiples) {
-	Melder_assert (numberOfElements);
-	autoNUMvector< integer> sorted (NUMvector_copy <integer> (numbers, 1, *numberOfElements), 1);
-	NUMsort_integer (*numberOfElements, sorted.peek());
+static void NUMlvector_getUniqueNumbers (integer numbers[], integer *inout_numberOfElements, integer *out_numberOfMultiples) {
+	Melder_assert (inout_numberOfElements);
+	autoNUMvector< integer> sorted (NUMvector_copy <integer> (numbers, 1, *inout_numberOfElements), 1);
+	NUMsort_integer (*inout_numberOfElements, sorted.peek());
 	integer numberOfMultiples = 0;
 	
 	numbers [1] = sorted [1];
-	long numberOfUniques = 1;
-	for (integer i = 2; i <= *numberOfElements; i ++) {
+	integer numberOfUniques = 1;
+	for (integer i = 2; i <= *inout_numberOfElements; i ++) {
 		if (sorted [i] != sorted [i - 1]) {
-			numbers [++numberOfUniques] = sorted [i];
+			numbers [++ numberOfUniques] = sorted [i];
 		} else {
 			numberOfMultiples ++;
 		}
 	}
-	*numberOfElements = numberOfUniques;
-	if (p_numberOfMultiples) {
-		*p_numberOfMultiples = numberOfMultiples;
-	}
+	*inout_numberOfElements = numberOfUniques;
+	if (out_numberOfMultiples)
+		*out_numberOfMultiples = numberOfMultiples;
 }
 
-integer *NUMstring_getElementsOfRanges (const char32 *ranges, integer maximumElement, integer *numberOfElements, integer *numberOfMultiples, const char32 *elementType, bool sortedUniques) {
+integer *NUMstring_getElementsOfRanges (conststring32 ranges, integer maximumElement,
+	integer *numberOfElements, integer *numberOfMultiples, conststring32 elementType, bool sortedUniques)
+{
 	autoNUMvector<integer> elements (getElementsOfRanges (ranges, maximumElement, numberOfElements, elementType), 1);
-	if (sortedUniques && *numberOfElements > 0) {
+	if (sortedUniques && *numberOfElements > 0)
 		NUMlvector_getUniqueNumbers (elements.peek(), numberOfElements, numberOfMultiples);
-	}
 	return elements.transfer();
 }
 
 char32 * NUMstring_timeNoDot (double time) {
-	static char32 string[100];
-	integer seconds = Melder_iroundDown (time);
-	long ms = lround ((time - seconds) * 1000.0);
+	static char32 string [100];
+	integer seconds = Melder_ifloor (time);
+	integer ms = Melder_iround ((time - seconds) * 1000.0);
 	Melder_sprint (string,100, U"_", seconds, U"_", ms);
 	return string;
 }

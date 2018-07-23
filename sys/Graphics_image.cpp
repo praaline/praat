@@ -226,38 +226,38 @@ static void _GraphicsScreen_cellArrayOrImage (GraphicsScreen me, double **z_floa
 					*pixelAddress ++ = kar; \
 					*pixelAddress ++ = kar; \
 					*pixelAddress ++ = kar; \
-					*pixelAddress ++ = 0; \
+					*pixelAddress ++ = 255; \
 				} else if (my colourScale == kGraphics_colourScale::BLUE_TO_RED) { \
 					if (value < 0.0) { \
 						*pixelAddress ++ = 0; \
 						*pixelAddress ++ = 0; \
 						*pixelAddress ++ = 63; \
-						*pixelAddress ++ = 0; \
+						*pixelAddress ++ = 255; \
 					} else if (value < 64.0) { \
 						*pixelAddress ++ = 0; \
 						*pixelAddress ++ = 0; \
 						*pixelAddress ++ = (int) (value * 3 + 63.999); \
-						*pixelAddress ++ = 0; \
+						*pixelAddress ++ = 255; \
 					} else if (value < 128.0) { \
 						*pixelAddress ++ = (int) (value * 4 - 256.0); \
 						*pixelAddress ++ = (int) (value * 4 - 256.0); \
 						*pixelAddress ++ = 255; \
-						*pixelAddress ++ = 0; \
+						*pixelAddress ++ = 255; \
 					} else if (value < 192.0) { \
 						*pixelAddress ++ = 255; \
 						*pixelAddress ++ = (int) ((256.0 - value) * 4 - 256.0); \
 						*pixelAddress ++ = (int) ((256.0 - value) * 4 - 256.0); \
-						*pixelAddress ++ = 0; \
+						*pixelAddress ++ = 255; \
 					} else if (value < 256.0) { \
 						*pixelAddress ++ = (int) ((256.0 - value) * 3 + 63.999); \
 						*pixelAddress ++ = 0; \
 						*pixelAddress ++ = 0; \
-						*pixelAddress ++ = 0; \
+						*pixelAddress ++ = 255; \
 					} else { \
 						*pixelAddress ++ = 63; \
 						*pixelAddress ++ = 0; \
 						*pixelAddress ++ = 0; \
-						*pixelAddress ++ = 0; \
+						*pixelAddress ++ = 255; \
 					} \
 				}
 		#else
@@ -279,7 +279,7 @@ static void _GraphicsScreen_cellArrayOrImage (GraphicsScreen me, double **z_floa
 				}
 				for (yDC = clipy2; yDC < clipy1; yDC += undersampling) {
 					double iy_real = iy2 + 0.5 - ((double) ny * (yDC - y2DC)) / (y1DC - y2DC);
-					integer itop = (integer) ceil (iy_real), ibottom = itop - 1;
+					integer itop = Melder_iceiling (iy_real), ibottom = itop - 1;
 					double bottomWeight = itop - iy_real, topWeight = 1.0 - bottomWeight;
 					unsigned char *pixelAddress = ROW_START_ADDRESS;
 					if (itop > iy2) itop = iy2;
@@ -328,7 +328,7 @@ static void _GraphicsScreen_cellArrayOrImage (GraphicsScreen me, double **z_floa
 								*pixelAddress ++ = red          * 255.0;
 								*pixelAddress ++ = green        * 255.0;
 								*pixelAddress ++ = blue         * 255.0;
-								*pixelAddress ++ = transparency * 255.0;
+								*pixelAddress ++ = (1.0 - transparency) * 255.0;
 							#endif
 						}
 					} else {
@@ -349,9 +349,9 @@ static void _GraphicsScreen_cellArrayOrImage (GraphicsScreen me, double **z_floa
 			try {
 				autoNUMvector <integer> ix (clipx1, clipx2);
 				for (xDC = clipx1; xDC < clipx2; xDC += undersampling)
-					ix [xDC] = floor (ix1 + (nx * (xDC - x1DC)) / (x2DC - x1DC));
+					ix [xDC] = Melder_ifloor (ix1 + (nx * (xDC - x1DC)) / (x2DC - x1DC));
 				for (yDC = clipy2; yDC < clipy1; yDC += undersampling) {
-					integer iy = ceil (iy2 - (ny * (yDC - y2DC)) / (y1DC - y2DC));
+					integer iy = Melder_iceiling (iy2 - (ny * (yDC - y2DC)) / (y1DC - y2DC));
 					unsigned char *pixelAddress = ROW_START_ADDRESS;
 					Melder_assert (iy >= iy1 && iy <= iy2);
 					if (z_float) {
@@ -411,7 +411,7 @@ static void _GraphicsScreen_cellArrayOrImage (GraphicsScreen me, double **z_floa
 				);
 				Melder_assert (dataProvider != nullptr);
 				image = CGImageCreate (clipx2 - clipx1, numberOfRows,
-					8, 32, bytesPerRow, colourSpace, kCGImageAlphaNone, dataProvider, nullptr, false, kCGRenderingIntentDefault);
+					8, 32, bytesPerRow, colourSpace, kCGImageAlphaLast, dataProvider, nullptr, false, kCGRenderingIntentDefault);
 				CGDataProviderRelease (dataProvider);
 			} else if (0) {
 				Melder_assert (CGBitmapContextCreate != nullptr);
@@ -469,8 +469,8 @@ static void _GraphicsPostscript_cellArrayOrImage (GraphicsPostscript me, double 
 		double rowSize_pixels = (double) (y2DC - y1DC) / ny;
 		double colSize_inches = colSize_pixels / my resolution;
 		double rowSize_inches = rowSize_pixels / my resolution;
-		interpolateX = ceil (colSize_inches * smallestImageResolution);   // number of interpolation points per horizontal sample
-		interpolateY = ceil (rowSize_inches * smallestImageResolution);   // number of interpolation points per vertical sample
+		interpolateX = Melder_iceiling (colSize_inches * smallestImageResolution);   // number of interpolation points per horizontal sample
+		interpolateY = Melder_iceiling (rowSize_inches * smallestImageResolution);   // number of interpolation points per vertical sample
 	}
 
 	if (interpolateX <= 1 && interpolateY <= 1) {
@@ -709,7 +709,7 @@ void Graphics_image8 (Graphics me, unsigned char **z, integer ix1, integer ix2, 
 	integer iy1, integer iy2, double y1WC, double y2WC, uint8 minimum, uint8 maximum)
 { cellArrayOrImage (me, nullptr, nullptr, z, ix1, ix2, x1WC, x2WC, iy1, iy2, y1WC, y2WC, minimum, maximum, true); }
 
-static void _GraphicsScreen_imageFromFile (GraphicsScreen me, const char32 *relativeFileName, double x1, double x2, double y1, double y2) {
+static void _GraphicsScreen_imageFromFile (GraphicsScreen me, conststring32 relativeFileName, double x1, double x2, double y1, double y2) {
 	integer x1DC = wdx (x1), x2DC = wdx (x2), y1DC = wdy (y1), y2DC = wdy (y2);
 	integer width = x2DC - x1DC, height = my yIsZeroAtTheTop ? y1DC - y2DC : y2DC - y1DC;
 	#if 0
@@ -769,7 +769,7 @@ static void _GraphicsScreen_imageFromFile (GraphicsScreen me, const char32 *rela
 		structMelderFile file { };
 		Melder_relativePathToFile (relativeFileName, & file);
 		char utf8 [500];
-		Melder_str32To8bitFileRepresentation_inline (file. path, utf8);
+		Melder_str32To8bitFileRepresentation_inplace (file. path, utf8);
 		CFStringRef path = CFStringCreateWithCString (nullptr, utf8, kCFStringEncodingUTF8);
 		CFURLRef url = CFURLCreateWithFileSystemPath (nullptr, path, kCFURLPOSIXPathStyle, false);
 		CFRelease (path);
@@ -805,12 +805,12 @@ static void _GraphicsScreen_imageFromFile (GraphicsScreen me, const char32 *rela
 	#endif
 }
 
-void Graphics_imageFromFile (Graphics me, const char32 *relativeFileName, double x1, double x2, double y1, double y2) {
+void Graphics_imageFromFile (Graphics me, conststring32 relativeFileName, double x1, double x2, double y1, double y2) {
 	if (my screen) {
 		_GraphicsScreen_imageFromFile (static_cast <GraphicsScreen> (me), relativeFileName, x1, x2, y1, y2);
 	}
 	if (my recording) {
-		char *txt_utf8 = Melder_peek32to8 (relativeFileName);
+		conststring8 txt_utf8 = Melder_peek32to8 (relativeFileName);
 		int length = strlen (txt_utf8) / sizeof (double) + 1;
 		op (IMAGE_FROM_FILE, 5 + length); put (x1); put (x2); put (y1); put (y2); sput (txt_utf8, length)
 	}

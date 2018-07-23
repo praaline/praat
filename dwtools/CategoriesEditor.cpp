@@ -1,6 +1,6 @@
 /* CategoriesEditor.cpp
  *
- * Copyright (C) 1993-2013 David Weenink, 2008,2015,2016,2017 Paul Boersma
+ * Copyright (C) 1993-2013 David Weenink, 2008,2015-2018 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
 
 Thing_implement (CategoriesEditor, Editor, 0);
 
-const char32 *CategoriesEditor_EMPTYLABEL = U"(empty)";
+static const conststring32 CategoriesEditor_EMPTYLABEL = U"(empty)";
 
 static void menu_cb_help (CategoriesEditor /* me */, EDITOR_ARGS_DIRECT) {
 	Melder_help (U"CategoriesEditor");
@@ -50,8 +50,8 @@ static void menu_cb_help (CategoriesEditor /* me */, EDITOR_ARGS_DIRECT) {
 #pragma mark - Collection extensions
 
 /* Preconditions: */
-/*	1 <= (position[i], newpos) <= size; */
-/*	newpos <= position[1] || newpos >= position[npos] */
+/*	1 <= (position  [i], newpos) <= size; */
+/*	newpos <= position  [1] || newpos >= position  [npos] */
 static void Ordered_moveItems (Ordered me, integer position [], integer npos, integer newpos) {
 	integer pos, min = position [1], max = position [1];
 
@@ -147,9 +147,8 @@ static void notifyNumberOfSelected (CategoriesEditor me) {
 	if (tmp.string) GuiLabel_setText (my outOfView, tmp.string);
 }
 
-static void updateUndoAndRedoMenuItems (CategoriesEditor me)
-{
-	const char32 *commandName;
+static void updateUndoAndRedoMenuItems (CategoriesEditor me) {
+	conststring32 commandName;
 
 	/*
 	 * Menu item `Undo`.
@@ -193,8 +192,7 @@ static void updateWidgets (CategoriesEditor me) {   // all buttons except undo &
 		if (posCount == 1) {
 			insert = true;
 			//if (posList[1] == size) insertAtEnd = true;
-			if (size == 1 && ! str32cmp (CategoriesEditor_EMPTYLABEL,
-			                           OrderedOfString_itemAtIndex_c ((OrderedOfString) my data, 1))) {
+			if (size == 1 && str32equ (CategoriesEditor_EMPTYLABEL, data->at [1] -> string.get())) {
 				remove = false;
 			}
 		}
@@ -231,19 +229,21 @@ static void update (CategoriesEditor me, integer from, integer to, const integer
 		to = size;
 	}
 	if (from > to) {
-		integer ti = from; from = to; to = ti;
+		integer tmp = from;
+		from = to;
+		to = tmp;
 	}
 
 	// Begin optimization: add the items from a table instead of separately.
 	try {
-		autostring32vector table (from, to);
+		integer offset = from - 1, numberOfElements = to - offset;
+		autostring32vector table (numberOfElements);
 		integer itemCount = GuiList_getNumberOfItems (my list);
-		for (integer i = from; i <= to; i++) {
-			char wcindex[20];
-			snprintf (wcindex,20, "%5ld ", i);
-			table[i] = Melder_dup_f (Melder_cat (Melder_peek8to32 (wcindex), OrderedOfString_itemAtIndex_c ((OrderedOfString) my data, i)));
+		for (integer i = from; i <= to; i ++) {
+			SimpleString category = data->at [i];
+			table [i - offset] = Melder_dup_f (Melder_cat (i, U" ", category -> string.get()));
 		}
-		if (itemCount > size) { // some items have been removed from Categories?
+		if (itemCount > size) {   // have any items been removed from the Categories?
 			for (integer j = itemCount; j > size; j --) {
 				GuiList_deleteItem (my list, j);
 			}
@@ -251,13 +251,13 @@ static void update (CategoriesEditor me, integer from, integer to, const integer
 		}
 		if (to > itemCount) {
 			for (integer j = 1; j <= to - itemCount; j ++) {
-				GuiList_insertItem (my list, table [itemCount + j], 0);
+				GuiList_insertItem (my list, table [itemCount + j - offset].get(), 0);
 			}
 		}
 		if (from <= itemCount) {
 			integer n = (to < itemCount ? to : itemCount);
-			for (integer j = from; j <= n; j++) {
-				GuiList_replaceItem (my list, table[j], j);
+			for (integer j = from; j <= n; j ++) {
+				GuiList_replaceItem (my list, table [j - offset].get(), j);
 			}
 		}
 	} catch (MelderError) {
@@ -270,15 +270,16 @@ static void update (CategoriesEditor me, integer from, integer to, const integer
 
 	GuiList_deselectAllItems (my list);
 	if (size == 1) { /* the only item is always selected */
-		const char32 *catg = OrderedOfString_itemAtIndex_c ((OrderedOfString) my data, 1);
+		SimpleString category = data->at [1];
 		GuiList_selectItem (my list, 1);
 		updateWidgets (me);   // instead of "notify". BUG?
-		GuiText_setString (my text, catg);
+		GuiText_setString (my text, category -> string.get());
 	} else if (nSelect > 0) {
-		// Select but postpone highlighting
-
-		for (integer i = 1; i <= nSelect; i++) {
-			GuiList_selectItem (my list, select[i] > size ? size : select[i]);
+		/*
+			Select, but postpone highlighting.
+		*/
+		for (integer i = 1; i <= nSelect; i ++) {
+			GuiList_selectItem (my list, select [i] > size ? size : select [i]);
 		}
 	}
 
@@ -289,18 +290,19 @@ static void update (CategoriesEditor me, integer from, integer to, const integer
 		integer visible = bottom - top + 1;
 		if (nSelect == 0) {
 			top = my position - visible / 2;
-		} else if (select[nSelect] < top) {
+		} else if (select [nSelect] < top) {
 			// selection above visible area
-			top = select[1];
-		} else if (select[1] > bottom) {
+			top = select [1];
+		} else if (select [1] > bottom) {
 			// selection below visible area
-			top = select[nSelect] - visible + 1;
+			top = select [nSelect] - visible + 1;
 		} else {
 			integer deltaTopPos = -1, nUpdate = to - from + 1;
-			if ( (from == select[1] && to == select[nSelect]) || // Replace
-			        (nUpdate > 2 && nSelect == 1) /* Inserts */) {
+			if ((from == select [1] && to == select [nSelect]) ||   // replace
+			    (nUpdate > 2 && nSelect == 1))   // insert
+			{
 				deltaTopPos = 0;
-			} else if (nUpdate == nSelect + 1 && select[1] == from + 1) { // down
+			} else if (nUpdate == nSelect + 1 && select [1] == from + 1) {   // down
 				deltaTopPos = 1;
 			}
 			top += deltaTopPos;
@@ -333,9 +335,9 @@ void structCategoriesEditorCommand :: v_destroy () noexcept {
 	CategoriesEditorCommand_Parent :: v_destroy ();
 }
 
-static void CategoriesEditorCommand_init (CategoriesEditorCommand me, const char32 *name, Thing boss,
-        Command_Callback execute, Command_Callback undo, integer /*nCategories*/, integer nSelected) {
-
+static void CategoriesEditorCommand_init (CategoriesEditorCommand me, conststring32 name, Thing boss,
+	Command_Callback execute, Command_Callback undo, integer /*nCategories*/, integer nSelected)
+{
 	my nSelected = nSelected;
 	Command_init (me, name, boss, execute, undo);
 	my categories = Categories_create();
@@ -586,8 +588,8 @@ static void gui_button_cb_remove (CategoriesEditor me, GuiButtonEvent /* event *
 
 static void insert (CategoriesEditor me, int position) {
 	autostring32 text = GuiText_getString (my text);
-	if (str32len (text.peek()) != 0) {
-		autoSimpleString str = SimpleString_create (text.peek());
+	if (str32len (text.get()) != 0) {
+		autoSimpleString str = SimpleString_create (text.get());
 		autoCategoriesEditorInsert command = CategoriesEditorInsert_create (me, str.move(), position);
 		Command_do (command.get());
 		if (my history) {
@@ -612,8 +614,8 @@ static void gui_button_cb_replace (CategoriesEditor me, GuiButtonEvent /* event 
 	autoNUMvector <integer> posList (GuiList_getSelectedPositions (my list, & posCount), 1);
 	if (posCount > 0) {
 		autostring32 text = GuiText_getString (my text);
-		if (str32len (text.peek()) != 0) {
-			autoSimpleString str = SimpleString_create (text.peek());
+		if (str32len (text.get()) != 0) {
+			autoSimpleString str = SimpleString_create (text.get());
 			autoCategoriesEditorReplace command = CategoriesEditorReplace_create (me, str.move(), posList.peek(), posCount);
 			Command_do (command.get());
 			if (my history) {
@@ -658,6 +660,7 @@ static void gui_list_cb_selectionChanged (CategoriesEditor me, GuiList_Selection
 
 static void gui_list_cb_doubleClick (CategoriesEditor me, GuiList_DoubleClickEvent event) {
 	Melder_assert (event -> list == my list);
+	Categories data = (Categories) my data;
 
 	//  `my position` should just have been updated by the selectionChanged callback.
 
@@ -666,10 +669,8 @@ static void gui_list_cb_doubleClick (CategoriesEditor me, GuiList_DoubleClickEve
 	if (posCount == 1   // often or even usually true when double-clicking?
 	    && posList [1] == my position)   // should be true, but we don't crash if it's false
 	{
-		const char32 *catg = OrderedOfString_itemAtIndex_c ((OrderedOfString) my data, my position);
-		if (catg) {   // should be non-null, but we don't crash if not
-			GuiText_setString (my text, catg);
-		}
+		SimpleString category = data->at [my position];
+		GuiText_setString (my text, category -> string ? category -> string.get() : U"");
 	}
 }
 
@@ -762,7 +763,7 @@ void structCategoriesEditor :: v_dataChanged () {
 
 #pragma mark -
 
-autoCategoriesEditor CategoriesEditor_create (const char32 *title, Categories data) {
+autoCategoriesEditor CategoriesEditor_create (conststring32 title, Categories data) {
 	try {
 		autoCategoriesEditor me = Thing_new (CategoriesEditor);
 		Editor_init (me.get(), 20, 40, 600, 600, title, data);

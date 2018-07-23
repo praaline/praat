@@ -1,6 +1,6 @@
 /* melder_sysenv.cpp
  *
- * Copyright (C) 1992-2007,2011,2012,2015-2017 Paul Boersma
+ * Copyright (C) 1992-2007,2011,2012,2015-2018 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@
 #endif
 #include "melder.h"
 
-char32 * Melder_getenv (const char32 *variableName) {
+conststring32 Melder_getenv (conststring32 variableName) {
 	#if defined (macintosh) || defined (UNIX) || defined (__MINGW32__) || defined (__CYGWIN__)
 		return Melder_peek8to32 (getenv (Melder_peek32to8 (variableName)));
 	#elif defined (_WIN32)
@@ -55,7 +55,7 @@ char32 * Melder_getenv (const char32 *variableName) {
 	#endif
 }
 
-void Melder_system (const char32 *command) {
+void Melder_system (conststring32 command) {
 	if (! command) command = U"";
 	#if defined (macintosh) || defined (UNIX)
 		if (system (Melder_peek32to8 (command)) != 0)
@@ -63,10 +63,9 @@ void Melder_system (const char32 *command) {
 	#elif defined (_WIN32)
 		STARTUPINFO siStartInfo;
 		PROCESS_INFORMATION piProcInfo;
-		char32 *comspec = Melder_getenv (U"COMSPEC");   // e.g. "C:\WINDOWS\COMMAND.COM" or "C:\WINNT\windows32\cmd.exe"
-		if (! comspec) {
+		conststring32 comspec = Melder_getenv (U"COMSPEC");   // e.g. "C:\WINDOWS\COMMAND.COM" or "C:\WINNT\windows32\cmd.exe"
+		if (! comspec)
 			comspec = Melder_getenv (U"ComSpec");
-		}
 		autoMelderString buffer;
 		if (comspec) {
 			MelderString_copy (& buffer, comspec);
@@ -92,7 +91,7 @@ void Melder_system (const char32 *command) {
 		MelderString_append (& buffer, U" /c ", command);
         memset (& siStartInfo, 0, sizeof (siStartInfo));
         siStartInfo. cb = sizeof (siStartInfo);
-		if (! CreateProcess (nullptr, Melder_peek32toW (buffer.string), nullptr, nullptr, true, CREATE_NO_WINDOW, nullptr, nullptr, & siStartInfo, & piProcInfo))
+		if (! CreateProcess (nullptr, (WCHAR *) Melder_peek32toW (buffer.string), nullptr, nullptr, true, CREATE_NO_WINDOW, nullptr, nullptr, & siStartInfo, & piProcInfo))
 			Melder_throw (U"Cannot create subprocess.");
 		WaitForSingleObject (piProcInfo. hProcess, -1);
 		CloseHandle (piProcInfo. hProcess);
@@ -100,19 +99,19 @@ void Melder_system (const char32 *command) {
 	#endif
 }
 
-void Melder_execv (const char32 *executableFileName, int narg, char32 ** args) {
+void Melder_execv (conststring32 executableFileName, integer narg, char32 ** args) {
 	#if defined (macintosh) || defined (UNIX)
 		Melder_casual (U"Command: <<", executableFileName, U">>");
-		autostring8vector args8 (0, narg + 1);
-		args8 [0] = Melder_32to8 (executableFileName);
-		for (int i = 1; i <= narg; i ++) {
+		autostring8vector args8 (narg + 2);
+		args8 [1] = Melder_32to8 (executableFileName);
+		for (integer i = 1; i <= narg; i ++) {
 			Melder_casual (U"Argument ", i, U": <<", args [i], U">>");
-			args8 [i] = Melder_32to8 (args [i]);
+			args8 [1 + i] = Melder_32to8 (args [i]);
 		}
-		args8 [narg + 1] = nullptr;
+		args8 [narg + 2] = autostring8();
 		pid_t processID = fork ();
 		if (processID == 0) {   // we are in the child process
-			execvp (Melder_peek32to8 (executableFileName), args8.peek());
+			execvp (Melder_peek32to8 (executableFileName), & args8.peek2() [1]);
 			/* if we arrive here, some error occurred */
 			fprintf (stderr, "Some error occurred");
 			_exit (EXIT_FAILURE);

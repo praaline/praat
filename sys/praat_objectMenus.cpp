@@ -1,6 +1,6 @@
 /* praat_objectMenus.cpp
  *
- * Copyright (C) 1992-2012,2013,2014,2015,2016,2017 Paul Boersma
+ * Copyright (C) 1992-2018 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ DO
 	static MelderString fullName { };
 	MelderString_copy (& fullName, Thing_className (OBJECT), U" ", string.string);
 	if (! str32equ (fullName.string, FULL_NAME)) {
-		Melder_free (FULL_NAME), FULL_NAME = Melder_dup_f (fullName.string);
+		theCurrentPraatObjects -> list [IOBJECT]. name = Melder_dup_f (fullName.string);
 		autoMelderString listName;
 		MelderString_append (& listName, ID, U". ", fullName.string);
 		praat_list_renameAndSelect (IOBJECT, listName.string);
@@ -105,7 +105,7 @@ END }
 
 static GuiMenu praatMenu, editMenu, windowMenu, newMenu, readMenu, goodiesMenu, preferencesMenu, technicalMenu, applicationHelpMenu, helpMenu;
 
-GuiMenu praat_objects_resolveMenu (const char32 *menu) {
+GuiMenu praat_objects_resolveMenu (conststring32 menu) {
 	return
 		str32equ (menu, U"Praat") || str32equ (menu, U"Control") ? praatMenu :
 		#if cocoa
@@ -274,8 +274,8 @@ DO
 			Melder_information (result. numericResult);
 		} break;
 		case kFormula_EXPRESSION_TYPE_STRING: {
-			Melder_information (result. stringResult);
-			Melder_free (result. stringResult);
+			Melder_information (result. stringResult.get());
+			result. stringResult. reset();   // TODO: this should be superfluous
 		} break;
 		case kFormula_EXPRESSION_TYPE_NUMERIC_VECTOR: {
 			Melder_information (result. numericVectorResult);
@@ -301,8 +301,8 @@ DO
 	if (a + b <= 0 || c + d <= 0) Melder_throw (U"The row totals should be positive.");
 	if (a + c <= 0 || b + d <= 0) Melder_throw (U"The column totals should be positive.");
 	MelderInfo_open ();
-	MelderInfo_writeLine (U"Observed row 1 =    ", lround (a), U"    ", lround (b));
-	MelderInfo_writeLine (U"Observed row 2 =    ", lround (c), U"    ", lround (d));
+	MelderInfo_writeLine (U"Observed row 1 =    ", Melder_iround (a), U"    ", Melder_iround (b));
+	MelderInfo_writeLine (U"Observed row 2 =    ", Melder_iround (c), U"    ", Melder_iround (d));
 	aexp = (a + b) * (a + c) / n;
 	bexp = (a + b) * (b + d) / n;
 	cexp = (a + c) * (c + d) / n;
@@ -411,11 +411,11 @@ END }
 
 static void readFromFile (MelderFile file) {
 	autoDaata object = Data_readFromFile (file);
-	if (! object.get()) return;
+	if (! object) return;
 	if (Thing_isa (object.get(), classManPages) && ! Melder_batch) {
 		ManPages manPages = (ManPages) object.get();
 		ManPage firstPage = manPages -> pages.at [1];
-		autoManual manual = Manual_create (firstPage -> title, object.releaseToAmbiguousOwner(), true);
+		autoManual manual = Manual_create (firstPage -> title.get(), object.releaseToAmbiguousOwner(), true);
 		if (manPages -> executable)
 			Melder_warning (U"These manual pages contain links to executable scripts.\n"
 				"Only navigate these pages if you trust their author!");
@@ -480,9 +480,10 @@ END }
 FORM (PRAAT_ManPages_saveToHtmlDirectory, U"Save all pages as HTML files", nullptr) {
 	TEXTFIELD (directory, U"Directory:", U"")
 OK
-	structMelderDir currentDirectory { };
-	Melder_getDefaultDir (& currentDirectory);
-	SET_STRING (directory, Melder_dirToPath (& currentDirectory))
+	LOOP {
+		iam (ManPages);
+		SET_STRING (directory, Melder_dirToPath (& my rootDirectory))
+	}
 DO
 	LOOP {
 		iam (ManPages);
@@ -494,7 +495,7 @@ DIRECT (WINDOW_ManPages_view) {
 	LOOP {
 		iam (ManPages);
 		ManPage firstPage = my pages.at [1];
-		autoManual manual = Manual_create (firstPage -> title, me, false);
+		autoManual manual = Manual_create (firstPage -> title.get(), me, false);
 		if (my executable)
 			Melder_warning (U"These manual pages contain links to executable scripts.\n"
 				"Only navigate these pages if you trust their author!");
@@ -518,7 +519,7 @@ END }
 
 FORM (HELP_GoToManualPage, U"Go to manual page", nullptr) {
 	static integer numberOfPages;
-	static const char32 **pages = ManPages_getTitles (theCurrentPraatApplication -> manPages, & numberOfPages);
+	static char32 **pages = ManPages_getTitles (theCurrentPraatApplication -> manPages, & numberOfPages);
 	LIST (pageNumber, U"Page", numberOfPages, pages, 1)
 	OK
 DO
@@ -572,7 +573,7 @@ static void searchProc () {
 static MelderString itemTitle_about { };
 
 static autoDaata scriptRecognizer (integer nread, const char *header, MelderFile file) {
-	const char32 *name = MelderFile_name (file);
+	conststring32 name = MelderFile_name (file);
 	if (nread < 2) return autoDaata ();
 	if ((header [0] == '#' && header [1] == '!') || str32str (name, U".praat") == name + str32len (name) - 6
 	    || str32str (name, U".html") == name + str32len (name) - 5)
@@ -638,7 +639,7 @@ void praat_addMenus (GuiWindow window) {
 		helpMenu = GuiMenu_createInWindow (window, U"Help", 0);
 	}
 	
-	MelderString_append (& itemTitle_about, U"About ", praatP.title, U"...");
+	MelderString_append (& itemTitle_about, U"About ", praatP.title.get(), U"...");
 	#ifdef macintosh
 		praat_addMenuCommand (U"Objects", U"Praat", itemTitle_about.string, nullptr, praat_UNHIDABLE, WINDOW_About);
 		#if cocoa
@@ -712,7 +713,7 @@ void praat_addMenus2 () {
 	praat_addMenuCommand (U"Objects", U"ApplicationHelp", U"Go to manual page...", nullptr, 0, HELP_GoToManualPage);
 	praat_addMenuCommand (U"Objects", U"ApplicationHelp", U"Write manual to HTML directory...", nullptr, praat_HIDDEN, HELP_WriteManualToHtmlDirectory);
 	praat_addMenuCommand (U"Objects", U"ApplicationHelp",
-		Melder_cat (U"Search ", praatP.title, U" manual..."),
+		Melder_cat (U"Search ", praatP.title.get(), U" manual..."),
 		nullptr, 'M' | praat_NO_API, HELP_SearchManual);
 	#ifdef _WIN32
 		praat_addMenuCommand (U"Objects", U"Help", U"-- about --", nullptr, 0, nullptr);

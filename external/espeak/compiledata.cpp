@@ -38,7 +38,6 @@
 #include "error.h"
 #include "speech.h"
 #include "synthesize.h"
-#include "spect.h"
 #include "translate.h"
 
 typedef struct {
@@ -120,11 +119,11 @@ static keywtab_t k_properties[] = {
 
 	{ "isVelar", 0, CONDITION_IS_PLACE_OF_ARTICULATION | phPLACE_VELAR },
 
-	{ "isDiminished",  0, CONDITION_IS_OTHER | isDiminished },
-	{ "isUnstressed",  0, CONDITION_IS_OTHER | isUnstressed },
-	{ "isNotStressed", 0, CONDITION_IS_OTHER | isNotStressed },
-	{ "isStressed",    0, CONDITION_IS_OTHER | isStressed },
-	{ "isMaxStress",   0, CONDITION_IS_OTHER | isMaxStress },
+	{ "isDiminished",  0, CONDITION_IS_OTHER | STRESS_IS_DIMINISHED },
+	{ "isUnstressed",  0, CONDITION_IS_OTHER | STRESS_IS_UNSTRESSED },
+	{ "isNotStressed", 0, CONDITION_IS_OTHER | STRESS_IS_NOT_STRESSED },
+	{ "isStressed",    0, CONDITION_IS_OTHER | STRESS_IS_SECONDARY },
+	{ "isMaxStress",   0, CONDITION_IS_OTHER | STRESS_IS_PRIMARY },
 
 	{ "isPause2",           0, CONDITION_IS_OTHER | isBreak },
 	{ "isWordStart",        0, CONDITION_IS_OTHER | isWordStart },
@@ -261,10 +260,11 @@ static keywtab_t keywords[] = {
 	{ "InsertPhoneme",       tINSTRN1, i_INSERT_PHONEME },
 	{ "AppendPhoneme",       tINSTRN1, i_APPEND_PHONEME },
 	{ "IfNextVowelAppend",   tINSTRN1, i_APPEND_IFNEXTVOWEL },
-	{ "ChangeIfDiminished",  tINSTRN1, i_CHANGE_IF | isDiminished },
-	{ "ChangeIfUnstressed",  tINSTRN1, i_CHANGE_IF | isUnstressed },
-	{ "ChangeIfNotStressed", tINSTRN1, i_CHANGE_IF | isNotStressed },
-	{ "ChangeIfStressed",    tINSTRN1, i_CHANGE_IF | isStressed },
+	{ "ChangeIfDiminished",  tINSTRN1, i_CHANGE_IF | STRESS_IS_DIMINISHED },
+	{ "ChangeIfUnstressed",  tINSTRN1, i_CHANGE_IF | STRESS_IS_UNSTRESSED },
+	{ "ChangeIfNotStressed", tINSTRN1, i_CHANGE_IF | STRESS_IS_NOT_STRESSED },
+	{ "ChangeIfStressed",    tINSTRN1, i_CHANGE_IF | STRESS_IS_SECONDARY },
+	{ "ChangeIfStressed",    tINSTRN1, i_CHANGE_IF | STRESS_IS_PRIMARY },
 
 	{ "PauseBefore", tINSTRN1, i_PAUSE_BEFORE },
 	{ "PauseAfter",  tINSTRN1, i_PAUSE_AFTER },
@@ -313,6 +313,7 @@ static PHONEME_TAB *phoneme_out;
 static int n_phcodes_list[N_PHONEME_TABS];
 static PHONEME_TAB_LIST phoneme_tab_list2[N_PHONEME_TABS];
 static PHONEME_TAB *phoneme_tab2;
+static int phoneme_flags;
 
 #define N_PROCS 50
 int n_procs;
@@ -626,7 +627,7 @@ static MNEM_TAB reserved_phonemes[] = {
 	{ "'!",     phonSTRESS_TONIC }, // stress - emphasized
 	{ "_;_",    phonPAUSE_CLAUSE }, // clause pause
 
-	{ "#@",     phonVOWELTYPES },   // vowel type groups, these must be consecutive
+	{ "#@",     phonVOWELTYPES },   // vowel type groups, these should be consecutive
 	{ "#a",     phonVOWELTYPES+1 },
 	{ "#e",     phonVOWELTYPES+2 },
 	{ "#i",     phonVOWELTYPES+3 },
@@ -998,7 +999,7 @@ static int CompileVowelTransition(int which)
 
 	return 0;
 }
-
+#if ! DATA_FROM_SOURCECODE_FILES
 static espeak_ng_STATUS LoadSpect(const char *path, int control, int *addr)
 {
 	SpectSeq *spectseq;
@@ -1182,7 +1183,7 @@ static espeak_ng_STATUS LoadSpect(const char *path, int control, int *addr)
 	SpectSeqDestroy(spectseq);
 	return ENS_OK;
 }
-
+#endif
 static int LoadWavefile(FILE *f, const char *fname)
 {
 	int displ;
@@ -1437,7 +1438,7 @@ static int LoadEnvelope2(FILE *f, const char *fname)
 
 	return displ;
 }
-
+#if ! DATA_FROM_SOURCECODE_FILES
 static espeak_ng_STATUS LoadDataFile(const char *path, int control, int *addr)
 {
 	// load spectrum sequence or sample data from a file.
@@ -1602,7 +1603,7 @@ static void CompileSound(int keyword, int isvowel)
 	*prog_out++ = sound_instns[keyword-kFMT] + ((value & 0xff) << 4) + ((addr >> 16) & 0xf);
 	*prog_out++ = addr & 0xffff;
 }
-
+#endif
 /*
    Condition
    bits 14,15   1
@@ -1940,6 +1941,8 @@ static void CallPhoneme(void)
 			phoneme_out->end_type = ph->end_type;
 			phoneme_out->std_length = ph->std_length;
 			phoneme_out->length_mod = ph->length_mod;
+
+			phoneme_flags = ph->phflags & ~phARTICULATION;
 		}
 	}
 
@@ -1953,6 +1956,7 @@ static void DecThenCount()
 		then_count--;
 }
 
+#if ! DATA_FROM_SOURCECODE_FILES
 static int CompilePhoneme(int compile_phoneme)
 {
 	int endphoneme = 0;
@@ -1976,7 +1980,7 @@ static int CompilePhoneme(int compile_phoneme)
 	if_level = 0;
 	if_stack[0].returned = 0;
 	after_if = 0;
-	int phoneme_flags = 0;
+	phoneme_flags = 0;
 
 	NextItem(tSTRING);
 	if (compile_phoneme) {
@@ -2043,10 +2047,11 @@ static int CompilePhoneme(int compile_phoneme)
 			case i_INSERT_PHONEME:
 			case i_REPLACE_NEXT_PHONEME:
 			case i_VOICING_SWITCH:
-			case i_CHANGE_IF | isDiminished:
-			case i_CHANGE_IF | isUnstressed:
-			case i_CHANGE_IF | isNotStressed:
-			case i_CHANGE_IF | isStressed:
+			case i_CHANGE_IF | STRESS_IS_DIMINISHED:
+			case i_CHANGE_IF | STRESS_IS_UNSTRESSED:
+			case i_CHANGE_IF | STRESS_IS_NOT_STRESSED:
+			case i_CHANGE_IF | STRESS_IS_SECONDARY:
+			case i_CHANGE_IF | STRESS_IS_PRIMARY:
 				value = NextItemBrackets(tPHONEMEMNEM, 0);
 				*prog_out++ = (keyword << 8) + value;
 				DecThenCount();
@@ -2149,14 +2154,14 @@ static int CompilePhoneme(int compile_phoneme)
 					phcode = LookupPhoneme(item_string, 1);
 				phoneme_out->start_type = phcode;
 				if (phoneme_out->type == phINVALID)
-					error("a phoneme type or manner of articulation must be specified before starttype");
+					error("a phoneme type or manner of articulation should be specified before starttype");
 				break;
 			case kENDTYPE:
 				phcode = NextItem(tPHONEMEMNEM);
 				if (phcode == -1)
 					phcode = LookupPhoneme(item_string, 1);
 				if (phoneme_out->type == phINVALID)
-					error("a phoneme type or manner of articulation must be specified before endtype");
+					error("a phoneme type or manner of articulation should be specified before endtype");
 				else if (phoneme_out->type == phVOWEL)
 					phoneme_out->end_type = phcode;
 				else if (phcode != phoneme_out->start_type)
@@ -2233,11 +2238,11 @@ static int CompilePhoneme(int compile_phoneme)
 				CompileToneSpec();
 				break;
 			case kCONTINUE:
-				*prog_out++ = OPCODE_CONTINUE;
+				*prog_out++ = INSTN_CONTINUE;
 				DecThenCount();
 				break;
 			case kRETURN:
-				*prog_out++ = OPCODE_RETURN;
+				*prog_out++ = INSTN_RETURN;
 				DecThenCount();
 				break;
 			case kINCLUDE:
@@ -2250,7 +2255,7 @@ static int CompilePhoneme(int compile_phoneme)
 				if (if_level > 0)
 					error("Missing ENDIF");
 				if ((prog_out > prog_buf) && (if_stack[0].returned == 0))
-					*prog_out++ = OPCODE_RETURN;
+					*prog_out++ = INSTN_RETURN;
 				break;
 			}
 			break;
@@ -2953,5 +2958,6 @@ espeak_ng_STATUS espeak_ng_CompileIntonation(FILE *log, espeak_ng_ERROR_CONTEXT 
 
 	return error_count > 0 ? ENS_COMPILE_ERROR : ENS_OK;
 }
-
 #pragma GCC visibility pop
+#endif
+

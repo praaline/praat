@@ -1,6 +1,6 @@
 /* HMM.cpp
  *
- * Copyright (C) 2010-2012,2015 David Weenink, 2015,2017 Paul Boersma
+ * Copyright (C) 2010-2017 David Weenink, 2015,2017 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,51 +64,47 @@ Thing_implement (HMMStateSequence, Strings, 0);
 
 // helpers
 int NUMget_line_intersection_with_circle (double xc, double yc, double r, double a, double b, double *x1, double *y1, double *x2, double *y2);
-autoHMMObservation HMMObservation_create (const char32 *label, integer numberOfComponents, integer dimension, integer storage);
+autoHMMObservation HMMObservation_create (conststring32 label, integer numberOfComponents, integer dimension, integer storage);
 
-integer HMM_and_HMMObservationSequence_getLongestSequence (HMM me, HMMObservationSequence thee, integer symbolNumber);
+integer HMM_HMMObservationSequence_getLongestSequence (HMM me, HMMObservationSequence thee, integer symbolNumber);
 integer StringsIndex_getLongestSequence (StringsIndex me, integer index, integer *pos);
 integer Strings_getLongestSequence (Strings me, char32 *string, integer *pos);
-autoHMMState HMMState_create (const char32 *label);
+autoHMMState HMMState_create (conststring32 label);
 
 autoHMMBaumWelch HMMBaumWelch_create (integer nstates, integer nsymbols, integer capacity);
 void HMMBaumWelch_getGamma (HMMBaumWelch me);
 autoHMMBaumWelch HMM_forward (HMM me, integer *obs, integer nt);
 void HMMBaumWelch_reInit (HMMBaumWelch me);
-void HMM_and_HMMBaumWelch_getXi (HMM me, HMMBaumWelch thee, integer *obs);
-void HMM_and_HMMBaumWelch_reestimate (HMM me, HMMBaumWelch thee);
-void HMM_and_HMMBaumWelch_addEstimate (HMM me, HMMBaumWelch thee, integer *obs);
-void HMM_and_HMMBaumWelch_forward (HMM me, HMMBaumWelch thee, integer *obs);
-void HMM_and_HMMBaumWelch_backward (HMM me, HMMBaumWelch thee, integer *obs);
-void HMM_and_HMMViterbi_decode (HMM me, HMMViterbi thee, integer *obs);
+void HMM_HMMBaumWelch_getXi (HMM me, HMMBaumWelch thee, integer *obs);
+void HMM_HMMBaumWelch_reestimate (HMM me, HMMBaumWelch thee);
+void HMM_HMMBaumWelch_addEstimate (HMM me, HMMBaumWelch thee, integer *obs);
+void HMM_HMMBaumWelch_forward (HMM me, HMMBaumWelch thee, integer *obs);
+void HMM_HMMBaumWelch_backward (HMM me, HMMBaumWelch thee, integer *obs);
+void HMM_HMMViterbi_decode (HMM me, HMMViterbi thee, integer *obs);
 double HMM_getProbabilityOfObservations (HMM me, integer *obs, integer numberOfTimes);
 autoTableOfReal StringsIndex_to_TableOfReal_transitions (StringsIndex me, int probabilities);
-autoStringsIndex HMM_and_HMMStateSequence_to_StringsIndex (HMM me, HMMStateSequence thee);
+autoStringsIndex HMM_HMMStateSequence_to_StringsIndex (HMM me, HMMStateSequence thee);
 
 
 autoHMMViterbi HMMViterbi_create (integer nstates, integer ntimes);
 autoHMMViterbi HMM_to_HMMViterbi (HMM me, integer *obs, integer ntimes);
 
 // evaluate the numbers given to probabilities
-static double *NUMwstring_to_probs (char32 *s, integer nwanted) {
+static double *NUMwstring_to_probs (conststring32 s, integer nwanted) {
 	integer numbers_found;
 	autoNUMvector<double> numbers (NUMstring_to_numbers (s, & numbers_found), 1);
-	if (numbers_found != nwanted) {
+	if (numbers_found != nwanted)
 		Melder_throw (U"You supplied ", numbers_found, U", while ", nwanted, U" numbers needed.");
-	}
-	real80 sum = 0.0;
-	for (integer i = 1; i <= numbers_found; i++) {
-		if (numbers[i] < 0) {
+	longdouble sum = 0.0;
+	for (integer i = 1; i <= numbers_found; i ++) {
+		if (numbers [i] < 0.0)
 			Melder_throw (U"Numbers have to be positive.");
-		}
 		sum += numbers [i];
 	}
-	if (sum <= 0.0) {
+	if (sum <= 0.0)
 		Melder_throw (U"All probabilities cannot be zero.");
-	}
-	for (integer i = 1; i <= numbers_found; i ++) {
+	for (integer i = 1; i <= numbers_found; i ++)
 		numbers [i] /= sum;
-	}
 	return numbers.transfer();
 }
 
@@ -127,19 +123,20 @@ int NUMget_line_intersection_with_circle (double xc, double yc, double r, double
 			*x1 = *x2;
 			*x2 = tmp;
 		}
-		*y1 = *x1 * a + b; *y2 = *x2 * a + b;
+		*y1 = *x1 * a + b;
+		*y2 = *x2 * a + b;
 	}
 	return nroots;
 }
 
 // D(l_1,l_2)=1/n( log p(O_2|l_1) - log p(O_2|l_2)
-static double HMM_and_HMM_getCrossEntropy_asym (HMM me, HMM thee, integer observationLength) {
+static double HMM_HMM_getCrossEntropy_asym (HMM me, HMM thee, integer observationLength) {
 	autoHMMObservationSequence os = HMM_to_HMMObservationSequence (thee, 0, observationLength);
-	double ce = HMM_and_HMMObservationSequence_getCrossEntropy (me, os.get());
+	double ce = HMM_HMMObservationSequence_getCrossEntropy (me, os.get());
 	if (isundef (ce)) {
 		return ce;
 	}
-	double ce2 = HMM_and_HMMObservationSequence_getCrossEntropy (thee, os.get());
+	double ce2 = HMM_HMMObservationSequence_getCrossEntropy (thee, os.get());
 	if (isundef (ce2)) {
 		return ce2;
 	}
@@ -148,12 +145,12 @@ static double HMM_and_HMM_getCrossEntropy_asym (HMM me, HMM thee, integer observ
 
 /**************** HMMObservation ******************************/
 
-static void HMMObservation_init (HMMObservation me, const char32 *label, integer numberOfComponents, integer dimension, integer storage) {
+static void HMMObservation_init (HMMObservation me, conststring32 label, integer numberOfComponents, integer dimension, integer storage) {
 	my label = Melder_dup (label);
 	my gm = GaussianMixture_create (numberOfComponents, dimension, storage);
 }
 
-autoHMMObservation HMMObservation_create (const char32 *label, integer numberOfComponents, integer dimension, integer storage) {
+autoHMMObservation HMMObservation_create (conststring32 label, integer numberOfComponents, integer dimension, integer storage) {
 	try {
 		autoHMMObservation me = Thing_new (HMMObservation);
 		HMMObservation_init (me.get(), label, numberOfComponents, dimension, storage);
@@ -166,7 +163,7 @@ autoHMMObservation HMMObservation_create (const char32 *label, integer numberOfC
 integer Strings_getLongestSequence (Strings me, char32 *string, integer *pos) {
 	integer length = 0, longest = 0, lpos = 0;
 	for (integer i = 1; i <= my numberOfStrings; i ++) {
-		if (Melder_equ (my strings [i], string)) {
+		if (Melder_equ (my strings [i].get(), string)) {
 			if (length == 0) {
 				lpos = i;
 			}
@@ -205,11 +202,11 @@ integer StringsIndex_getLongestSequence (StringsIndex me, integer index, integer
 
 /**************** HMMState ******************************/
 
-static void HMMState_init (HMMState me, const char32 *label) {
+static void HMMState_init (HMMState me, conststring32 label) {
 	my label = Melder_dup (label);
 }
 
-autoHMMState HMMState_create (const char32 *label) {
+autoHMMState HMMState_create (conststring32 label) {
 	try {
 		autoHMMState me = Thing_new (HMMState);
 		HMMState_init (me.get(), label);
@@ -220,7 +217,6 @@ autoHMMState HMMState_create (const char32 *label) {
 }
 
 void HMMState_setLabel (HMMState me, char32 *label) {
-	Melder_free (my label);
 	my label = Melder_dup (label);
 }
 
@@ -228,7 +224,7 @@ void HMMState_setLabel (HMMState me, char32 *label) {
 
 void structHMMBaumWelch :: v_destroy () noexcept {
 	for (integer it = 1; it <= capacity; it ++) {
-		NUMmatrix_free (xi[it], 1, 1);
+		NUMmatrix_free (xi [it], 1, 1);
 	}
 	NUMvector_free (xi, 1);
 	NUMvector_free (scale, 1);
@@ -257,7 +253,7 @@ autoHMMBaumWelch HMMBaumWelch_create (integer nstates, integer nsymbols, integer
 		my bik_denom = NUMmatrix<double> (1, nstates, 1, nsymbols);
 		my gamma = NUMmatrix<double> (1, nstates, 1, capacity);
 		for (integer it = 1; it <= capacity; it ++) {
-			my xi[it] = NUMmatrix<double> (1, nstates, 1, nstates);
+			my xi [it] = NUMmatrix<double> (1, nstates, 1, nstates);
 		}
 		return me;
 	} catch (MelderError) {
@@ -319,9 +315,9 @@ autoStrings HMMObservationSequence_to_Strings (HMMObservationSequence me) {
 	try {
 		integer numberOfStrings = my rows.size;
 		autoStrings thee = Thing_new (Strings);
-		thy strings = NUMvector<char32 *> (1, numberOfStrings);
-		for (integer i = 1; i <= numberOfStrings; i++) {
-			thy strings[i] = Melder_dup_f (Table_getStringValue_Assert ( (Table) me, i, 1));
+		thy strings = autostring32vector (numberOfStrings);
+		for (integer i = 1; i <= numberOfStrings; i ++) {
+			thy strings [i] = Melder_dup_f (Table_getStringValue_Assert ( (Table) me, i, 1));
 			(thy numberOfStrings) ++;
 		}
 		return thee;
@@ -333,8 +329,8 @@ autoStrings HMMObservationSequence_to_Strings (HMMObservationSequence me) {
 autoHMMObservationSequence Strings_to_HMMObservationSequence (Strings me) {
 	try {
 		autoHMMObservationSequence thee = HMMObservationSequence_create (my numberOfStrings, 0);
-		for (integer i = 1; i <= my numberOfStrings; i++) {
-			Table_setStringValue ( (Table) thee.get(), i, 1, my strings[i]);
+		for (integer i = 1; i <= my numberOfStrings; i ++) {
+			Table_setStringValue (thee.get(), i, 1, my strings [i].get());
 		}
 		return thee;
 	} catch (MelderError) {
@@ -352,8 +348,8 @@ autoStringsIndex HMMObservationSequence_to_StringsIndex (HMMObservationSequence 
 	}
 }
 
-integer HMM_and_HMMObservationSequence_getLongestSequence (HMM me, HMMObservationSequence thee, integer symbolNumber) {
-	autoStringsIndex si = HMM_and_HMMObservationSequence_to_StringsIndex (me, thee);
+integer HMM_HMMObservationSequence_getLongestSequence (HMM me, HMMObservationSequence thee, integer symbolNumber) {
+	autoStringsIndex si = HMM_HMMObservationSequence_to_StringsIndex (me, thee);
 	// TODO
 	(void) symbolNumber;
 	return 1;
@@ -373,7 +369,7 @@ integer HMMObservationSequenceBag_getLongestSequence (HMMObservationSequenceBag 
 autoHMMStateSequence HMMStateSequence_create (integer numberOfItems) {
 	try {
 		autoHMMStateSequence me = Thing_new (HMMStateSequence);
-		my strings = NUMvector<char32 *> (1, numberOfItems);
+		my strings = autostring32vector (numberOfItems);
 		return me;
 	} catch (MelderError) {
 		Melder_throw (U"HMMStateSequence not created.");
@@ -398,12 +394,12 @@ void structHMM :: v_info () {
 	MelderInfo_writeLine (U"Number of states: ", numberOfStates);
 	for (integer i = 1; i <= numberOfStates; i ++) {
 		HMMState hmms = our states->at [i];
-		MelderInfo_writeLine (U"  ", hmms -> label);
+		MelderInfo_writeLine (U"  ", hmms -> label.get());
 	}
 	MelderInfo_writeLine (U"Number of symbols: ", numberOfObservationSymbols);
 	for (integer i = 1; i <= numberOfObservationSymbols; i ++) {
 		HMMObservation hmms = our observationSymbols->at [i];
-		MelderInfo_writeLine (U"  ", hmms -> label);
+		MelderInfo_writeLine (U"  ", hmms -> label.get());
 	}
 }
 
@@ -434,7 +430,7 @@ autoHMM HMM_create (int leftToRight, integer numberOfStates, integer numberOfObs
 }
 
 void HMM_setDefaultStates (HMM me) {
-	for (integer i = 1; i <= my numberOfStates; i++) {
+	for (integer i = 1; i <= my numberOfStates; i ++) {
 		autoHMMState hmms = HMMState_create (Melder_cat (U"S", i));
 		HMM_addState_move (me, hmms.move());
 	}
@@ -457,11 +453,11 @@ autoHMM HMM_createContinuousModel (int leftToRight, integer numberOfStates, inte
 		my numberOfMixtureComponents = numberOfMixtureComponentsPerSymbol;
 		my componentDimension = componentDimension;
 		my componentStorage = componentStorage;
-		for (integer i = 1; i <= numberOfStates; i++) {
+		for (integer i = 1; i <= numberOfStates; i ++) {
 			autoHMMState state = HMMState_create (Melder_cat (U"S", i));
 			HMM_addState_move (me.get(), state.move());
 		}
-		for (integer j = 1; j <= numberOfObservationSymbols; j++) {
+		for (integer j = 1; j <= numberOfObservationSymbols; j ++) {
 			autoHMMObservation obs = HMMObservation_create (Melder_cat (U"s", j), numberOfMixtureComponentsPerSymbol, componentDimension, componentStorage);
 			HMM_addObservation_move (me.get(), obs.move());
 		}
@@ -476,17 +472,16 @@ autoHMM HMM_createContinuousModel (int leftToRight, integer numberOfStates, inte
 }
 
 // for a simple non-hidden model leave either states empty or symbols empty !!!
-autoHMM HMM_createSimple (int leftToRight, const char32 *states_string, const char32 *symbols_string) {
+autoHMM HMM_createSimple (int leftToRight, conststring32 states_string, conststring32 symbols_string) {
 	try {
 		autoHMM me = Thing_new (HMM);
-		const char32 *states = states_string;
-		const char32 *symbols = symbols_string;
+		conststring32 states = states_string;
+		conststring32 symbols = symbols_string;
 		integer numberOfStates = Melder_countTokens (states_string);
 		integer numberOfObservationSymbols = Melder_countTokens (symbols_string);
 
-		if (numberOfStates == 0 and numberOfObservationSymbols == 0) {
-			Melder_throw (U"No states and no symbols given.");
-		}
+		Melder_require (numberOfStates > 0 || numberOfObservationSymbols > 0, U"The states and symbols should not be empty.");
+		
 		if (numberOfStates > 0) {
 			if (numberOfObservationSymbols <= 0) {
 				numberOfObservationSymbols = numberOfStates;
@@ -519,7 +514,7 @@ autoHMM HMM_createSimple (int leftToRight, const char32 *states_string, const ch
 }
 
 void HMM_setDefaultObservations (HMM me) {
-	const char32 *def = my notHidden ? U"S" : U"s";
+	conststring32 def = my notHidden ? U"S" : U"s";
 	for (integer i = 1; i <= my numberOfObservationSymbols; i ++) {
 		autoHMMObservation hmms = HMMObservation_create (Melder_cat (def, i), 0, 0, 0);
 		HMM_addObservation_move (me, hmms.move());
@@ -529,7 +524,7 @@ void HMM_setDefaultObservations (HMM me) {
 void HMM_setDefaultTransitionProbs (HMM me) {
 	for (integer i = 1; i <= my numberOfStates; i ++) {
 		double p = ( my leftToRight ? 1.0 / (my numberOfStates - i + 1.0) : 1.0 / my numberOfStates );
-		for (integer j = 1; j <= my numberOfStates; j++) {
+		for (integer j = 1; j <= my numberOfStates; j ++) {
 			my transitionProbs [i] [j] = ( my leftToRight && j < i ? 0.0 : p );
 		}
 	}
@@ -547,7 +542,7 @@ void HMM_setDefaultStartProbs (HMM me) {
 
 void HMM_setDefaultEmissionProbs (HMM me) {
 	double p = 1.0 / my numberOfObservationSymbols;
-	for (integer i = 1; i <= my numberOfStates; i++)
+	for (integer i = 1; i <= my numberOfStates; i ++)
 		for (integer j = 1; j <= my numberOfObservationSymbols; j ++) {
 			my emissionProbs [i] [j] = my notHidden ? ( i == j ? 1.0 : 0.0 ) : p;
 		}
@@ -563,22 +558,21 @@ void HMM_setDefaultMixingProbabilities (HMM me) {
 	}
 }
 
-void HMM_setStartProbabilities (HMM me, char32 *probs) {
+void HMM_setStartProbabilities (HMM me, conststring32 probs) {
 	try {
 		autoNUMvector<double> p (NUMwstring_to_probs (probs, my numberOfStates), 1);
-		for (integer i = 1; i <= my numberOfStates; i++) {
-			my transitionProbs[0][i] = p[i];
+		for (integer i = 1; i <= my numberOfStates; i ++) {
+			my transitionProbs [0] [i] = p [i];
 		}
 	} catch (MelderError) {
 		Melder_throw (me, U": no start probabilities set.");
 	}
 }
 
-void HMM_setTransitionProbabilities (HMM me, integer state_number, char32 *state_probs) {
+void HMM_setTransitionProbabilities (HMM me, integer state_number, conststring32 state_probs) {
 	try {
-		if (state_number > my states->size) {
-			Melder_throw (U"State number too large.");
-		}
+		Melder_require (state_number <= my states->size, U"State number should not exceed ", my states->size, U".");
+		
 		autoNUMvector<double> p (NUMwstring_to_probs (state_probs, my numberOfStates), 1);
 		for (integer i = 1; i <= my numberOfStates + 1; i ++) {
 			my transitionProbs [state_number] [i] = p [i];
@@ -588,16 +582,13 @@ void HMM_setTransitionProbabilities (HMM me, integer state_number, char32 *state
 	}
 }
 
-void HMM_setEmissionProbabilities (HMM me, integer state_number, char32 *emission_probs) {
+void HMM_setEmissionProbabilities (HMM me, integer state_number, conststring32 emission_probs) {
 	try {
-		if (state_number > my states->size) {
-			Melder_throw (U"State number too large.");
-		}
-		if (my notHidden) {
-			Melder_throw (U"The emission probs of this model are fixed.");
-		}
+		Melder_require (state_number <= my states->size, U"State number should not exceed ", my states->size, U".");
+		Melder_require (! my notHidden, U"The emission probs of this model are fixed.");
+		
 		autoNUMvector<double> p (NUMwstring_to_probs (emission_probs, my numberOfObservationSymbols), 1);
-		for (integer i = 1; i <= my numberOfObservationSymbols; i++) {
+		for (integer i = 1; i <= my numberOfObservationSymbols; i ++) {
 			my emissionProbs [state_number] [i] = p [i];
 		}
 	} catch (MelderError) {
@@ -608,17 +599,13 @@ void HMM_setEmissionProbabilities (HMM me, integer state_number, char32 *emissio
 
 void HMM_addObservation_move (HMM me, autoHMMObservation thee) {
 	integer ns = my observationSymbols->size + 1;
-	if (ns > my numberOfObservationSymbols) {
-		Melder_throw (U"Observation list is full.");
-	}
+	Melder_require (ns <= my numberOfObservationSymbols, U"Observation list is full.");
 	my observationSymbols -> addItemAtPosition_move (thee.move(), ns);
 }
 
 void HMM_addState_move (HMM me, autoHMMState thee) {
 	integer ns = my states->size + 1;
-	if (ns > my numberOfStates) {
-		Melder_throw (U"States list is full.");
-	}
+	Melder_require (ns <= my numberOfStates, U"States list is full.");
 	my states -> addItemAtPosition_move (thee.move(), ns);
 }
 
@@ -627,8 +614,8 @@ autoTableOfReal HMM_extractTransitionProbabilities (HMM me) {
 		autoTableOfReal thee = TableOfReal_create (my numberOfStates + 1, my numberOfStates + 1);
 		for (integer is = 1; is <= my numberOfStates; is ++) {
 			HMMState hmms = my states->at [is];
-			TableOfReal_setRowLabel (thee.get(), is + 1, hmms -> label);
-			TableOfReal_setColumnLabel (thee.get(), is, hmms -> label);
+			TableOfReal_setRowLabel (thee.get(), is + 1, hmms -> label.get());
+			TableOfReal_setColumnLabel (thee.get(), is, hmms -> label.get());
 			for (integer js = 1; js <= my numberOfStates; js ++) {
 				thy data [is + 1] [js] = my transitionProbs [is] [js];
 			}
@@ -650,11 +637,11 @@ autoTableOfReal HMM_extractEmissionProbabilities (HMM me) {
 		autoTableOfReal thee = TableOfReal_create (my numberOfStates, my numberOfObservationSymbols);
 		for (integer js = 1; js <= my numberOfObservationSymbols; js ++) {
 			HMMObservation hmms = my observationSymbols->at [js];
-			TableOfReal_setColumnLabel (thee.get(), js, hmms -> label);
+			TableOfReal_setColumnLabel (thee.get(), js, hmms -> label.get());
 		}
 		for (integer is = 1; is <= my numberOfStates; is ++) {
 			HMMState hmms = my states->at [is];
-			TableOfReal_setRowLabel (thee.get(), is, hmms -> label);
+			TableOfReal_setRowLabel (thee.get(), is, hmms -> label.get());
 			for (integer js = 1; js <= my numberOfObservationSymbols; js ++) {
 				thy data [is] [js] = my emissionProbs [is] [js];
 			}
@@ -676,27 +663,27 @@ double HMM_getProbabilityOfStayingInState (HMM me, integer istate, integer numbe
 	if (istate < 0 || istate > my numberOfStates) {
 		return undefined;
 	}
-	return pow (my transitionProbs [istate] [istate], numberOfTimeUnits - 1.0) * (1.0 - my transitionProbs[istate][istate]);
+	return pow (my transitionProbs [istate] [istate], numberOfTimeUnits - 1.0) * (1.0 - my transitionProbs [istate] [istate]);
 }
 
-double HMM_and_HMM_getCrossEntropy (HMM me, HMM thee, integer observationLength, int symmetric) {
-	double ce1 = HMM_and_HMM_getCrossEntropy_asym (me, thee, observationLength);
+double HMM_HMM_getCrossEntropy (HMM me, HMM thee, integer observationLength, int symmetric) {
+	double ce1 = HMM_HMM_getCrossEntropy_asym (me, thee, observationLength);
 	if (! symmetric || isundef (ce1)) {
 		return ce1;
 	}
-	double ce2 = HMM_and_HMM_getCrossEntropy_asym (thee, me, observationLength);
+	double ce2 = HMM_HMM_getCrossEntropy_asym (thee, me, observationLength);
 	if (isundef (ce2)) {
 		return ce2;
 	}
 	return (ce1 + ce2) / 2.0;
 }
 
-double HMM_and_HMM_and_HMMObservationSequence_getCrossEntropy (HMM me, HMM thee, HMMObservationSequence him) {
-	double ce1 = HMM_and_HMMObservationSequence_getCrossEntropy (me, him);
+double HMM_HMM_HMMObservationSequence_getCrossEntropy (HMM me, HMM thee, HMMObservationSequence him) {
+	double ce1 = HMM_HMMObservationSequence_getCrossEntropy (me, him);
 	if (isundef (ce1)) {
 		return ce1;
 	}
-	double ce2 = HMM_and_HMMObservationSequence_getCrossEntropy (thee, him);
+	double ce2 = HMM_HMMObservationSequence_getCrossEntropy (thee, him);
 	if (isundef (ce2)) {
 		return ce2;
 	}
@@ -713,11 +700,11 @@ void HMM_draw (HMM me, Graphics g, int garnish) {
 
 	Graphics_setWindow (g, xmin, xmax, ymin, ymax);
 	// heuristic: all states on a circle until we have a better graph drawing algorithm.
-	xs[1] = ys[1] = 0;
+	xs [1] = ys [1] = 0;
 	if (my numberOfStates > 1) {
-		for (integer is = 1; is <= my numberOfStates; is++) {
+		for (integer is = 1; is <= my numberOfStates; is ++) {
 			double alpha = - NUMpi + NUMpi * 2.0 * (is - 1) / my numberOfStates;
-			xs[is] = r * cos (alpha); ys[is] = r * sin (alpha);
+			xs [is] = r * cos (alpha); ys [is] = r * sin (alpha);
 		}
 	}
 	// reorder the positions such that state number 1 is most left and last state number is right.
@@ -725,13 +712,13 @@ void HMM_draw (HMM me, Graphics g, int garnish) {
 	// ...
 	// find fontsize
 	int fontSize = Graphics_inqFontSize (g);
-	const char32 *widest_label = U"";
+	conststring32 widest_label = U"";
 	double max_width = 0.0;
 	for (integer is = 1; is <= my numberOfStates; is ++) {
 		HMMState hmms = my states->at [is];
-		double w = ( hmms -> label == nullptr ? 0.0 : Graphics_textWidth (g, hmms -> label) );
+		double w = ( hmms -> label ? Graphics_textWidth (g, hmms -> label.get()) : 0.0 );
 		if (w > max_width) {
-			widest_label = hmms -> label;
+			widest_label = hmms -> label.get();
 			max_width = w;
 		}
 	}
@@ -746,7 +733,7 @@ void HMM_draw (HMM me, Graphics g, int garnish) {
 	for (integer is = 1; is <= my numberOfStates; is ++) {
 		HMMState hmms = my states->at [is];
 		Graphics_circle (g, xs [is], ys [is], rstate);
-		Graphics_text (g, xs [is], ys [is], hmms -> label);
+		Graphics_text (g, xs [is], ys [is], hmms -> label.get());
 	}
 
 	// draw connections from is to js
@@ -793,22 +780,22 @@ autoHMMObservationSequence HMM_to_HMMObservationSequence (HMM me, integer startS
 			obs.reset (1, my componentDimension);
 			buf.reset (1, my componentDimension);
 		}
-		integer istate = startState == 0 ? NUMgetIndexFromProbability (my transitionProbs[0], my numberOfStates, NUMrandomUniform (0.0, 1.0)) : startState;
-		for (integer i = 1; i <= numberOfItems; i++) {
+		integer istate = startState == 0 ? NUMgetIndexFromProbability (my transitionProbs [0], my numberOfStates, NUMrandomUniform (0.0, 1.0)) : startState;
+		for (integer i = 1; i <= numberOfItems; i ++) {
 			// Emit a symbol from istate
 
-			integer isymbol = NUMgetIndexFromProbability (my emissionProbs[istate], my numberOfObservationSymbols, NUMrandomUniform (0.0, 1.0));
+			integer isymbol = NUMgetIndexFromProbability (my emissionProbs [istate], my numberOfObservationSymbols, NUMrandomUniform (0.0, 1.0));
 			HMMObservation s = my observationSymbols->at [isymbol];
 
 			if (my componentDimension > 0) {
 				char32 *name;
 				GaussianMixture_generateOneVector (s -> gm.get(), obs.peek(), &name, buf.peek());
-				for (integer j = 1; j <= my componentDimension; j++) {
-					Table_setNumericValue ( (Table) thee.get(), i, 1 + j, obs[j]);
+				for (integer j = 1; j <= my componentDimension; j ++) {
+					Table_setNumericValue ( (Table) thee.get(), i, 1 + j, obs [j]);
 				}
 			}
 
-			Table_setStringValue (thee.get(), i, 1, s -> label);
+			Table_setStringValue (thee.get(), i, 1, s -> label.get());
 
 			// get next state
 
@@ -831,7 +818,7 @@ autoHMMObservationSequence HMM_to_HMMObservationSequence (HMM me, integer startS
 autoHMMBaumWelch HMM_forward (HMM me, integer *obs, integer nt) {
 	try {
 		autoHMMBaumWelch thee = HMMBaumWelch_create (my numberOfStates, my numberOfObservationSymbols, nt);
-		HMM_and_HMMBaumWelch_forward (me, thee.get(), obs);
+		HMM_HMMBaumWelch_forward (me, thee.get(), obs);
 		return thee;
 	} catch (MelderError) {
 		Melder_throw (me, U": no HMMBaumWelch created.");
@@ -841,7 +828,7 @@ autoHMMBaumWelch HMM_forward (HMM me, integer *obs, integer nt) {
 autoHMMViterbi HMM_to_HMMViterbi (HMM me, integer *obs, integer ntimes) {
 	try {
 		autoHMMViterbi thee = HMMViterbi_create (my numberOfStates, ntimes);
-		HMM_and_HMMViterbi_decode (me, thee.get(), obs);
+		HMM_HMMViterbi_decode (me, thee.get(), obs);
 		return thee;
 	} catch (MelderError) {
 		Melder_throw (me, U": no HMMViterbi created.");
@@ -872,7 +859,7 @@ void HMMBaumWelch_reInit (HMMBaumWelch me) {
 	}
 }
 
-void HMM_and_HMMObservationSequenceBag_learn (HMM me, HMMObservationSequenceBag thee, double delta_lnp, double minProb, int info) {
+void HMM_HMMObservationSequenceBag_learn (HMM me, HMMObservationSequenceBag thee, double delta_lnp, double minProb, int info) {
 	try {
 		// act as if all observation sequences are in memory
 		integer capacity = HMMObservationSequenceBag_getLongestSequence (thee);
@@ -888,7 +875,7 @@ void HMM_and_HMMObservationSequenceBag_learn (HMM me, HMMObservationSequenceBag 
 			HMMBaumWelch_reInit (bw.get());
 			for (integer ios = 1; ios <= thy size; ios ++) {
 				HMMObservationSequence hmm_os = thy at [ios];
-				autoStringsIndex si = HMM_and_HMMObservationSequence_to_StringsIndex (me, hmm_os); // TODO outside the loop or more efficiently
+				autoStringsIndex si = HMM_HMMObservationSequence_to_StringsIndex (me, hmm_os); // TODO outside the loop or more efficiently
 				integer *obs = si -> classIndex, nobs = si -> numberOfItems; // convenience
 
 				// Interpretation of unknowns: end of sequence
@@ -908,17 +895,17 @@ void HMM_and_HMMObservationSequenceBag_learn (HMM me, HMMObservationSequenceBag 
 					iend --;
 					bw -> numberOfTimes = iend - istart + 1;
 					bw -> totalNumberOfSequences ++;
-					HMM_and_HMMBaumWelch_forward (me, bw.get(), obs + istart - 1); // get new alphas
-					HMM_and_HMMBaumWelch_backward (me, bw.get(), obs + istart - 1); // get new betas
+					HMM_HMMBaumWelch_forward (me, bw.get(), obs + istart - 1); // get new alphas
+					HMM_HMMBaumWelch_backward (me, bw.get(), obs + istart - 1); // get new betas
 					HMMBaumWelch_getGamma (bw.get());
-					HMM_and_HMMBaumWelch_getXi (me, bw.get(), obs + istart - 1);
-					HMM_and_HMMBaumWelch_addEstimate (me, bw.get(), obs + istart - 1);
+					HMM_HMMBaumWelch_getXi (me, bw.get(), obs + istart - 1);
+					HMM_HMMBaumWelch_addEstimate (me, bw.get(), obs + istart - 1);
 					istart = iend + 1;
 				}
 			}
 			// we have processed all observation sequences, now it is time to estimate new probabilities.
 			iter ++;
-			HMM_and_HMMBaumWelch_reestimate (me, bw.get());
+			HMM_HMMBaumWelch_reestimate (me, bw.get());
 			if (info) { 
 				MelderInfo_writeLine (U"Iteration: ", iter, U" ln(prob): ", bw -> lnProb); 
 			}
@@ -937,9 +924,9 @@ void HMM_and_HMMObservationSequenceBag_learn (HMM me, HMMObservationSequenceBag 
 
 
 // xc1 < xc2
-void HMM_and_HMMStateSequence_drawTrellis (HMM me, HMMStateSequence thee, Graphics g, int connect, int garnish) {
+void HMM_HMMStateSequence_drawTrellis (HMM me, HMMStateSequence thee, Graphics g, int connect, int garnish) {
 	integer numberOfTimes = thy numberOfStrings;
-	autoStringsIndex si = HMM_and_HMMStateSequence_to_StringsIndex (me, thee);
+	autoStringsIndex si = HMM_HMMStateSequence_to_StringsIndex (me, thee);
 	double xmin = 0.0, xmax = numberOfTimes + 1.0, ymin = 0.5, ymax = my numberOfStates + 0.5;
 
 	Graphics_setInner (g);
@@ -947,13 +934,13 @@ void HMM_and_HMMStateSequence_drawTrellis (HMM me, HMMStateSequence thee, Graphi
 
 	double r = 0.2 / (numberOfTimes > my numberOfStates ? numberOfTimes : my numberOfStates);
 
-	for (integer it = 1; it <= numberOfTimes; it++) {
-		for (integer js = 1; js <= my numberOfStates; js++) {
+	for (integer it = 1; it <= numberOfTimes; it ++) {
+		for (integer js = 1; js <= my numberOfStates; js ++) {
 			double xc = it, yc = js, x2 = it, y2 = js;
 			Graphics_circle (g, xc, yc, r);
 			if (it > 1) {
-				for (integer is = 1; is <= my numberOfStates; is++) {
-					bool indexedConnection = si -> classIndex[it - 1] == is && si -> classIndex[it] == js;
+				for (integer is = 1; is <= my numberOfStates; is ++) {
+					bool indexedConnection = si -> classIndex [it - 1] == is && si -> classIndex [it] == js;
 					Graphics_setLineWidth (g, indexedConnection ? 2.0 : 1.0);
 					Graphics_setLineType (g, indexedConnection ? Graphics_DRAWN : Graphics_DOTTED);
 					double x1 = it - 1, y1 = is;
@@ -976,7 +963,7 @@ void HMM_and_HMMStateSequence_drawTrellis (HMM me, HMMStateSequence thee, Graphi
 		Graphics_drawInnerBox (g);
 		for (integer js = 1; js <= my numberOfStates; js ++) {
 			HMMState hmms = my states->at [js];
-			Graphics_markLeft (g, js, false, false, false, hmms -> label);
+			Graphics_markLeft (g, js, false, false, false, hmms -> label.get());
 		}
 		Graphics_marksBottomEvery (g, 1.0, 1.0, true, true, false);
 		Graphics_textBottom (g, true, U"Time index");
@@ -993,7 +980,7 @@ void HMM_drawBackwardProbabilitiesIllustration (Graphics g, bool garnish) {
 	Graphics_setWindow (g, xmin, xmax, ymin, ymax);
 	Graphics_circle (g, x0, y0, r);
 	double x = xright, y = 0.9;
-	for (integer i = 1; i <= np; i++) {
+	for (integer i = 1; i <= np; i ++) {
 		if (i < 4 or i == np) {
 			Graphics_circle (g, x, y, r);
 			double xx = x0 - x, yy = y - y0;
@@ -1052,7 +1039,7 @@ void HMM_drawForwardProbabilitiesIllustration (Graphics g, bool garnish) {
 	Graphics_setWindow (g, xmin, xmax, ymin, ymax);
 	Graphics_circle (g, x0, y0, r);
 	double x = xleft, y = 0.9;
-	for (integer i = 1; i <= np; i++) {
+	for (integer i = 1; i <= np; i ++) {
 		if (i < 4 or i == np) {
 			Graphics_circle (g, x, y, r);
 			double xx = x0 - x, yy = y - y0;
@@ -1137,26 +1124,26 @@ void HMM_drawForwardAndBackwardProbabilitiesIllustration (Graphics g, bool garni
 	}
 }
 
-void HMM_and_HMMBaumWelch_getXi (HMM me, HMMBaumWelch thee, integer *obs) {
+void HMM_HMMBaumWelch_getXi (HMM me, HMMBaumWelch thee, integer *obs) {
 
 	for (integer it = 1; it <= thy numberOfTimes - 1; it ++) {
 		double sum = 0.0;
 		for (integer is = 1; is <= thy numberOfStates; is ++) {
 			for (integer js = 1; js <= thy numberOfStates; js ++) {
-				thy xi[it][is][js] = thy alpha[is][it] * thy beta[js][it + 1] *
-					my transitionProbs[is][js] * my emissionProbs[js][ obs[it + 1] ];
-				sum += thy xi[it][is][js];
+				thy xi [it] [is] [js] = thy alpha [is] [it] * thy beta [js] [it + 1] *
+					my transitionProbs [is] [js] * my emissionProbs [js] [ obs [it + 1] ];
+				sum += thy xi [it] [is] [js];
 			}
 		}
 		for (integer is = 1; is <= my numberOfStates; is ++) {
 			for (integer js = 1; js <= my numberOfStates; js ++) {
-				thy xi[it][is][js] /= sum;
+				thy xi [it] [is] [js] /= sum;
 			}
 		}
 	}
 }
 
-void HMM_and_HMMBaumWelch_addEstimate (HMM me, HMMBaumWelch thee, integer *obs) {
+void HMM_HMMBaumWelch_addEstimate (HMM me, HMMBaumWelch thee, integer *obs) {
 	for (integer is = 1; is <= my numberOfStates; is ++) {
 		// only for valid start states with p > 0
 		if (my transitionProbs [0] [is] > 0.0) {
@@ -1211,7 +1198,7 @@ void HMM_and_HMMBaumWelch_addEstimate (HMM me, HMMBaumWelch thee, integer *obs) 
 	}
 }
 
-void HMM_and_HMMBaumWelch_reestimate (HMM me, HMMBaumWelch thee) {
+void HMM_HMMBaumWelch_reestimate (HMM me, HMMBaumWelch thee) {
 	double p;
 	/*
 		If we only have a couple of training sequences and they all happen to start with the same symbol,
@@ -1245,14 +1232,14 @@ void HMM_and_HMMBaumWelch_reestimate (HMM me, HMMBaumWelch thee) {
 				}
 			}
 		}
-		if (my leftToRight && my transitionProbs[is][my numberOfStates + 1] > 0.0) {
-			p = thy aij_num[is][my numberOfStates + 1] / thy aij_denom[is][my numberOfStates + 1];
-			my transitionProbs[is][my numberOfStates + 1] = p > 0.0 ? p : thy minProb;
+		if (my leftToRight && my transitionProbs [is] [my numberOfStates + 1] > 0.0) {
+			p = thy aij_num [is] [my numberOfStates + 1] / thy aij_denom [is] [my numberOfStates + 1];
+			my transitionProbs [is] [my numberOfStates + 1] = p > 0.0 ? p : thy minProb;
 		}
 	}
 }
 
-void HMM_and_HMMBaumWelch_forward (HMM me, HMMBaumWelch thee, integer *obs) {
+void HMM_HMMBaumWelch_forward (HMM me, HMMBaumWelch thee, integer *obs) {
 	// initialise at t = 1 & scale
 	thy scale [1] = 0.0;
 	for (integer js = 1; js <= my numberOfStates; js ++) {
@@ -1285,13 +1272,13 @@ void HMM_and_HMMBaumWelch_forward (HMM me, HMMBaumWelch thee, integer *obs) {
 	}
 }
 
-void HMM_and_HMMBaumWelch_backward (HMM me, HMMBaumWelch thee, integer *obs) {
+void HMM_HMMBaumWelch_backward (HMM me, HMMBaumWelch thee, integer *obs) {
 	for (integer is = 1; is <= my numberOfStates; is ++) {
 		thy beta [is] [thy numberOfTimes] = 1.0 / thy scale [thy numberOfTimes];
 	}
 	for (integer it = thy numberOfTimes - 1; it >= 1; it --) {
 		for (integer is = 1; is <= my numberOfStates; is ++) {
-			real80 sum = 0.0;
+			longdouble sum = 0.0;
 			for (integer js = 1; js <= my numberOfStates; js ++) {
 				sum += thy beta [js] [it + 1] * my transitionProbs [is] [js] * my emissionProbs [js] [obs [it + 1]];
 			}
@@ -1302,8 +1289,8 @@ void HMM_and_HMMBaumWelch_backward (HMM me, HMMBaumWelch thee, integer *obs) {
 
 /*************************** HMM decoding ***********************************/
 
-// precondition: valid symbols, i.e. 1 <= o[i] <= my numberOfSymbols for i=1..nt
-void HMM_and_HMMViterbi_decode (HMM me, HMMViterbi thee, integer *obs) {
+// precondition: valid symbols, i.e. 1 <= o [i] <= my numberOfSymbols for i=1..nt
+void HMM_HMMViterbi_decode (HMM me, HMMViterbi thee, integer *obs) {
 	integer ntimes = thy numberOfTimes;
 	// initialisation
 	for (integer is = 1; is <= my numberOfStates; is ++) {
@@ -1322,7 +1309,7 @@ void HMM_and_HMMViterbi_decode (HMM me, HMMViterbi thee, integer *obs) {
 					thy bp [is] [it] = isp;
 				}
 			}
-			thy viterbi[is][it] = max_score * my emissionProbs[is][ obs[it] ];
+			thy viterbi [is] [it] = max_score * my emissionProbs [is] [ obs [it] ];
 		}
 	}
 	// path starts at state with best end probability
@@ -1339,15 +1326,13 @@ void HMM_and_HMMViterbi_decode (HMM me, HMMViterbi thee, integer *obs) {
 	}
 }
 
-autoHMMStateSequence HMM_and_HMMObservationSequence_to_HMMStateSequence (HMM me, HMMObservationSequence thee) {
+autoHMMStateSequence HMM_HMMObservationSequence_to_HMMStateSequence (HMM me, HMMObservationSequence thee) {
 	try {
-		autoStringsIndex si = HMM_and_HMMObservationSequence_to_StringsIndex (me, thee);
+		autoStringsIndex si = HMM_HMMObservationSequence_to_StringsIndex (me, thee);
 		integer *obs = si -> classIndex; // convenience
 		integer numberOfUnknowns = StringsIndex_countItems (si.get(), 0);
-
-		if (numberOfUnknowns > 0) {
-			Melder_throw (U"Unknown observation symbol(s) (# = ", numberOfUnknowns, U").");
-		}
+		
+		Melder_require (numberOfUnknowns == 0, U"Unknown observation symbol(s) (# = ", numberOfUnknowns, U").");
 
 		integer numberOfTimes = thy rows.size;
 		autoHMMViterbi v = HMM_to_HMMViterbi (me, obs, numberOfTimes);
@@ -1355,7 +1340,7 @@ autoHMMStateSequence HMM_and_HMMObservationSequence_to_HMMStateSequence (HMM me,
 		// trace the path and get states
 		for (integer it = 1; it <= numberOfTimes; it ++) {
 			HMMState hmms = my states->at [v -> path [it]];
-			his strings [it] = Melder_dup (hmms -> label);
+			his strings [it] = Melder_dup (hmms -> label.get());
 			his numberOfStrings ++;
 		}
 		return him;
@@ -1364,8 +1349,8 @@ autoHMMStateSequence HMM_and_HMMObservationSequence_to_HMMStateSequence (HMM me,
 	}
 }
 
-double HMM_and_HMMStateSequence_getProbability (HMM me, HMMStateSequence thee) {
-	autoStringsIndex si = HMM_and_HMMStateSequence_to_StringsIndex (me, thee);
+double HMM_HMMStateSequence_getProbability (HMM me, HMMStateSequence thee) {
+	autoStringsIndex si = HMM_HMMStateSequence_to_StringsIndex (me, thee);
 	integer numberOfUnknowns = StringsIndex_countItems (si.get(), 0);
 	integer *index = si -> classIndex;
 
@@ -1377,9 +1362,8 @@ double HMM_and_HMMStateSequence_getProbability (HMM me, HMMStateSequence thee) {
 		return undefined;
 	}
 	double p0 = my transitionProbs [0] [index [1]];
-	if (p0 == 0) {
-		Melder_throw (U"You cannot start with this state.");
-	}
+	Melder_require (p0 > 0.0, U"You should not start with a zero probability state.");
+	
 	double lnp = log (p0);
 	for (integer it = 2; it <= thy numberOfStrings; it ++) {
 		lnp += log (my transitionProbs [index [it - 1]] [index [it]]);
@@ -1410,7 +1394,7 @@ double HMM_getProbabilityAtTimeBeingInState (HMM me, integer itime, integer ista
 		}
 
 		for (integer js = 1; js <= my numberOfStates; js ++) {
-			real80 sum = 0.0;
+			longdouble sum = 0.0;
 			for (integer is = 1; is <= my numberOfStates; is ++) {
 				sum += alpha_tm1 [is] * my transitionProbs [is] [js];
 			}
@@ -1423,7 +1407,7 @@ double HMM_getProbabilityAtTimeBeingInState (HMM me, integer itime, integer ista
 		}
 	}
 
-	real80 lnp = 0.0;
+	longdouble lnp = 0.0;
 	for (integer it = 1; it <= itime; it ++) {
 		lnp += log (scale [it]);
 	}
@@ -1434,7 +1418,7 @@ double HMM_getProbabilityAtTimeBeingInState (HMM me, integer itime, integer ista
 
 double HMM_getProbabilityAtTimeBeingInStateEmittingSymbol (HMM me, integer itime, integer istate, integer isymbol) {
 	// for a notHidden model emissionProbs may be zero!
-	if (isymbol < 1 || isymbol > my numberOfObservationSymbols || my emissionProbs[istate][isymbol] == 0) {
+	if (isymbol < 1 || isymbol > my numberOfObservationSymbols || my emissionProbs [istate] [isymbol] == 0) {
 		return undefined;
 	}
 	double lnp = HMM_getProbabilityAtTimeBeingInState (me, itime, istate);
@@ -1451,9 +1435,8 @@ double HMM_getProbabilityOfObservations (HMM me, integer *obs, integer numberOfT
 		alpha_t [js] = my transitionProbs [0] [js] * my emissionProbs [js] [obs [1]];
 		scale [1] += alpha_t [js];
 	}
-	if (scale [1] == 0.0) {
-		Melder_throw (U"The observation sequence starts with a symbol which state has starting probability zero.");
-	}
+	Melder_require (scale [1] > 0.0, U"The observation sequence should not start with a symbol whose state has zero starting probability.");
+	
 	for (integer js = 1; js <= my numberOfStates; js ++) {
 		alpha_t [js] /= scale [1];
 	}
@@ -1465,7 +1448,7 @@ double HMM_getProbabilityOfObservations (HMM me, integer *obs, integer numberOfT
 		}
 
 		for (integer js = 1; js <= my numberOfStates; js ++) {
-			real80 sum = 0.0;
+			longdouble sum = 0.0;
 			for (integer is = 1; is <= my numberOfStates; is ++) {
 				sum += alpha_tm1 [is] * my transitionProbs [is] [js];
 			}
@@ -1487,24 +1470,23 @@ double HMM_getProbabilityOfObservations (HMM me, integer *obs, integer numberOfT
 	return lnp;
 }
 
-double HMM_and_HMMObservationSequence_getProbability (HMM me, HMMObservationSequence thee) {
-	autoStringsIndex si = HMM_and_HMMObservationSequence_to_StringsIndex (me, thee);
+double HMM_HMMObservationSequence_getProbability (HMM me, HMMObservationSequence thee) {
+	autoStringsIndex si = HMM_HMMObservationSequence_to_StringsIndex (me, thee);
 	integer *index = si -> classIndex;
 	integer numberOfUnknowns = StringsIndex_countItems (si.get(), 0);
-	if (numberOfUnknowns > 0) {
-		Melder_throw (U"Unknown observations (# = ", numberOfUnknowns, U").");
-	}
+	Melder_require (numberOfUnknowns == 0, U"Unknown observations (# = ", numberOfUnknowns, U").");
+	
 	return HMM_getProbabilityOfObservations (me, index, thy rows.size);
 }
 
-double HMM_and_HMMObservationSequence_getCrossEntropy (HMM me, HMMObservationSequence thee) {
-	double lnp = HMM_and_HMMObservationSequence_getProbability (me, thee);
+double HMM_HMMObservationSequence_getCrossEntropy (HMM me, HMMObservationSequence thee) {
+	double lnp = HMM_HMMObservationSequence_getProbability (me, thee);
 	return isundef (lnp) ? undefined :
 	        -lnp / (NUMln10 * HMMObservationSequence_getNumberOfObservations (thee));
 }
 
-double HMM_and_HMMObservationSequence_getPerplexity (HMM me, HMMObservationSequence thee) {
-	double ce = HMM_and_HMMObservationSequence_getCrossEntropy (me, thee);
+double HMM_HMMObservationSequence_getPerplexity (HMM me, HMMObservationSequence thee) {
+	double ce = HMM_HMMObservationSequence_getCrossEntropy (me, thee);
 	return isundef (ce) ? undefined : pow (2.0, ce);
 }
 
@@ -1520,8 +1502,8 @@ autoHMM HMM_createFromHMMObservationSequence (HMMObservationSequence me, integer
 
 		HMM_init (thee.get(), numberOfStates, numberOfObservationSymbols, leftToRight);
 
-		for (integer i = 1; i <= numberOfObservationSymbols; i++) {
-			const char32 *label = d -> rowLabels[i];
+		for (integer i = 1; i <= numberOfObservationSymbols; i ++) {
+			conststring32 label = d -> rowLabels [i].get();
 			autoHMMObservation hmmo = HMMObservation_create (label, 0, 0, 0);
 			HMM_addObservation_move (thee.get(), hmmo.move());
 			if (thy notHidden) {
@@ -1551,13 +1533,13 @@ autoTableOfReal HMMObservationSequence_to_TableOfReal_transitions (HMMObservatio
 	}
 }
 
-autoStringsIndex HMM_and_HMMObservationSequence_to_StringsIndex (HMM me, HMMObservationSequence thee) {
+autoStringsIndex HMM_HMMObservationSequence_to_StringsIndex (HMM me, HMMObservationSequence thee) {
 	try {
 		autoStrings classes = Thing_new (Strings);
-		classes -> strings = NUMvector<char32 *> (1, my numberOfObservationSymbols);
+		classes -> strings = autostring32vector (my numberOfObservationSymbols);
 		for (integer is = 1; is <= my numberOfObservationSymbols; is ++) {
 			HMMObservation hmmo = my observationSymbols->at [is];
-			classes -> strings [is] = Melder_dup (hmmo -> label);
+			classes -> strings [is] = Melder_dup (hmmo -> label.get());
 			classes -> numberOfStrings ++;
 		}
 		autoStrings obs = HMMObservationSequence_to_Strings (thee);
@@ -1568,13 +1550,13 @@ autoStringsIndex HMM_and_HMMObservationSequence_to_StringsIndex (HMM me, HMMObse
 	}
 }
 
-autoStringsIndex HMM_and_HMMStateSequence_to_StringsIndex (HMM me, HMMStateSequence thee) {
+autoStringsIndex HMM_HMMStateSequence_to_StringsIndex (HMM me, HMMStateSequence thee) {
 	try {
 		autoStrings classes = Thing_new (Strings);
-		classes -> strings = NUMvector<char32 *> (1, my numberOfObservationSymbols);
+		classes -> strings = autostring32vector (my numberOfObservationSymbols);
 		for (integer is = 1; is <= my numberOfStates; is ++) {
 			HMMState hmms = my states->at [is];
-			classes -> strings [is] = Melder_dup (hmms -> label);
+			classes -> strings [is] = Melder_dup (hmms -> label.get());
 			classes -> numberOfStrings ++;
 		}
 		autoStrings sts = HMMStateSequence_to_Strings (thee);
@@ -1585,9 +1567,9 @@ autoStringsIndex HMM_and_HMMStateSequence_to_StringsIndex (HMM me, HMMStateSeque
 	}
 }
 
-autoTableOfReal HMM_and_HMMObservationSequence_to_TableOfReal_transitions (HMM me, HMMObservationSequence thee, int probabilities) {
+autoTableOfReal HMM_HMMObservationSequence_to_TableOfReal_transitions (HMM me, HMMObservationSequence thee, int probabilities) {
 	try {
-		autoStringsIndex si = HMM_and_HMMObservationSequence_to_StringsIndex (me, thee);
+		autoStringsIndex si = HMM_HMMObservationSequence_to_StringsIndex (me, thee);
 		autoTableOfReal him = StringsIndex_to_TableOfReal_transitions (si.get(), probabilities);
 		return him;
 	} catch (MelderError) {
@@ -1595,9 +1577,9 @@ autoTableOfReal HMM_and_HMMObservationSequence_to_TableOfReal_transitions (HMM m
 	}
 }
 
-autoTableOfReal HMM_and_HMMStateSequence_to_TableOfReal_transitions (HMM me, HMMStateSequence thee, int probabilities) {
+autoTableOfReal HMM_HMMStateSequence_to_TableOfReal_transitions (HMM me, HMMStateSequence thee, int probabilities) {
 	try {
-		autoStringsIndex si = HMM_and_HMMStateSequence_to_StringsIndex (me, thee);
+		autoStringsIndex si = HMM_HMMStateSequence_to_StringsIndex (me, thee);
 		autoTableOfReal him = StringsIndex_to_TableOfReal_transitions (si.get(), probabilities);
 		return him;
 	} catch (MelderError) {
@@ -1612,15 +1594,15 @@ autoTableOfReal StringsIndex_to_TableOfReal_transitions (StringsIndex me, int pr
 		autoTableOfReal thee = TableOfReal_create (numberOfTypes + 1, numberOfTypes + 1);
 		for (integer i = 1; i <= numberOfTypes; i ++) {
 			SimpleString s = (SimpleString) my classes->at [i];
-			TableOfReal_setRowLabel (thee.get(), i, s -> string);
-			TableOfReal_setColumnLabel (thee.get(), i, s -> string);
+			TableOfReal_setRowLabel (thee.get(), i, s -> string.get());
+			TableOfReal_setColumnLabel (thee.get(), i, s -> string.get());
 		}
 		for (integer i = 2; i <= my numberOfItems; i ++) {
 			if (my classIndex [i - 1] > 0 && my classIndex [i] > 0) { // a zero is a restart!
 				thy data [my classIndex [i-1]] [my classIndex [i]] ++;
 			}
 		}
-		real80 sum = 0.0;
+		longdouble sum = 0.0;
 		for (integer i = 1; i <= numberOfTypes; i ++) {
 			double rowSum = 0.0, colSum = 0.0;
 			for (integer j = 1; j <= numberOfTypes; j ++) {
@@ -1630,14 +1612,14 @@ autoTableOfReal StringsIndex_to_TableOfReal_transitions (StringsIndex me, int pr
 			for (integer j = 1; j <= numberOfTypes; j ++) {
 				colSum += thy data [j] [i];
 			}
-			thy data[numberOfTypes + 1][i] = colSum;
+			thy data [numberOfTypes + 1] [i] = colSum;
 			sum += colSum;
 		}
 		thy data [numberOfTypes + 1] [numberOfTypes + 1] = sum;
-		if (probabilities && sum > 0) {
+		if (probabilities && sum > 0.0) {
 			for (integer i = 1; i <= numberOfTypes; i ++) {
 				if (thy data [i] [numberOfTypes + 1] > 0.0) {
-					for (integer j = 1; j <= numberOfTypes; j++) {
+					for (integer j = 1; j <= numberOfTypes; j ++) {
 						thy data [i] [j] /= thy data [i] [numberOfTypes + 1];
 					}
 				}

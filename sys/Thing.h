@@ -2,7 +2,7 @@
 #define _Thing_h_
 /* Thing.h
  *
- * Copyright (C) 1992-2011,2012,2013,2014,2015,2016,2017 Paul Boersma
+ * Copyright (C) 1992-2009,2011-2018 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ struct structClassInfo {
 	/*
 	 * The following five fields are statically initialized by the Thing_implement() macro.
 	 */
-	const char32 *className;
+	conststring32 className;
 	ClassInfo semanticParent;
 	integer size;
 	Thing (* _new) ();   // objects have to be constructed via this function, because it calls C++ "new", which initializes the C++ class pointer
@@ -75,7 +75,7 @@ extern ClassInfo classThing;
 extern struct structClassInfo theClassInfo_Thing;
 struct structThing {
 	ClassInfo classInfo;   // the Praat class pointer (every object also has a C++ class pointer initialized by C++ "new")
-	char32 *name;
+	autostring32 name;
 	void * operator new (size_t size) { return Melder_calloc (char, (int64) size); }
 	void operator delete (void *ptr, size_t /* size */) { Melder_free (ptr); }
 
@@ -88,7 +88,7 @@ struct structThing {
 	 */
 	virtual ~structThing () noexcept { }
 
-	virtual void v_destroy () noexcept { Melder_free (name); };
+	virtual void v_destroy () noexcept { };
 		/*
 		 * derived::v_destroy calls base::v_destroy at end
 		 */
@@ -129,7 +129,7 @@ struct structThing {
 
 /* All functions with 'Thing me' as the first argument assume that it is not null. */
 
-const char32 * Thing_className (Thing me);
+conststring32 Thing_className (Thing me);
 /* Return your class name. */
 
 bool Thing_isa (Thing me, ClassInfo klas);
@@ -167,10 +167,10 @@ void Thing_recognizeClassesByName (ClassInfo readableClass, ...);
 		or with Data_readText () or Data_readBinary () if the object is a Collection.
 		Calls to this routine should preferably be put in the beginning of main ().
 */
-void Thing_recognizeClassByOtherName (ClassInfo readableClass, const char32 *otherName);
+void Thing_recognizeClassByOtherName (ClassInfo readableClass, conststring32 otherName);
 integer Thing_listReadableClasses ();
 
-ClassInfo Thing_classFromClassName (const char32 *className, int *formatVersion);
+ClassInfo Thing_classFromClassName (conststring32 className, int *formatVersion);
 /*
 	Function:
 		Return the class info table of class 'className', or null if it is not recognized.
@@ -185,11 +185,11 @@ ClassInfo Thing_classFromClassName (const char32 *className, int *formatVersion)
 	((klas) _Thing_dummyObject (class##klas))
 Thing _Thing_dummyObject (ClassInfo classInfo);
 
-const char32 * Thing_getName (Thing me);
+conststring32 Thing_getName (Thing me);
 /* Return a pointer to your internal name (which can be null). */
-const char32 * Thing_messageName (Thing me);
+conststring32 Thing_messageName (Thing me);
 
-void Thing_setName (Thing me, const char32 *name /* cattable */);
+void Thing_setName (Thing me, conststring32 name /* cattable */);
 /*
 	Function:
 		remember that you are called 'name'.
@@ -277,6 +277,11 @@ public:
 	T* get () const noexcept {
 		return our ptr;
 	}
+	#if 0
+	operator T* () const noexcept {
+		return our ptr;
+	}
+	#endif
 	/*
 		The expression
 			pitch.d_ptr -> xmin
@@ -302,7 +307,7 @@ public:
 	 *    *out_pitch = pitch.move();
 	 *    *out_pulses = pulses.move();
 	 * and
-	 *    Collection_addItem_move (me, pitch.move());
+	 *    my addItem_move (pitch.move());
 	 * and
 	 *    praat_new (pitch.move(), my name);
 	 */
@@ -353,7 +358,7 @@ public:
 	 * but the semantics of this statement has to be, confusingly, *move* semantics
 	 * (i.e., pitch.ptr should be set to null),
 	 * because if the semantics were copy semantics instead,
-	 * a destructor would be called at some point for both pitch and pitch 2,
+	 * a destructor would be called at some point for both pitch and pitch2,
 	 * twice deleting the same object, which is a run-time error.
 	 */
 	_Thing_auto<T> (const _Thing_auto<T>&) = delete;   // disable copy constructor from an l-value of class T*
@@ -365,7 +370,7 @@ public:
 	 * but the semantics of this statement has to be, confusingly, *move* semantics
 	 * (i.e., pitch.ptr should be set to null),
 	 * because if the semantics were copy semantics instead,
-	 * a destructor would be called at some point for both pitch and pitch 2,
+	 * a destructor would be called at some point for both pitch and pitch2,
 	 * twice deleting the same object, which is a run-time error.
 	 */
 	_Thing_auto<T>& operator= (const _Thing_auto<T>&) = delete;   // disable copy assignment from an l-value of class T*
@@ -449,9 +454,8 @@ public:
 	 * returns a moved `thee` in `pitch`. This works because return values from automatic (i.e. non-static) variables are r-values.
 	 *
 	 * In function arguments, transfer of ownership works only explicitly:
-	 *    extern void Collection_addItem_move (Collection me, autoDaata item);
 	 *    autoPitch pitch = Pitch_create (...);
-	 *    Collection_addItem_move (collection, pitch.move());   // compiler error if you don't call move()
+	 *    collection -> addItem_move (pitch.move());   // compiler error if you don't call move()
 	 */
 	template <class Y> _Thing_auto<Y> static_cast_move () noexcept {
 		return _Thing_auto<Y> (static_cast<Y*> (our releaseToAmbiguousOwner()));
@@ -478,7 +482,7 @@ autoThing Thing_newFromClass (ClassInfo klas);
 		other members are 0.
 */
 
-autoThing Thing_newFromClassName (const char32 *className, int *p_formatVersion);
+autoThing Thing_newFromClassName (conststring32 className, int *out_formatVersion);
 /*
 	Function:
 		return a new object of class 'className', or null if the class name is not recognized.
@@ -495,7 +499,8 @@ class autoThingVector {
 	integer d_from, d_to;
 public:
 	autoThingVector<T> (integer from, integer to) : d_from (from), d_to (to) {
-		d_ptr = static_cast <_Thing_auto<T>*> (NUMvector (sizeof (_Thing_auto<T>), from, to, true));
+		//d_ptr = reinterpret_cast <_Thing_auto<T>*> (NUMvector_ (sizeof (_Thing_auto<T>), from, to, true));
+		d_ptr = NUMvector <_Thing_auto<T>> (from, to, true);
 	}
 	autoThingVector (_Thing_auto<T> *ptr, integer from, integer to) : d_ptr (ptr), d_from (from), d_to (to) {
 	}
@@ -505,7 +510,7 @@ public:
 		if (d_ptr) {
 			for (integer i = d_from; i <= d_to; i ++)
 				d_ptr [i].reset();
-			NUMvector_free (sizeof (_Thing_auto<T>), d_ptr, d_from);
+			NUMvector_free (d_ptr, d_from);
 		}
 	}
 	_Thing_auto<T>& operator[] (integer i) {

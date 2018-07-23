@@ -1,6 +1,6 @@
 /* manual_dwtools.cpp
  *
- * Copyright (C) 1993-2017 David Weenink
+ * Copyright (C) 1993-2018 David Weenink
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
  djmw 20130620 Latest modification
 */
 
+#include "espeak_ng_version.h"
 #include "ManPagesM.h"
 #include "Sound_extensions.h"
 #include "TableOfReal_extensions.h"
@@ -31,9 +32,9 @@
 
 static autoTableOfReal getStandardizedLogFrequencyPolsData (bool includeLevels) {
 	autoTableOfReal me = TableOfReal_create_pols1973 (includeLevels);
-	for (long i = 1; i <= my numberOfRows; i++) {
-		for (long j = 1; j <= 3; j++) {
-			my data[i][j] = log10 (my data[i][j]);
+	for (integer i = 1; i <= my numberOfRows; i ++) {
+		for (integer j = 1; j <= 3; j++) {
+			my data [i] [j] = log10 (my data [i] [j]);
 		}
 	}
 	TableOfReal_standardizeColumns (me.get());
@@ -63,7 +64,7 @@ static void drawPolsF1F2ConcentrationEllipses (Graphics g) {
 static void drawPolsDiscriminantConfiguration (Graphics g) {
 	autoTableOfReal me = getStandardizedLogFrequencyPolsData (0);
 	autoDiscriminant d = TableOfReal_to_Discriminant (me.get());
-	autoConfiguration c = Discriminant_and_TableOfReal_to_Configuration (d.get(), me.get(), 2);
+	autoConfiguration c = Discriminant_TableOfReal_to_Configuration (d.get(), me.get(), 2);
 	Configuration_draw (c.get(), g, 1, 2, -2.9, 2.9, -2.9, 2.9, 0, 1, U"", 1);
 }
 
@@ -317,7 +318,7 @@ NORMAL (U"A ##canonical variate# is a new variable (variate) formed by making a 
 	"A linear combination of variables is the same as a weighted sum of variables. "
 	"Because we can in infinitely many ways choose combinations of weights between variables in a data set, "
 	"there are also infinitely many canonical variates possible. ")
-NORMAL (U"In general additional constraints must be satisfied by the weights to get a meaningful canonical variate. "
+NORMAL (U"In general additional constraints should be satisfied by the weights to get a meaningful canonical variate. "
 	"For example, in @@Canonical correlation analysis|canonical correlation analyis@ a data set is split up into two parts, a %%dependent% and an %%independent% part. "
 	"In both parts we can form a canonical variate and we choose weights that maximize the correlation between these canonical variates "
 	"(there is an @@TableOfReal: To CCA...|algorithm@ that calculates these weights).")
@@ -563,7 +564,7 @@ NORMAL (U"In a canonical correlation analysis of the dataset above, we try "
 	"When we have found these %u__1_ and %v__1_ we next try to find a new "
 	"combination %u__2_ of the formant frequencies and a new combination "
 	"%v__2_ of the levels that have maximum correlation. These %u__2_ and "
-	"%v__2_ must be uncorrelated with %u__1_ and %v__1_. "
+	"%v__2_ should be uncorrelated with %u__1_ and %v__1_. "
 	"When we express the above with formulas we have:")
 FORMULA (U"%u__1_ = %y__11_%F__1_+%y__12_%F__2_ + %y__13_%F__3_")
 FORMULA (U"%v__1_ = %x__11_%L__1_+%x__12_%L__2_ + %x__13_%L__3_")
@@ -1025,8 +1026,8 @@ INTRO (U"Input @@Covariance@ matrix cell values.")
 ENTRY (U"Constraints on input values")
 TAG (U"A covariance matrix is a %%symmetric% matrix: values input at cell [%i,%j] will be automatically input at "
 	"cell [%j,%i] too.")
-TAG (U"All values on the diagonal must be positive numbers.")
-TAG (U"The absolute value of an off-diagonal element at cell [%i,%j] must be smaller than the corresponding diagonal "
+TAG (U"All values on the diagonal should be positive numbers.")
+TAG (U"The absolute value of an off-diagonal element at cell [%i,%j] should be smaller than the corresponding diagonal "
 	"elements at cells [%i,%i] and [%j,%j].")
 MAN_END
 
@@ -1842,7 +1843,7 @@ DEFINITION (U"specifies the dimension of the resulting @Configuration. This dime
 	"given the resulting Configuration will have the maximum dimension as allowed by Discrimininant. "
 	"(Technically speaking: the number of eigenvectors (or eigenvalues) in the selected Discriminant is equal to the maximum allowed dimension.)")
 ENTRY (U"Precondition")
-NORMAL (U"The dimension of the Discriminant and the Configuration must conform in the sense that the number of columns in the TableOfReal and the length of an eigenvector in the Discriminant must be equal.")
+NORMAL (U"The dimension of the Discriminant and the Configuration must conform in the sense that the number of columns in the TableOfReal and the length of an eigenvector in the Discriminant should be equal.")
 NORMAL (U"See also @@Eigen & TableOfReal: Project...@.")
 MAN_END
 
@@ -2193,7 +2194,7 @@ DEFINITION (U"when on, the eigenvector is multiplied with the square root of the
 	"the %i-th element in the %j-th component loading vector gives the covariance between the %i-th "
 	"original variable and the %j-th principal component.)")
 TAG (U"##Element range#")
-DEFINITION (U"determine the first and last element of the vector that must be drawn.")
+DEFINITION (U"determine the first and last element of the vector that should be drawn.")
 TAG (U"##Minimum# and ##Maximum#")
 DEFINITION (U"determine the lower and upper bounds of the plot (choosing #Maximum smaller than #Minimum "
 	"will draw the %%inverted% eigenvector). ")
@@ -2748,7 +2749,7 @@ INTRO (U"A command to ask the selected @PCA for the minimum number of "
 	"to explain the given fraction %%variance accounted for%.")
 ENTRY (U"Setting")
 TAG (U"##Variance accounted for (fraction)")
-DEFINITION (U"the fraction variance accounted for that must be explained.")
+DEFINITION (U"the fraction variance accounted for that should be explained.")
 MAN_END
 
 MAN_BEGIN (U"PCA: To TableOfReal (reconstruct 1)...", U"djmw", 20030108)
@@ -3220,24 +3221,24 @@ INTRO (U"A command to project the @SSCP object onto the eigenspace of "
 NORMAL (U"Further details can be found in @@Eigen & SSCP: Project@.")
 MAN_END
 
-MAN_BEGIN (U"Regular expressions", U"djmw", 20010706)
-INTRO (U"This tutorial describes the %syntax of regular expressions in P\\s{RAAT} ")
+MAN_BEGIN (U"Regular expressions", U"David Weenink & Paul Boersma", 20180401)
+INTRO (U"This tutorial describes the syntax of regular expressions in Praat. ")
 ENTRY (U"Introduction")
-NORMAL (U"A %%regular expression% is a text string that describes a %set "
-	"of strings. Regular expressions (regex) are useful as a way to search "
+NORMAL (U"A %%regular expression% (regex) is a text string that describes a %set "
+	"of strings. Regular expressions are useful as a way to search "
 	"for patterns in text strings and, optionally, replace them by another "
 	"pattern.")
-NORMAL (U"Some regex match only one string, i.e., the set they describe has "
+NORMAL (U"Some regular expressions match only one string, i.e., the set they describe has "
 	"only one member. For example, the regex \"ab\" matches the string \"ab\" "
-	"and no others. Other regex match more than one string, i.e., the set "
+	"and no others. Other regular expressions match more than one string, i.e., the set "
 	"they describe has more than one member. For example, the regex \"a*\" "
 	"matches the string made up of any number (including zero) of \"a\"s. "
 	"As you can see, some characters match themselves (such as \"a\" and "
-	"\"b\") and these characters are called %ordinary characters. The "
-	"characters that don't match themselves, such as \"*\", are called "
-	"%special characters or %meta characters. Many special characters are only "
+	"\"b\"), and these characters are called %ordinary characters. The "
+	"characters that do not match themselves, such as \"*\", are called "
+	"%special characters or %metacharacters. Many special characters are only "
 	"special characters in the %search regex and are ordinary characters in "
-	"the substitution regex. ")
+	"the substitution regex.")
 NORMAL (U"You can read the rest of this tutorial sequentially with the help of "
 	"the \"<1\" and \">1\" buttons.")
 LIST_ITEM (U"1. @@Regular expressions 1. Special characters|Special characters@ "
@@ -3245,8 +3246,8 @@ LIST_ITEM (U"1. @@Regular expressions 1. Special characters|Special characters@ 
 LIST_ITEM (U"2. @@Regular expressions 2. Quantifiers|Quantifiers@ "
 	"(how often do we match).")
 LIST_ITEM (U"3. @@Regular expressions 3. Anchors|Anchors@ (where do we match)")
-LIST_ITEM (U"4. @@Regular expressions 4. Special constructs with parenthesis|"
-	"Special constructs with parenthesis@ (grouping constructs)")
+LIST_ITEM (U"4. @@Regular expressions 4. Special constructs with parentheses|"
+	"Special constructs with parentheses@ (grouping constructs)")
 LIST_ITEM (U"5. @@Regular expressions 5. Special control characters|"
 	"Special control characters@ (difficult-to-type characters like \\bsn)")
 LIST_ITEM (U"6. @@Regular expressions 6. Convenience escape sequences|"
@@ -3278,67 +3279,67 @@ LIST_ITEM1 (U"Example: The regex \"aa\\bsn\" tries to match two consecutive "
 	"\"a\"s at the end of a line, inclusive the newline character itself.")
 LIST_ITEM1 (U"Example: \"a\\bs+\" matches \"a+\" and not a series of one or "
 	"\"a\"s.")
-TAG (U"##\\^ #    the caret is the start of line @@Regular expressions 3. "
-	"Anchors|anchor@ or the negate symbol.")
-LIST_ITEM1 (U"Example: \"\\^ a\" matches \"a\" at the start of a line.")
+TAG (U"##\\^ #    the caret is the @@Regular expressions 3. "
+	"Anchors|anchor@ for the start of the string, or the negation symbol.")
+LIST_ITEM1 (U"Example: \"\\^ a\" matches \"a\" at the start of the string.")
 LIST_ITEM1 (U"Example: \"[\\^ 0-9]\" matches any non digit.")
-TAG (U"##\\$ #    the dollar is the end of line @@Regular expressions 3. "
-	"Anchors|anchor@.")
+TAG (U"##\\$ #    the dollar sign is the @@Regular expressions 3. "
+	"Anchors|anchor@ for the end of the string.")
 LIST_ITEM1 (U"Example: \"b\\$ \" matches a \"b\" at the end of a line.")
-LIST_ITEM1 (U"Example: \"\\^ b\\$ \" matches the empty line.")
-TAG (U"##{ }#    the open and close curly bracket are used as range @@Regular "
+LIST_ITEM1 (U"Example: \"\\^ \\$ \" matches the empty string.")
+TAG (U"##{ }#    the opening and closing curly brackets are used as range @@Regular "
 	"expressions 2. Quantifiers|quantifiers@.")
 LIST_ITEM1 (U"Example: \"a{2,3}\" matches \"aa\" or \"aaa\".")
-TAG (U"##[ ]#    the open and close square bracket define a character class to "
+TAG (U"##[ ]#    the opening and closing square brackets define a character class to "
 	"match a %single character.")
-DEFINITION (U"The \"\\^ \" as the first character following the \"[\" negates "
+DEFINITION (U"The \"\\^ \" as the first character following the \"[\" negates, "
 	"and the match is for the characters %not listed. "
 	"The \"-\" denotes a range of characters. Inside a \"[  ]\" character "
-	"class construction most special characters are interpreted as ordinary "
-	"characters. ")
+	"class construction, most special characters are interpreted as ordinary "
+	"characters.")
 LIST_ITEM1 (U"Example: \"[d-f]\" is the same as \"[def]\" and matches \"d\", "
 	"\"e\" or \"f\".")
-LIST_ITEM1 (U"Example: \"[a-z]\" matches any lowercase characters in the "
-	"alfabet.")
-LIST_ITEM1 (U"Example: \"[\\^ 0-9]\" matches any character that is not a digit.")
-LIST_ITEM1 (U"Example: A search for \"[][()?<>$^.*?^]\" in the string "
-	"\"[]()?<>$^.*?^\" followed by a replace string \"r\" has the result "
+LIST_ITEM1 (U"Example: \"[a-z]\" matches any lower-case characters in the "
+	"alphabet.")
+LIST_ITEM1 (U"Example: \"[\\^ 0-9]\" matches any character that is not an ASCII digit.")
+LIST_ITEM1 (U"Example: A search for \"[][()?<>\\$ \\^ .*?\\^ ]\" in the string "
+	"\"[]()?<>\\$ \\^ .*?\\^ \" followed by a replace string \"r\" has the result "
 	"\"rrrrrrrrrrrrr\". Here the search string is %one character class and "
 	"all the meta characters are interpreted as ordinary characters without "
 	"the need to escape them.")
-TAG (U"##( )#    the open and close parenthesis are used for grouping "
-	"characters (or other regex).")
+TAG (U"##( )#    the opening and closing parenthes3s are used for grouping "
+	"characters (or other regexes).")
 DEFINITION (U"The groups can be referenced in "
 	"both the search and the @@Regular expressions 8. Substitution special "
 	"characters|substitution@ phase. There also exist some @@Regular "
-	"expressions 4. Special constructs with parenthesis|special constructs "
-	"with parenthesis@.")
+	"expressions 4. Special constructs with parentheses|special constructs "
+	"with parentheses@.")
 LIST_ITEM1 (U"Example: \"(ab)\\bs1\" matches \"abab\".")
-TAG (U"##.#    the dot matches any character except the newline.")
+TAG (U"##.#    the dot matches any character except the newline symbol.")
 LIST_ITEM1 (U"Example: \".a\" matches two consecutive characters where "
 	"the last one is \"a\".")
 LIST_ITEM1 (U"Example: \".*\\bs.txt\\$ \" matches all strings that end in "
 	"\".txt\".")
-TAG (U"##*#    the star is the match-zero-or-more @@Regular expressions 2. "
+TAG (U"##*#    the asterisk is the match-zero-or-more @@Regular expressions 2. "
 	"Quantifiers|quantifier@.")
 LIST_ITEM1 (U"Example: \"\\^ .*\\$ \" matches an entire line. ")
-TAG (U"##+#    the plus is the match-one-or-more quantifier.")
+TAG (U"##+#    the plus sign is the match-one-or-more quantifier.")
 TAG (U"##?#    the question mark is the match-zero-or-one "
 	"quantifier. The question mark is also used in  "
-	"@@Regular expressions 4. Special constructs with parenthesis|special "
-	"constructs with parenthesis@ and in @@Regular expressions 2. "
+	"@@Regular expressions 4. Special constructs with parentheses|special "
+	"constructs with parentheses@ and in @@Regular expressions 2. "
 	"Quantifiers|changing match behaviour@.")
 TAG (U"##\\| #    the vertical pipe separates a series of alternatives.")
 LIST_ITEM1 (U"Example: \"(a|b|c)a\" matches \"aa\" or \"ba\" or \"ca\".")
 TAG (U"##< >#    the smaller and greater signs are @@Regular expressions 3. "
 	"Anchors|anchors@ that specify a left or right word boundary.")
-TAG (U"##-#    the minus indicates a range in a character class (when it is "
+TAG (U"##-#    the minus sign indicates a range in a character class (when it is "
 	"not at the first position after the \"[\" opening bracket or the last "
 	"position before the \"]\" closing bracket.")
 LIST_ITEM1 (U"Example: \"[A-Z]\" matches any uppercase character.")
 LIST_ITEM1 (U"Example: \"[A-Z-]\" or \"[-A-Z]\" match any uppercase character "
 	"or \"-\".")
-TAG (U"##&#    the and is the \"substitute complete match\" symbol.")
+TAG (U"##&#    the ampersand is the \"substitute complete match\" symbol.")
 MAN_END
 
 MAN_BEGIN (U"Regular expressions 2. Quantifiers", U"djmw", 20010708)
@@ -3370,25 +3371,24 @@ LIST_ITEM1 (U"Example: In the string \"cabddde\", the search \"abd+\" "
 	"matches \"abddd\", while the search for \"abd+?\" matches \"abd\".")
 MAN_END
 
-MAN_BEGIN (U"Regular expressions 3. Anchors", U"djmw", 20010708)
+MAN_BEGIN (U"Regular expressions 3. Anchors", U"DAvid Weenink & Paul Boersma", 20180401)
 INTRO (U"Anchors let you specify a very specific position within the search "
 	"text.")
-TAG (U"##\\^ #   Try to match the (following) regex at the beginning of a line.")
+TAG (U"##\\^ #   Try to match the (following) regex at the beginning of the string.")
 LIST_ITEM1 (U"Example: \"\\^ ab\" matches \"ab\" only at the beginning of a "
 	"line and not, for example, in the line \"cab\".")
-TAG (U"##\\$ #   Try to match the (following) regex at the end of a line.")
+TAG (U"##\\$ #   Try to match the (following) regex at the end of the string.")
 TAG (U"##<#    Try to match the regex at the %start of a word.")
 DEFINITION (U"The character class that defines a %word can be found at the "
 	"@@Regular expressions 6. Convenience escape sequences|convenience escape "
 	"sequences@ page.")
 TAG (U"##>#    Try to match the regex at the %end of a word.")
 TAG (U"##\\bsB#   Not a word boundary")
-DEFINITION (U"")
 MAN_END
 
-MAN_BEGIN (U"Regular expressions 4. Special constructs with parenthesis", U"djmw",
+MAN_BEGIN (U"Regular expressions 4. Special constructs with parentheses", U"djmw",
 	20010710)
-INTRO (U"Some special constructs exist with parenthesis. ")
+INTRO (U"Some special constructs exist with parentheses. ")
 TAG (U"##(?:#%regex#)#   is a grouping-only construct.")
 DEFINITION (U"They exist merely for efficiency reasons and facilitate grouping.")
 TAG (U"##(?=#%regex#)#   is a positive look-ahead.")
@@ -3408,9 +3408,9 @@ LIST_ITEM1 (U"Example: \"(?iaa)\" matches \"aa\", \"aA\", \"Aa\" and \"AA\".")
 TAG (U"##(?n#%regex#)#   matches newlines.")
 TAG (U"##(?N#%regex#)#   doesn't match newlines.")
 NORMAL (U"All the constructs above do not capture text and cannot be "
-	"referenced, i.e., the parenthesis are not counted. However, you "
+	"referenced, i.e., the parentheses are not counted. However, you "
 	"can make them capture text by surrounding them with %ordinary "
-	"parenthesis.")
+	"parentheses.")
 MAN_END
 
 MAN_BEGIN (U"Regular expressions 5. Special control characters", U"djmw", 20010708)
@@ -3513,9 +3513,9 @@ NORMAL (U"A scree plot shows the sorted eigenvalues, from large to "
 	"small, as a function of the eigenvalue index.")
 MAN_END
 
-MAN_BEGIN (U"singular value decomposition", U"djmw", 20120510)
+MAN_BEGIN (U"singular value decomposition", U"djmw", 20171217)
 INTRO (U"The %%singular value decomposition% (SVD) is a matrix factorization algorithm.")
-NORMAL (U"For %m > %n, the singular value decomposition of a real %m \\xx %n matrix #A is the "
+NORMAL (U"For %m >= %n, the singular value decomposition of a real %m \\xx %n matrix #A is the "
 	"factorization")
 FORMULA (U"#A = #U #\\Si #V\\'p,")
 NORMAL (U"The matrices in this factorization have the following properties:")
@@ -3526,7 +3526,37 @@ DEFINITION (U"are orthogonal matrices. The columns #u__%i_ of #U =[#u__1_, ..., 
 TAG (U"#\\Si [%n \\xx %n] = diag (%\\si__1_, ..., %\\si__%n_)")
 DEFINITION (U"is a real, nonnegative, and diagonal matrix. Its diagonal contains the so called "
 	"%%singular values% %\\si__%i_, where %\\si__1_ \\>_ ... \\>_ %\\si__%n_ \\>_ 0.")
-NORMAL (U"If %m < %n, the decomposition results in #U [%m \\xx %m] and #V [%n \\xx %m].")
+MAN_END
+
+MAN_BEGIN (U"SVD", U"djmw", 20171214)
+INTRO (U"An object of type ##SVD# represents the @@singular value decomposition@ of a matrix.")
+ENTRY (U"SVD internals")
+NORMAL (U"Given #A, an %m \\xx %n matrix with %m >= %n, the decomposition will be #A = #U #\\Si #V\\'p. ")
+NORMAL (U"In the SVD object we store the %m \\xx %n matrix #U, the %n \\xx %n matrix #V and the %%n%-dimensional vector with the singular values. ")
+NORMAL (U"If it happens that for the #A matrix %m < %n, i.e. the number of rows is less than the number of columns, then we store "
+	"the SVD of the transpose of #A and flag this internally. "
+	"In this way we can make sure that for the matrix #U the number of columns never exceeds the number of rows and at the same time that the dimension of the matrix #V never exceeds the dimension of the matrix #U. ")
+NORMAL (U"For example the SVD of a 100 \\xx 20 matrix will result in a 100 \\xx 20 matrix #U, a 20 \\ 20 matrix #V and 20 singular values, "
+	"the SVD of a 20 \\xx 100 matrix will also result in a 100 \\xx 20 matrix #U, a 20 \\ 20 matrix #V and 20 singular values, however it will be internally flagged as being transposed.")
+MAN_END
+
+MAN_BEGIN (U"SVD: Get minimum number of singular values...", U"djmw", 20171214)
+INTRO (U"A command to get the minimum number of singular values (s.v.'s) whose sum, divided by the sum of all singular values, is smaller than the given fraction.")
+ENTRY (U"Examples")
+NORMAL (U"Given an SVD with four s.v's 10.0, 6.0, 3.0 and 1.0. The sum of the s.v's is 20.0.")
+CODE (U"Get minimum number of singular values: 0.5")
+DEFINITION (U"The returned value would be 1. The first s.v. divided by the sum is 0.5 (= 10.0 / 20.0). "
+	"For any fraction lower than 0.5 the query would also return 1, because the first s.v. already covers half of the total sum.")
+CODE (U"Get minimum number of singular values: 0.8")
+DEFINITION (U"The returned value would be 2. The sum of first two s.v.'s divided by the sum is 0.8 (= (10.0 + 6.0) / 20.0). "
+	" For any fraction between 0.5 and 0.8 the query would also return 2.")
+CODE (U"Get minimum number of singular values: 0.95")
+DEFINITION (U"The returned value would be 3. The sum of first three s.v.'s divided by the sum is 0.95 (= (10.0 + 6.0 + 3.0) / 20.0)."
+	" For any fraction between 0.8 and 0.95 the query would also return 3.")
+CODE (U"Get minimum number of singular values: 0.96")
+DEFINITION (U"The returned value would be 4.")
+CODE (U"Get minimum number of singular values: 0.99")
+DEFINITION (U"The returned value would be 4.")
 MAN_END
 
 MAN_BEGIN (U"Sound & Pitch: Change speaker...", U"djmw", 20070722)
@@ -4113,7 +4143,7 @@ DEFINITION (U"the number of neighbouring frequency points that are used in the c
 MAN_END
 
 MAN_BEGIN (U"SpeechSynthesizer", U"djmw", 20120413)
-INTRO (U"The SpeechSynthesizer is one of the @@types of objects@ in Praat. It creates a speech sound from text. The actual text-to-speech synthesis is performed by the @@Espeak@ speech synthsizer and therefore our SpeechSynthsizer is merely an interface to Espeak.")
+INTRO (U"The SpeechSynthesizer is one of the @@types of objects@ in Praat. It creates a speech sound from text. The actual text-to-speech synthesis is performed by the @@Espeak|eSpeak NG@ speech synthsizer and therefore our SpeechSynthsizer is merely an interface to Espeak.")
 ENTRY (U"Commands")
 NORMAL (U"Creation:")
 LIST_ITEM (U"\\bu @@Create SpeechSynthesizer...@")
@@ -4125,8 +4155,8 @@ LIST_ITEM (U"\\bu @@SpeechSynthesizer: Set text input settings...|Set text input
 LIST_ITEM (U"\\bu @@SpeechSynthesizer: Set speech output settings...|Set speech output settings...@")
 MAN_END
 
-MAN_BEGIN (U"Create SpeechSynthesizer...", U"djmw", 20120221)
-INTRO (U"Creates the @@Espeak@ speech synthesizer.")
+MAN_BEGIN (U"Create SpeechSynthesizer...", U"djmw", 20171101)
+INTRO (U"Creates the @@Espeak|eSpeak NG@ speech synthesizer.")
 ENTRY (U"Settings")
 TAG (U"##Language#")
 DEFINITION (U"determines the language of the synthesizer.")
@@ -4134,47 +4164,53 @@ TAG (U"##Voice variant#")
 DEFINITION (U"determines which voice type the synthesizer uses (male, female or whispered voices).")
 MAN_END
 
-MAN_BEGIN (U"SpeechSynthesizer: Play text...", U"djmw", 20120413)
-INTRO (U"The selected @@SpeechSynthesizer@ plays a text")
+MAN_BEGIN (U"SpeechSynthesizer: Play text...", U"djmw", 20171101)
+INTRO (U"The selected @@SpeechSynthesizer@ plays a text.")
 ENTRY (U"Settings")
 TAG (U"##Text#")
 DEFINITION (U"is the text to be played. Text within [[ ]] is treated as phonemes codes in @@Kirshenbaum phonetic encoding@. For example, besides a text like \"This is text\", you might also input \"This [[Iz]] text\".")
 MAN_END
 
-MAN_BEGIN (U"SpeechSynthesizer: To Sound...", U"djmw", 20120414)
+MAN_BEGIN (U"SpeechSynthesizer: To Sound...", U"djmw", 20171101)
 INTRO (U"The selected @@SpeechSynthesizer@ converts a text to the corresponding speech sound.")
 ENTRY (U"Settings")
 TAG (U"##Text#")
 DEFINITION (U"is the text to be played. Text within [[ ]] is treated as phonemes codes in @@Kirshenbaum phonetic encoding@. For example, besides a text like \"This is text\", you might also input \"This [[Iz]] text\".")
 TAG (U"##Create TextGrid with annotations#")
-DEFINITION (U"determines whether, besides the sound, a TextGrid with multiple-tier annotations will appear.")
+DEFINITION (U"determines whether, besides the sound, a @@TextGrid@ with multiple-tier annotations will appear.")
 MAN_END
 
-MAN_BEGIN (U"SpeechSynthesizer: Set text input settings...", U"djmw", 20120414)
+MAN_BEGIN (U"SpeechSynthesizer: Set text input settings...", U"djmw", 20171101)
 INTRO (U"A command available in the ##Modify# menu when you select a @@SpeechSynthesizer@.")
 ENTRY (U"Settings")
 TAG (U"##Input text format is#")
 DEFINITION (U"determines how the input text will be synthesized.")
 TAG (U"##Input phoneme codes are#")
-DEFINITION (U"")
+DEFINITION (U"currently only @@Kirshenbaum phonetic encoding@ is available.")
 MAN_END
 
-MAN_BEGIN (U"SpeechSynthesizer: Set speech output settings...", U"djmw", 20120414)
+MAN_BEGIN (U"SpeechSynthesizer: Set speech output settings...", U"djmw", 20171102)
 INTRO (U"A command available in the ##Modify# menu when you select a @@SpeechSynthesizer@.")
 ENTRY (U"Settings")
 TAG (U"##Sampling frequency#")
 DEFINITION (U"determines how the sampling frequency of the sound.")
 TAG (U"##Gap between words#")
 DEFINITION (U"determines the amount of silence between words.")
-TAG (U"##Pitch adjustment#")
-DEFINITION (U"")
-TAG (U"##Pitch range#")
-DEFINITION (U"")
+TAG (U"##Pitch multiplier (0.5-2.0)#")
+DEFINITION (U"determines how much the pitch will be changed. The extremes 0.5 and 2.0 represent, respectively, one octave "
+	"below and one octave above the default pitch. ")
+TAG (U"##Pitch range multiplier (0.0-2.0)#")
+DEFINITION (U"determines how much the pitch range will be scaled. A value of 0.0 means monotonous pitch while a value of 2.0 means twice the default range.")
 TAG (U"##Words per minute#")
 DEFINITION (U"determines the speaking rate in words per minute.")
-TAG (U"##estimate words per minute from data#")
-DEFINITION (U"")
 TAG (U"##Output phoneme codes are#")
+MAN_END
+
+MAN_BEGIN (U"SpeechSynthesizer: Set speech rate from speech...", U"djmw", 20171102)
+INTRO (U"A command available in the ##Modify# menu when you select a @@SpeechSynthesizer@.")
+ENTRY (U"Settings")
+TAG (U"##Estimate speech rate from speech#")
+DEFINITION (U"determines how speech rate is chosen. This is only used for the alignment of speech with text. If on, the speech rate is estimated from the part of speech that has to be aligned. ")
 MAN_END
 
 MAN_BEGIN (U"SSCP", U"djmw", 19981103)
@@ -4807,6 +4843,31 @@ TAG (U"%Ymin and %Ymax")
 DEFINITION (U"determine the drawing boundaries.")
 MAN_END
 
+MAN_BEGIN (U"TableOfReal: Draw as scalable squares...", U"djmw", 20180304)
+INTRO (U"A command to draw the cells of the table as squares whose areas conform to the cell's value. ")
+ENTRY (U"Settings")
+TAG (U"##From row#, ##To row#")
+DEFINITION (U"determine the rows to be drawn.")
+TAG (U"##From column#, ##To column#")
+DEFINITION (U"determine the columns to be drawn.")
+TAG (U"##Origin")
+DEFINITION (U"determines the drawing orientation. For a table with %%nrow% rows and %%ncol% columns:")
+TAG1 (U"%%top-left%: cel [1][1] will be at the top left position in the drawing, cell [%%nrow%][%%ncol%] will be at bottom right position.")
+TAG1 (U"%%top-right%: cel [1][1] will be at the top right position in the drawing, cell [%%nrow%][%%ncol%] will be at bottom left position.")
+TAG1 (U"%%bottom-left%: cel [1][1] will be at the bottom left position in the drawing, cell [%%nrow%][%%ncol%] will be at top right position.")
+TAG1 (U"%%bottom-right%: cel [1][1] will be at the bottom right position in the drawing, cell [%%nrow%][%%ncol%] will be at top left position.")
+TAG (U"##Cell area scale factor#")
+DEFINITION (U"multiplies the area of each cell's square. If this factor is larger than 1.0 some of the squares might overlap.")
+TAG (U"##Filling order#")
+DEFINITION (U"determines in what order the squares will be drawn. The order is only important if some of the squares overlap, "
+	"i.e. if the cell area scale factor is larger than 1.0.")
+TAG1 (U"%%rows%: start with the first row, cell [1][1] to cell [1][%%ncol%], next the second row, etc...")
+TAG1 (U"%%columns% start with column 1, cell [1][1] to cell [%%nrow%][1], next column 2 etc...")
+TAG1 (U"%%increasing-values%: first sort the cell values in increasing order and then start drawing them, the cell with the smallest value first. ")
+TAG1 (U"%%decreasing-values%: first sort the cell values in decreasing order and then start drawing them, the cell with the largest value first.")
+TAG1 (U"%%random%: draw cells in random order. If the cell area scale factor is larger than 1.0 this may result in a different graph of the same table for each successive call.")
+MAN_END
+
 MAN_BEGIN (U"TableOfReal: Draw rows as histogram...", U"djmw", 20030619)
 INTRO (U"A command to draw a histogram from the rows in the selected "
 	"@TableOfReal object.")
@@ -5013,9 +5074,9 @@ INTRO (U"A command that creates a @CCA object from the selected "
 ENTRY (U"Settings")
 TAG (U"%%Dimension of dependent variate (ny)")
 DEFINITION (U"defines the partition of the table into the two parts whose "
-	"correlations will be determined. The first %ny columns must be the "
+	"correlations will be determined. The first %ny columns should be the "
 	"dependent part, the rest of the columns will be interpreted as the "
-	"independent part (%nx columns). In general %nx must be larger than or "
+	"independent part (%nx columns). In general %nx should be larger than or "
 	"equal to %ny.")
 ENTRY (U"Behaviour")
 NORMAL (U"Calculates canonical correlations between the %dependent and the "
@@ -5350,8 +5411,13 @@ NORMAL (U"B. Efron & R.J. Tibshirani (1993): %%An introduction "
 	"to the bootstrap%. Chapman & Hall.")
 MAN_END
 
-MAN_BEGIN (U"Espeak", U"djmw", 20111217)
-NORMAL (U"Jonathan Duddington's Espeak speech synthesizer, available via http://espeak.sourceforge.net/")
+#define xstr(s) str(s)
+#define str(s) #s
+MAN_BEGIN (U"Espeak", U"djmw", 20171101)
+NORMAL (U"Espeak is a free text to speech synthesizer. It was developed by Jonathan Duddington and its development has stopped in 2015. "
+	"In 2015 Reece Dunn has taken a copy of espeak and together with a group of developers they maintain and actualize their version of espeak which they call \"eSpeak NG\". eSpeak NG uses formant synthesis. "
+	"Currently it supports 100 languages with varying quality of the voices. The current version of eSpeakNG incorporated in Praat is " xstr(ESPEAK_NG_VERSIONX) ".")
+NORMAL (U"The wikipedia page https://en.wikipedia.org/wiki/ESpeakNG gives more details.")
 MAN_END
 
 MAN_BEGIN (U"Flanagan (1960)", U"djmw", 19980713)

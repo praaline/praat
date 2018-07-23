@@ -32,13 +32,13 @@ Thing_define (AmplitudeTier, RealTier) {
 autoAmplitudeTier AmplitudeTier_create (double tmin, double tmax);
 
 void AmplitudeTier_draw (AmplitudeTier me, Graphics g, double tmin, double tmax,
-	double ymin, double ymax, const char32 *method, bool garnish);
+	double ymin, double ymax, conststring32 method, bool garnish);
 
 autoAmplitudeTier PointProcess_upto_AmplitudeTier (PointProcess me, double soundPressure);
 autoAmplitudeTier IntensityTier_to_AmplitudeTier (IntensityTier me);
 autoIntensityTier AmplitudeTier_to_IntensityTier (AmplitudeTier me, double threshold_dB);
 autoTableOfReal AmplitudeTier_downto_TableOfReal (AmplitudeTier me);
-void Sound_AmplitudeTier_multiply_inline (Sound me, AmplitudeTier intensity);
+void Sound_AmplitudeTier_multiply_inplace (Sound me, AmplitudeTier intensity);
 autoSound Sound_AmplitudeTier_multiply (Sound me, AmplitudeTier intensity);
 
 autoAmplitudeTier PointProcess_Sound_to_AmplitudeTier_point (PointProcess me, Sound thee);

@@ -32,7 +32,7 @@
 
 /******************* KlattGrid  *********************************/
 
-static const char32 *formant_names[] = { U"", U"oral ", U"nasal ", U"frication ", U"tracheal ", U"nasal anti", U"tracheal anti", U"delta "};
+static const conststring32 formant_names[] = { U"", U"oral ", U"nasal ", U"frication ", U"tracheal ", U"nasal anti", U"tracheal anti", U"delta "};
 
 #define KlattGrid_4formants_addCommonField(formantType) \
 	OPTIONMENU (formantType, U"Formant type", 1) \
@@ -99,7 +99,7 @@ static void KlattGrid_PhonationGridPlayOptions (KlattGrid me, int useVoicing, in
 	INTEGER (fromNasalAntiFormant, U"left Nasal antiformant range", U"1") \
 	INTEGER (toNasalAntiFormant, U"right Nasal antiformant range", U"1")
 	
-static void KlattGrid_formantSelection_vocalTract (KlattGrid me, int filtersStructure, long fromOralFormant, long toOralFormant, long fromNasalFormant, long toNasalFormant, long fromNasalAntiFormant, long toNasalAntiFormant) {
+static void KlattGrid_formantSelection_vocalTract (KlattGrid me, int filtersStructure, integer fromOralFormant, integer toOralFormant, integer fromNasalFormant, integer toNasalFormant, integer fromNasalAntiFormant, integer toNasalAntiFormant) {
 	VocalTractGridPlayOptions pv = my vocalTract -> options.get();
 	pv -> filterModel = (filtersStructure == 1 ? KlattGrid_FILTER_CASCADE : KlattGrid_FILTER_PARALLEL);
 	pv -> startOralFormant = fromOralFormant;
@@ -120,7 +120,7 @@ static void KlattGrid_formantSelection_vocalTract (KlattGrid me, int filtersStru
 	INTEGER (fromDeltaBandwidth, U"left Delta bandwidth range", U"1") \
 	INTEGER (toDeltaBandwidth, U"right Delta bandwidth range", U"1")
 
-static void KlattGrid_formantSelection_coupling (KlattGrid me, long fromTrachealFormant, long toTrachealFormant, long fromTrachealAntiFormant, long toTrachealAntiFormant, long fromDeltaFormant, long toDeltaFormant, long fromDeltaBandwidth, long toDeltaBandwidth) {
+static void KlattGrid_formantSelection_coupling (KlattGrid me, integer fromTrachealFormant, integer toTrachealFormant, integer fromTrachealAntiFormant, integer toTrachealAntiFormant, integer fromDeltaFormant, integer toDeltaFormant, integer fromDeltaBandwidth, integer toDeltaBandwidth) {
 	CouplingGridPlayOptions pc = my coupling -> options.get();
 	pc -> startTrachealFormant = fromTrachealFormant;
 	pc -> endTrachealFormant = toTrachealFormant;
@@ -137,7 +137,7 @@ static void KlattGrid_formantSelection_coupling (KlattGrid me, long fromTracheal
 	INTEGER (toFricationFormant, U"right Frication formant range", U"6") \
 	BOOLEAN (useFricationBypass, U"Frication bypass", true)
 
-static void KlattGrid_formantSelection_frication (KlattGrid me, long fromFricationFormant, long toFricationFormant, int useFricationBypass) {
+static void KlattGrid_formantSelection_frication (KlattGrid me, integer fromFricationFormant, integer toFricationFormant, int useFricationBypass) {
 	FricationGridPlayOptions pf = my frication -> options.get();
 	pf -> startFricationFormant = fromFricationFormant;
 	pf -> endFricationFormant = toFricationFormant;
@@ -206,7 +206,7 @@ DIRECT (WINDOW_KlattGrid_edit##Name##FormantGrid) { \
 	if (theCurrentPraatApplication -> batch) { Melder_throw (U"Cannot edit a KlattGrid from batch."); } \
 	LOOP { \
 		iam (KlattGrid); \
-		const char32 *id_and_name = Melder_cat (ID, U". ", formant_names [formantType], U" formant grid"); \
+		conststring32 id_and_name = Melder_cat (ID, U". ", formant_names [formantType], U" formant grid"); \
 		autoKlattGrid_FormantGridEditor editor = KlattGrid_FormantGridEditor_create (id_and_name, me, formantType); \
 		praat_installEditor (editor.get(), IOBJECT); \
 		editor.releaseToUser(); \
@@ -234,7 +234,7 @@ DO \
 		OrderedOf<structIntensityTier>* amp = KlattGrid_getAddressOfAmplitudes (me, formantType); \
 		if (! amp) Melder_throw (U"Unknown formant type"); \
 		if (formantNumber > amp->size) Melder_throw (U"Formant number does not exist."); \
-		const char32 *id_and_name = Melder_cat (ID, U". ", formant_names [formantType], U" formant amplitude tier"); \
+		conststring32 id_and_name = Melder_cat (ID, U". ", formant_names [formantType], U" formant amplitude tier"); \
 		autoKlattGrid_DecibelTierEditor editor = KlattGrid_DecibelTierEditor_create (id_and_name, me, amp->at [formantNumber]); \
 		praat_installEditor (editor.get(), IOBJECT); \
 		editor.releaseToUser(); \
@@ -289,23 +289,23 @@ DIRECT (MODIFY_KlattGrid_replace##Name##Tier) { \
 
 // 55 DO_KlattGrid... functions
 KlattGrid_PHONATION_GET_ADD_REMOVE_EXTRACT_REPLACE (Pitch, pitch, U" (Hz)", (U"100.0"),
-        (value >= 0.0), (U"Pitch must be greater equal zero."), U"f0", PitchTier)
+        (value >= 0.0), (U"Pitch should be greater equal zero."), U"f0", PitchTier)
 KlattGrid_PHONATION_GET_ADD_REMOVE_EXTRACT_REPLACE (VoicingAmplitude, voicing amplitude, U" (dB SPL)", U"90.0",
         (1), U"", U"voicing", IntensityTier)
 KlattGrid_PHONATION_GET_ADD_REMOVE_EXTRACT_REPLACE (Flutter, flutter, U" (0..1)", (U"0.0"),
-        (value >= 0.0 && value <= 1.0), (U"Flutter must be in [0,1]."), U"flutter", RealTier)
+        (value >= 0.0 && value <= 1.0), (U"Flutter should be in [0,1]."), U"flutter", RealTier)
 KlattGrid_PHONATION_GET_ADD_REMOVE_EXTRACT_REPLACE (Power1, power1, U"", U"3",
         (value > 0.0), U"Power1 needs to be positive.", U"power1", RealTier)
 KlattGrid_PHONATION_GET_ADD_REMOVE_EXTRACT_REPLACE (Power2, power2, U"", U"4",
         (value > 0.0), U"Power2 needs to be positive.", U"power2", RealTier)
 KlattGrid_PHONATION_GET_ADD_REMOVE_EXTRACT_REPLACE (OpenPhase, open phase, U"", U"0.7",
-        (value >= 0.0 && value <= 1.0), U"Open phase must be greater than zero and smaller equal one.", U"openPhase", RealTier)
+        (value >= 0.0 && value <= 1.0), U"Open phase should be greater than zero and smaller equal one.", U"openPhase", RealTier)
 KlattGrid_PHONATION_GET_ADD_REMOVE_EXTRACT_REPLACE (CollisionPhase, collision phase, U"", U"0.03",
-        (value >= 0.0 && value < 1.0), U"Collision phase must be greater equal zero and smaller than one.", U"collisionPhase", RealTier)
+        (value >= 0.0 && value < 1.0), U"Collision phase should be greater equal zero and smaller than one.", U"collisionPhase", RealTier)
 KlattGrid_PHONATION_GET_ADD_REMOVE_EXTRACT_REPLACE (DoublePulsing, double pulsing, U" (0..1)", U"0.0",
-        (value >= 0.0 && value <= 1.0), U"Double pulsing must be greater equal zero and smaller equal one.", U"doublePulsing", RealTier)
+        (value >= 0.0 && value <= 1.0), U"Double pulsing should be greater equal zero and smaller equal one.", U"doublePulsing", RealTier)
 KlattGrid_PHONATION_GET_ADD_REMOVE_EXTRACT_REPLACE (SpectralTilt, spectral tilt, U" (dB)", U"0.0",
-        (value >= 0.0), U"Spectral tilt must be greater equal zero.", U"spectralTilt", IntensityTier)
+        (value >= 0.0), U"Spectral tilt should be greater equal zero.", U"spectralTilt", IntensityTier)
 KlattGrid_PHONATION_GET_ADD_REMOVE_EXTRACT_REPLACE (AspirationAmplitude, aspiration amplitude, U" (dB SPL)", U"0.0",
         (true), U"", U"aspiration", IntensityTier)
 KlattGrid_PHONATION_GET_ADD_REMOVE_EXTRACT_REPLACE (BreathinessAmplitude, breathiness amplitude, U" (dB SPL)", U"30.0",
@@ -418,9 +418,9 @@ DO \
 #define KlattGrid_FORMULA_ADD_REMOVE_FBA(Name,namef,formantType)  \
 KlattGrid_FORMULA_FORMANT_FBA_VALUE (Name, namef, Frequencies, frequencies, U"if row = 2 then self + 200 else self fi", formantType, U" ") \
 KlattGrid_FORMULA_FORMANT_FBA_VALUE (Name, namef, Bandwidths, bandwidths, U"self / 10 ; 10% of frequency", formantType, U"Warning: self is formant frequency.") \
-KlattGrid_ADD_FBA_VALUE (Name, namef, Formant, Frequency, frequency, formantType, U"500.0", (Hz), (value>0), U"Frequency must be greater than zero.") \
-KlattGrid_ADD_FBA_VALUE (Name, namef, Bandwidth, Bandwidth, bandwidth, formantType, U"50.0", (Hz), (value>0), U"Bandwidth must be greater than zero.") \
-KlattGrid_ADD_FBA_VALUE (Name, namef, Amplitude, Amplitude, amplitude, formantType, U"0.0", (dB), (isdefined(value)), U"Amplitude must be defined.") \
+KlattGrid_ADD_FBA_VALUE (Name, namef, Formant, Frequency, frequency, formantType, U"500.0", (Hz), (value>0), U"Frequency should be greater than zero.") \
+KlattGrid_ADD_FBA_VALUE (Name, namef, Bandwidth, Bandwidth, bandwidth, formantType, U"50.0", (Hz), (value>0), U"Bandwidth should be greater than zero.") \
+KlattGrid_ADD_FBA_VALUE (Name, namef, Amplitude, Amplitude, amplitude, formantType, U"0.0", (dB), (isdefined(value)), U"Amplitude should be defined.") \
 KlattGrid_REMOVE_FBA_VALUE (Name, namef, Formant, Frequency, frequency, formantType) \
 KlattGrid_REMOVE_FBA_VALUE (Name, namef, Bandwidth, Bandwidth, bandwidth, formantType) \
 KlattGrid_REMOVE_FBA_VALUE (Name, namef, Amplitude, Amplitude, amplitude, formantType) \
@@ -435,8 +435,8 @@ KlattGrid_ADD_FORMANT_AMPLITUDETIER (Name, namef, formantType)
 #define KlattGrid_FORMULA_ADD_REMOVE_FB(Name,namef,formantType)  \
 KlattGrid_FORMULA_FORMANT_FBA_VALUE (Name, namef, Frequencies, frequencies, U"if row = 2 then self + 200 else self fi",formantType, U" ") \
 KlattGrid_FORMULA_FORMANT_FBA_VALUE (Name, namef, Bandwidths, bandwidths, U"self / 10 ; 10% of frequency",formantType, U"Warning: self is formant frequency.") \
-KlattGrid_ADD_FBA_VALUE (Name, namef, Formant,Frequency, frequency, formantType, U"500.0", (Hz), (value>0), U"Frequency must be greater than zero.") \
-KlattGrid_ADD_FBA_VALUE (Name, namef, Bandwidth, Bandwidth, bandwidth, formantType,  U"50.0", (Hz), (value>0), U"Bandwidth must be greater than zero.") \
+KlattGrid_ADD_FBA_VALUE (Name, namef, Formant,Frequency, frequency, formantType, U"500.0", (Hz), (value>0), U"Frequency should be greater than zero.") \
+KlattGrid_ADD_FBA_VALUE (Name, namef, Bandwidth, Bandwidth, bandwidth, formantType,  U"50.0", (Hz), (value>0), U"Bandwidth should be greater than zero.") \
 KlattGrid_REMOVE_FBA_VALUE (Name, namef, Formant, Frequency, frequency, formantType) \
 KlattGrid_REMOVE_FBA_VALUE (Name, namef, Bandwidth, Bandwidth, bandwidth, formantType) \
 KlattGrid_ADD_FORMANT(Name,namef,formantType) \
@@ -447,8 +447,8 @@ KlattGrid_REMOVE_FORMANT (Name, namef, formantType)
 #define KlattGrid_FORMULA_ADD_REMOVE_FB_DELTA(Name,namef,formantType)  \
 KlattGrid_FORMULA_FORMANT_FBA_VALUE (Name, namef, Frequencies, frequencies, U"if row = 2 then self + 200 else self fi",formantType, U" ") \
 KlattGrid_FORMULA_FORMANT_FBA_VALUE (Name, namef, Bandwidths, bandwidths, U"self / 10 ; 10% of frequency",formantType, U"Warning: self is formant frequency.") \
-KlattGrid_ADD_FBA_VALUE (Name, namef, Formant,Frequency, frequency, formantType, U"-100.0", (Hz), (isdefined(value)), U"Frequency must be defined.") \
-KlattGrid_ADD_FBA_VALUE (Name, namef, Bandwidth, Bandwidth, bandwidth, formantType,  U"-50.0", (Hz), (isdefined(value)), U"Bandwidth must be defined.") \
+KlattGrid_ADD_FBA_VALUE (Name, namef, Formant,Frequency, frequency, formantType, U"-100.0", (Hz), (isdefined(value)), U"Frequency should be defined.") \
+KlattGrid_ADD_FBA_VALUE (Name, namef, Bandwidth, Bandwidth, bandwidth, formantType,  U"-50.0", (Hz), (isdefined(value)), U"Bandwidth should be defined.") \
 KlattGrid_REMOVE_FBA_VALUE (Name, namef, Formant, Frequency, frequency, formantType) \
 KlattGrid_REMOVE_FBA_VALUE (Name, namef, Bandwidth, Bandwidth, bandwidth, formantType) \
 KlattGrid_ADD_FORMANT_FREQUENCYANDBANDWIDTHTIERS (Name, namef, formantType) \
@@ -474,7 +474,7 @@ KlattGrid_FORMULA_ADD_REMOVE_FBA (Frication, frication f, KlattGrid_FRICATION_FO
 DIRECT (NEW_KlattGrid_extractPointProcess_glottalClosures) {
 	CONVERT_EACH (KlattGrid)
 		autoPointProcess result = KlattGrid_extractPointProcess_glottalClosures (me);
-	CONVERT_EACH_END (my name)
+	CONVERT_EACH_END (my name.get())
 }
 
 FORM (MODIFY_KlattGrid_formula_frequencies, U"KlattGrid: Formula (frequencies)", U"Formant: Formula (frequencies)...") {
@@ -543,7 +543,7 @@ KlattGrid_FORMANT_GET_A_VALUE (Frication, frication, KlattGrid_FRICATION_FORMANT
 #define KlattGrid_EXTRACT_FORMANT_GRID(Name,gridType)  \
 DIRECT (NEW_KlattGrid_extract##Name##FormantGrid) { \
 	LOOP { iam (KlattGrid); \
-		praat_new (KlattGrid_extractFormantGrid (me, gridType), formant_names[gridType]); \
+		praat_new (KlattGrid_extractFormantGrid (me, gridType), formant_names [gridType]); \
 	} \
 END }
 
@@ -553,7 +553,7 @@ FORM (NEW_KlattGrid_extract##Name##FormantAmplitudeTier, U"KlattGrid: Extract " 
 	OK \
 DO \
 	LOOP { iam (KlattGrid); \
-		praat_new (KlattGrid_extractAmplitudeTier (me, formantType, formantNumber), formant_names[formantType]); \
+		praat_new (KlattGrid_extractAmplitudeTier (me, formantType, formantNumber), formant_names [formantType]); \
 	} \
 END }
 
@@ -672,8 +672,8 @@ DO \
 	} \
 END }
 
-KlattGrid_FORMANT_GET_ADD_REMOVE (Formant, formant, U" (Hz)", U"500.0", (value > 0), U"Frequency must be greater than zero.")
-KlattGrid_FORMANT_GET_ADD_REMOVE (Bandwidth, bandwidth, U" (Hz)", U"50.0", (value > 0), U"Bandwidth must be greater than zero.")
+KlattGrid_FORMANT_GET_ADD_REMOVE (Formant, formant, U" (Hz)", U"500.0", (value > 0), U"Frequency should be greater than zero.")
+KlattGrid_FORMANT_GET_ADD_REMOVE (Bandwidth, bandwidth, U" (Hz)", U"50.0", (value > 0), U"Bandwidth should be greater than zero.")
 
 #undef KlattGrid_FORMANT_GET_ADD_REMOVE
 
@@ -784,14 +784,14 @@ DO
 		KlattGrid_formantSelection_coupling (me, fromTrachealFormant, toTrachealFormant, fromTrachealAntiFormant, toTrachealAntiFormant, fromDeltaFormant, toDeltaFormant, fromDeltaBandwidth, toDeltaBandwidth);
 		KlattGrid_formantSelection_frication (me, fromFricationFormant, toFricationFormant, useFricationBypass);
 		autoSound result = KlattGrid_to_Sound (me);
-	CONVERT_EACH_END (my name)
+	CONVERT_EACH_END (my name.get())
 }
 
 DIRECT (NEW_KlattGrid_to_Sound) {
 	CONVERT_EACH (KlattGrid)
 		KlattGrid_setDefaultPlayOptions (me);
 		autoSound result = KlattGrid_to_Sound (me);
-	CONVERT_EACH_END (my name)
+	CONVERT_EACH_END (my name.get())
 }
 
 FORM (PLAY_KlattGrid_playSpecial, U"KlattGrid: Play special", U"KlattGrid: Play special...") {
@@ -828,7 +828,7 @@ DO
 		KlattGrid_PhonationGridPlayOptions (me, useVoicing, useFlutter, useDoublePulsing, useCollisionPhase, useSpectralTilt, flowFunctionType, useFlowDerivative, useAspiration, useBreathiness);
 		my options -> samplingFrequency = samplingFrequency;
 		autoSound result = KlattGrid_to_Sound_phonation (me);
-	CONVERT_EACH_END (my name, U"_phonation") 
+	CONVERT_EACH_END (my name.get(), U"_phonation")
 }
 
 DIRECT (HELP_KlattGrid_help)  {
@@ -894,7 +894,7 @@ FORM (NEW_Sound_KlattGrid_filterByVocalTract, U"Sound & KlattGrid: Filter by voc
 DO
 	CONVERT_TWO (Sound, KlattGrid)
 		autoSound result = Sound_KlattGrid_filterByVocalTract (me, you, filtersStructure);
-	CONVERT_TWO_END (my name, U"_", your name)
+	CONVERT_TWO_END (my name.get(), U"_", your name.get())
 }
 
 void praat_KlattGrid_init ();

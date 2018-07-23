@@ -105,7 +105,11 @@ enum {
 
 	// these need a phoneme table to have been specified
 	V_REPLACE,
-	V_CONSONANTS
+	V_CONSONANTS,
+
+	// these are alpha features that need to be tested and categorized
+	V_LETTER_VOWEL
+
 };
 
 static MNEM_TAB options_tab[] = {
@@ -134,7 +138,7 @@ static MNEM_TAB keyword_tab[] = {
 	{ "intonation",   V_INTONATION },
 	{ "tunes",        V_TUNES },
 	{ "dictrules",    V_DICTRULES },
-	{ "stressrule",   V_STRESSRULE },
+	{ "stressRule",   V_STRESSRULE },
 	{ "stressopt",    V_STRESSOPT },
 	{ "replace",      V_REPLACE },
 	{ "words",        V_WORDGAP },
@@ -164,6 +168,8 @@ static MNEM_TAB keyword_tab[] = {
 	{ "l_length_mods",    0x100+LOPT_LENGTH_MODS },
 	{ "apostrophe",       0x100+LOPT_APOSTROPHE },
 
+	// these are alpha features that need to be tested and categorized
+	{ "letterVowel", V_LETTER_VOWEL },
 	{ NULL, 0 }
 };
 
@@ -853,6 +859,27 @@ voice_t *LoadVoice(const char *vname, int control)
 		case V_MAINTAINER:
 		case V_STATUS:
 			break;
+
+		case V_LETTER_VOWEL: {
+			char str[5] = "";
+			char c = '0';
+			char *endptr = NULL;
+			sscanf(p, "%s", str);
+			// assume a hex value if string starts with "0x"
+			if (str[0] == '0' && str[1] == 'x') {
+				c = strtoul(str, &endptr, 16);
+				if (errno == ERANGE)
+					fprintf(stderr, "letterVowel out of range.\n");
+			}
+			else  {// otherwise, assume a single letter
+				c = str[0];
+				if (c < 97 || c > 122) // valid values are a-z, ascii 97-122
+					fprintf(stderr, "letterVowel out of range.\n");
+			}
+ 			new_translator->letter_bits[c] = (new_translator->letter_bits[c] & 0x40) | 0x81; // keep value for group 6 (front vowels e,i,y)
+			break;
+			}
+
 		default:
 			if ((key & 0xff00) == 0x100) {
 				if (langopts)
@@ -982,7 +1009,7 @@ voice_t *LoadVoiceVariant(const char *vname, int variant_num)
 	return v;
 }
 
-static int __cdecl VoiceNameSorter(const void *p1, const void *p2)
+static int VoiceNameSorter(const void *p1, const void *p2)
 {
 	int ix;
 	espeak_VOICE *v1 = *(espeak_VOICE **)p1;
@@ -995,7 +1022,7 @@ static int __cdecl VoiceNameSorter(const void *p1, const void *p2)
 	return strcmp(v1->name, v2->name);
 }
 
-static int __cdecl VoiceScoreSorter(const void *p1, const void *p2)
+static int VoiceScoreSorter(const void *p1, const void *p2)
 {
 	int ix;
 	espeak_VOICE *v1 = *(espeak_VOICE **)p1;
@@ -1185,7 +1212,7 @@ static int SetVoiceScores(espeak_VOICE *voice_select, espeak_VOICE **voices, int
 		return 0;
 
 	// sort the selected voices by their score
-	qsort(voices, nv, sizeof(espeak_VOICE *), (int(__cdecl *)(const void *, const void *))VoiceScoreSorter);
+	qsort(voices, nv, sizeof(espeak_VOICE *), (int(*)(const void *, const void *))VoiceScoreSorter);
 
 	return nv;
 }
@@ -1373,7 +1400,7 @@ char const *SelectVoice(espeak_VOICE *voice_select, int *found)
 	return vp->identifier;
 }
 
-#ifndef DATA_FROM_SOURCECODE_FILES
+#if ! DATA_FROM_SOURCECODE_FILES
 void GetVoices(const char *path, int len_path_voices, int is_language_file)
 {
 	FILE *f_voice;
@@ -1566,7 +1593,7 @@ ESPEAK_API const espeak_VOICE **espeak_ListVoices(espeak_VOICE *voice_spec)
 
 	// sort the voices list
 	qsort(voices_list, n_voices_list, sizeof(espeak_VOICE *),
-	      (int(__cdecl *)(const void *, const void *))VoiceNameSorter);
+	      (int(*)(const void *, const void *))VoiceNameSorter);
 
 	if (voice_spec) {
 		// select the voices which match the voice_spec, and sort them by preference

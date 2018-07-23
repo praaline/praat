@@ -1,6 +1,6 @@
 /* manual_tutorials.cpp
  *
- * Copyright (C) 1992-2017 Paul Boersma
+ * Copyright (C) 1992-2018 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,10 +22,24 @@
 void manual_tutorials_init (ManPages me);
 void manual_tutorials_init (ManPages me) {
 
-MAN_BEGIN (U"What's new?", U"ppgb", 20171016)
+MAN_BEGIN (U"What's new?", U"ppgb", 20180511)
 INTRO (U"Latest changes in Praat.")
 //LIST_ITEM (U"• Manual page about @@drawing a vowel triangle@.")
 
+NORMAL (U"##6.0.40# (11 May 2018)")
+LIST_ITEM (U"• Scripting: @@Scripting 4.3. Querying objects|selected\\#  ()@.")
+LIST_ITEM (U"• Table window: cell selection.")
+LIST_ITEM (U"• Unicode-savvy regular expressions.")
+NORMAL (U"##6.0.39# (3 April 2018)")
+LIST_ITEM (U"• More string matching (case-insensive, word-level).")
+NORMAL (U"##6.0.38# (29 March 2018)")
+LIST_ITEM (U"• Concordance: ##TextGrid: Tabulate occurrences...#.")
+LIST_ITEM (U"• Some @@Independent Component Analysis on EEG@.")
+LIST_ITEM (U"• Removed many small bugs.")
+NORMAL (U"##6.0.37# (3 February 2018)")
+LIST_ITEM (U"• Graphics: fixed crashing bug with \\bsun trigraph.")
+NORMAL (U"##6.0.36# (11 November 2017)")
+LIST_ITEM (U"• Many more languages for SpeechSynthesizer and automatic alignment (new eSpeak).")
 NORMAL (U"##6.0.35# (16 October 2017)")
 LIST_ITEM (U"• Fixed a bug introduced in 6.0.23 by which ##Remove right boundary# would sometimes incorrectly refuse.")
 NORMAL (U"##6.0.34# (10 October 2017)")
@@ -1683,7 +1697,7 @@ ENTRY (U"Praat 3.7, 24 March 1998")
 	LIST_ITEM (U"• Many new interpolations.")
 	LIST_ITEM (U"• Sound enhancements: @@Sound: Lengthen (overlap-add)...@, @@Sound: Deepen band modulation...@")
 	LIST_ITEM (U"• @@Source-filter synthesis@ tutorial, @@Sound & IntensityTier: Multiply@, "
-		"##Sound & FormantTier: Filter#, @@Formant: Formula (frequencies)...@, @@Sound: Pre-emphasize (in-line)...@.")
+		"##Sound & FormantTier: Filter#, @@Formant: Formula (frequencies)...@, @@Sound: Pre-emphasize (in-place)...@.")
 	NORMAL (U"Labelling")
 	LIST_ITEM (U"• TextGrid queries (#Get times and labels in a script).")
 	LIST_ITEM (U"• @@TextGrid: Count labels...@.")
@@ -1895,7 +1909,7 @@ LIST_ITEM (U"GLPK: GNU Linear Programming Kit by Andrew Makhorin (GPL 3 or later
 	"contains AMD software by the same author (LGPL 2.1 or later).")
 LIST_ITEM (U"PortAudio: Portable Audio Library by Ross Bencina, Phil Burk, Bjorn Roche, Dominic Mazzoni, Darren Gibbs "
 	"(CC-BY-like license).")
-LIST_ITEM (U"Espeak: text-to-speech synthesizer by Jonathan Duddington (GPL 3 or later).")
+LIST_ITEM (U"Espeak: text-to-speech synthesizer by Jonathan Duddington and Reece Dunn (GPL 3 or later).")
 LIST_ITEM (U"MAD: MPEG Audio Decoder by Underbit Technologies (GPL 2 or later).")
 LIST_ITEM (U"FLAC: Free Lossless Audio Codec by Josh Coalson (BSD 3-clause license).")
 LIST_ITEM (U"fftpack: public domain Fourier transforms by Paul Swarztrauber and Christopher Montgomery.")
@@ -2162,10 +2176,10 @@ NORMAL (U"Some very fast Infinite Impulse Response (IIR) filters can be defined 
 LIST_ITEM (U"• @@Sound: Filter (one formant)...@")
 LIST_ITEM (U"• @@Sound: Filter (pre-emphasis)...@")
 LIST_ITEM (U"• @@Sound: Filter (de-emphasis)...@")
-NORMAL (U"And there are in-line versions, which modify the existing Sound objects:")
-LIST_ITEM (U"• @@Sound: Filter with one formant (in-line)...@")
-LIST_ITEM (U"• @@Sound: Pre-emphasize (in-line)...@")
-LIST_ITEM (U"• @@Sound: De-emphasize (in-line)...@")
+NORMAL (U"And there are in-place versions, which modify the existing Sound objects:")
+LIST_ITEM (U"• @@Sound: Filter with one formant (in-place)...@")
+LIST_ITEM (U"• @@Sound: Pre-emphasize (in-place)...@")
+LIST_ITEM (U"• @@Sound: De-emphasize (in-place)...@")
 ENTRY (U"Convolution")
 NORMAL (U"A Finite Impulse Response (FIR) filter can be described as a sampled sound. "
 	"Filtering with such a filter amounts to a %#convolution of the original sound and the filter:")

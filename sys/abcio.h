@@ -2,7 +2,7 @@
 #define _abcio_h_
 /* abcio.h
  *
- * Copyright (C) 1992-2011,2015,2017 Paul Boersma
+ * Copyright (C) 1992-2011,2015,2017,2018 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ int texgeti8 (MelderReadText text);
 int16 texgeti16 (MelderReadText text);
 int32 texgeti32 (MelderReadText text);
 integer texgetinteger (MelderReadText text);
+#define texgetinteger32BE texgetinteger
 unsigned int texgetu8 (MelderReadText text);
 uint16 texgetu16 (MelderReadText text);
 uint32 texgetu32 (MelderReadText text);
@@ -42,37 +43,38 @@ int texgete16 (MelderReadText text, enum_generic_getValue getValue);
 bool texgeteb (MelderReadText text);
 bool texgeteq (MelderReadText text);
 bool texgetex (MelderReadText text);
-char *texgets16 (MelderReadText text);
-char *texgets32 (MelderReadText text);
-char32 *texgetw16 (MelderReadText text);
-char32 *texgetw32 (MelderReadText text);
+autostring8 texgets16 (MelderReadText text);
+autostring8 texgets32 (MelderReadText text);
+autostring32 texgetw16 (MelderReadText text);
+autostring32 texgetw32 (MelderReadText text);
 
 void texindent (MelderFile file);
 void texexdent (MelderFile file);
 void texresetindent (MelderFile file);
-void texputintro (MelderFile file, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
+void texputintro (MelderFile file, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
 
-void texputi8 (MelderFile file, int i, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputi16 (MelderFile file, int i, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputi32 (MelderFile file, long i, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputinteger (MelderFile file, integer i, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputu8 (MelderFile file, unsigned int u, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputu16 (MelderFile file, unsigned int u, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputu32 (MelderFile file, unsigned long u, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputr32 (MelderFile file, double x, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputr64 (MelderFile file, double x, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputc64 (MelderFile file, dcomplex z, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputc128 (MelderFile file, dcomplex z, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texpute8 (MelderFile file, int i, const char32 * (*getText) (int), const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texpute16 (MelderFile file, int i, const char32 * (*getText) (int), const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputeb (MelderFile file, bool i, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputeq (MelderFile file, bool i, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputex (MelderFile file, bool i, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputs8 (MelderFile file, const char *s, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputs16 (MelderFile file, const char *s, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputs32 (MelderFile file, const char *s, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputw16 (MelderFile file, const char32  *s, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
-void texputw32 (MelderFile file, const char32 *s, const char32 *s1, const char32 *s2, const char32 *s3, const char32 *s4, const char32 *s5, const char32 *s6);
+void texputi8 (MelderFile file, int i, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texputi16 (MelderFile file, int i, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texputi32 (MelderFile file, long i, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texputinteger (MelderFile file, integer i, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+#define texputinteger32BE texputinteger
+void texputu8 (MelderFile file, unsigned int u, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texputu16 (MelderFile file, unsigned int u, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texputu32 (MelderFile file, unsigned long u, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texputr32 (MelderFile file, double x, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texputr64 (MelderFile file, double x, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texputc64 (MelderFile file, dcomplex z, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texputc128 (MelderFile file, dcomplex z, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texpute8 (MelderFile file, int i, conststring32 (*getText) (int), conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texpute16 (MelderFile file, int i, conststring32 (*getText) (int), conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texputeb (MelderFile file, bool i, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texputeq (MelderFile file, bool i, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texputex (MelderFile file, bool i, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texputs8 (MelderFile file, const char *s, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texputs16 (MelderFile file, const char *s, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texputs32 (MelderFile file, const char *s, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texputw16 (MelderFile file, const char32  *s, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
+void texputw32 (MelderFile file, conststring32 s, conststring32 s1, conststring32 s2, conststring32 s3, conststring32 s4, conststring32 s5, conststring32 s6);
 
 /* Portable device-independent binary input and output. */
 /* Works on all machines with 8-bit bytes and chars, and 2's complement integers. */
@@ -89,7 +91,7 @@ int bingeti8 (FILE *f);   void binputi8 (int i, FILE *f);   /* -128..127 */
 int16 bingeti16 (FILE *f);   void binputi16 (int16 i, FILE *f);   // -32768..32767
 int32 bingeti24 (FILE *f);   void binputi24 (int32 i, FILE *f);   // -8388608..8388607
 int32 bingeti32 (FILE *f);   void binputi32 (int32 i, FILE *f);   // -2147483648..2147483647
-integer bingetinteger (FILE *f);   void binputinteger (integer i, FILE *f);
+integer bingetinteger32BE (FILE *f);   void binputinteger32BE (integer i, FILE *f);
 /*
 	Read or write signed or unsigned integers from or to 2 or 4 bytes in the stream 'f',
 	in big-endian byte order (most significant byte first).
@@ -131,8 +133,8 @@ void bingetb (FILE *f);   void binputb (FILE *f);
 		binputb (f);
 */
 
-int bingete8 (FILE *f, int min, int max, const char32 *type);
-int bingete16 (FILE *f, int min, int max, const char32 *type);
+int bingete8 (FILE *f, int min, int max, conststring32 type);
+int bingete16 (FILE *f, int min, int max, conststring32 type);
 bool bingetbool8 (FILE *f);
 #define bingeteb bingetbool8
 #define bingeteq bingetbool8
@@ -183,9 +185,9 @@ dcomplex bingetc128 (FILE *f);
 void binputc64 (dcomplex z, FILE *f);
 void binputc128 (dcomplex z, FILE *f);
 
-char * bingets8 (FILE *f);   void binputs8 (const char *s, FILE *f);   // 0..255 characters
-char * bingets16 (FILE *f);   void binputs16 (const char *s, FILE *f);   // 0..65535 characters
-char * bingets32 (FILE *f);   void binputs32 (const char *s, FILE *f);   // 0..4294967295 characters
+autostring8 bingets8 (FILE *f);   void binputs8 (const char *s, FILE *f);   // 0..255 characters
+autostring8 bingets16 (FILE *f);   void binputs16 (const char *s, FILE *f);   // 0..65535 characters
+autostring8 bingets32 (FILE *f);   void binputs32 (const char *s, FILE *f);   // 0..4294967295 characters
 /*
 	Read or write a string from or to `str32len(s)` UTF-16LE or ASCII characters plus 1, 2, or 4 bytes in the stream `f`,
 	in a Pascal-style format: first the length, then the characters, without a trailing null byte.
@@ -193,9 +195,9 @@ char * bingets32 (FILE *f);   void binputs32 (const char *s, FILE *f);   // 0..4
 	Fail if out of memory.
 	binputsxxx expects a null-terminated C string whose `str32len` fits in 1, 2, or 4 bytes.
 */
-char32 * bingetw8 (FILE *f);   void binputw8 (const char32 *s, FILE *f);
-char32 * bingetw16 (FILE *f);   void binputw16 (const char32 *s, FILE *f);
-char32 * bingetw32 (FILE *f);   void binputw32 (const char32 *s, FILE *f);
+autostring32 bingetw8 (FILE *f);   void binputw8 (conststring32 s, FILE *f);
+autostring32 bingetw16 (FILE *f);   void binputw16 (conststring32 s, FILE *f);
+autostring32 bingetw32 (FILE *f);   void binputw32 (conststring32 s, FILE *f);
 
 /* End of file abcio.h */
 #endif
