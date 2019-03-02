@@ -18,7 +18,7 @@
 
 #include <ctype.h>
 #include "ManPages.h"
-#include "longchar.h"
+#include "../kar/longchar.h"
 #include "Interpreter.h"
 #include "praat.h"
 
@@ -36,13 +36,16 @@ static bool isSingleWordCharacter (char32 c) {
 static integer lookUp_unsorted (ManPages me, conststring32 title);
 
 void structManPages :: v_destroy () noexcept {
+	/*
+		A ManPages object is the ambiguous owner of its paragraphs.
+	*/
 	if (our dynamic) {
 		for (integer ipage = 1; ipage <= our pages.size; ipage ++) {
 			ManPage page = our pages.at [ipage];
 			if (page -> paragraphs) {
 				ManPage_Paragraph par;
 				for (par = page -> paragraphs; (int) par -> type != 0; par ++)
-					Melder_free (par -> text);
+					Melder_free (par -> text);   // not an autostring32, because it can be a string literal (if not dynamic)
 				NUMvector_free <struct structManPage_Paragraph> (page -> paragraphs, 0);
 			}
 			if (ipage == 1) {
@@ -416,17 +419,16 @@ static integer ManPages_lookUp_caseSensitive (ManPages me, conststring32 title) 
 	return 0;
 }
 
-char32 **ManPages_getTitles (ManPages me, integer *numberOfTitles) {
+conststring32vector ManPages_getTitles (ManPages me) {
 	if (! my ground) grind (me);
 	if (! my titles) {
 		my titles = autostring32vector (my pages.size);
 		for (integer i = 1; i <= my pages.size; i ++) {
 			ManPage page = my pages.at [i];
-			my titles [i] = Melder_dup_f (page -> title.get());
+			my titles [i] = Melder_dup (page -> title.get());
 		}
 	}
-	*numberOfTitles = my pages.size;
-	return my titles.peek2();
+	return my titles.get();
 }
 
 static const struct stylesInfo {
@@ -482,8 +484,7 @@ static void writeParagraphsAsHtml (ManPages me, MelderFile file, ManPage_Paragra
 			structMelderFile pngFile;
 			MelderFile_copy (file, & pngFile);
 			pngFile. path [str32len (pngFile. path) - 5] = U'\0';   // delete extension ".html"
-			str32cpy (pngFile. path + str32len (pngFile. path),
-				Melder_cat (U"_", numberOfPictures, U".png"));
+			str32cat (pngFile. path, Melder_cat (U"_", numberOfPictures, U".png"));
 			{// scope
 				autoGraphics graphics = Graphics_create_pngfile (& pngFile, 300, 0.0, paragraph -> width, 0.0, paragraph -> height);
 				Graphics_setFont (graphics.get(), kGraphics_font::TIMES);
@@ -503,13 +504,12 @@ static void writeParagraphsAsHtml (ManPages me, MelderFile file, ManPage_Paragra
 		if (paragraph -> type == kManPage_type::SCRIPT) {
 			autoInterpreter interpreter = Interpreter_createFromEnvironment (nullptr);
 			numberOfPictures ++;
-			structMelderFile pdfFile;
-			MelderFile_copy (file, & pdfFile);
-			pdfFile. path [str32len (pdfFile. path) - 5] = U'\0';   // delete extension ".html"
-			str32cpy (pdfFile. path + str32len (pdfFile.path),
-				Melder_cat (U"_", numberOfPictures, U".pdf"));
+			structMelderFile pngFile;
+			MelderFile_copy (file, & pngFile);
+			pngFile. path [str32len (pngFile. path) - 5] = U'\0';   // delete extension ".html"
+			str32cat (pngFile. path, Melder_cat (U"_", numberOfPictures, U".png"));
 			{// scope
-				autoGraphics graphics = Graphics_create_pdffile (& pdfFile, 100, 0.0, paragraph -> width, 0.0, paragraph -> height);
+				autoGraphics graphics = Graphics_create_pngfile (& pngFile, 300, 0.0, paragraph -> width, 0.0, paragraph -> height);
 				Graphics_setFont (graphics.get(), kGraphics_font::TIMES);
 				Graphics_setFontStyle (graphics.get(), 0);
 				Graphics_setFontSize (graphics.get(), 12);
@@ -557,7 +557,7 @@ static void writeParagraphsAsHtml (ManPages me, MelderFile file, ManPage_Paragra
 						autostring32 text = Melder_dup (p);
 						Interpreter_run (interpreter.get(), text.get());
 					} catch (MelderError) {
-						trace (U"interpreter fails on ", pdfFile. path);
+						trace (U"interpreter fails on ", pngFile. path);
 						Melder_flushError ();
 					}
 				}
@@ -565,17 +565,8 @@ static void writeParagraphsAsHtml (ManPages me, MelderFile file, ManPage_Paragra
 				Graphics_setWindow (graphics.get(), 0.0, 1.0, 0.0, 1.0);
 				Graphics_setTextAlignment (graphics.get(), Graphics_LEFT, Graphics_BOTTOM);
 			}
-			structMelderFile tiffFile;
-			MelderFile_copy (file, & tiffFile);
-			tiffFile. path [str32len (tiffFile. path) - 5] = U'\0';   // delete extension ".html"
-			str32cpy (tiffFile. path + str32len (tiffFile. path),
-				Melder_cat (U"_", numberOfPictures, U".png"));
-			system (Melder_peek32to8 (Melder_cat (U"/usr/local/bin/gs -q -dNOPAUSE "
-				"-r200x200 -sDEVICE=png16m -sOutputFile=", tiffFile.path,
-				U" ", pdfFile. path, U" quit.ps")));
-			MelderFile_delete (& pdfFile);
 			MelderString_append (buffer, U"<p align=middle><img height=", paragraph -> height * 100,
-				U" width=", paragraph -> width * 100, U" src=", MelderFile_name (& tiffFile), U"></p>");
+				U" width=", paragraph -> width * 100, U" src=", MelderFile_name (& pngFile), U"></p>");
 			theCurrentPraatApplication = & theForegroundPraatApplication;
 			theCurrentPraatObjects = & theForegroundPraatObjects;
 			theCurrentPraatPicture = & theForegroundPraatPicture;
@@ -815,7 +806,7 @@ static void writePageAsHtml (ManPages me, MelderFile file, integer ipage, Melder
 		while ((int) page -> paragraphs [lastParagraph]. type != 0) lastParagraph ++;
 		if (lastParagraph > 0) {
 			conststring32 text = page -> paragraphs [lastParagraph - 1]. text;
-			if (text && text [0] && text [str32len (text) - 1] != U':')
+			if (text && text [0] != U'\0' && text [str32len (text) - 1] != U':')
 				MelderString_append (buffer, U"<h3>Links to this page</h3>\n");
 		}
 		MelderString_append (buffer, U"<ul>\n");
@@ -874,7 +865,7 @@ void ManPages_writeAllToHtmlDir (ManPages me, conststring32 dirPath) {
 		if (fileName [0] == U'\0')
 			str32cpy (fileName, U"_");   // no empty file names please
 		fileName [LONGEST_FILE_NAME] = U'\0';
-		str32cpy (fileName + str32len (fileName), U".html");
+		str32cat (fileName, U".html");
 		static MelderString buffer { };
 		MelderString_empty (& buffer);
 		structMelderFile file { };

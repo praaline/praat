@@ -1,6 +1,6 @@
 /* SVD.h
  *
- * Copyright (C) 1994-2017 David Weenink
+ * Copyright (C) 1994-2018 David Weenink
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,12 +36,9 @@ autoSVD SVD_create (integer numberOfRows, integer numberOfColumns);
 	where eps is the floating point precision, approximately 2.2e-16
 */
 
-autoSVD SVD_create_d (double **m, integer numberOfRows, integer numberOfColumns);
-/*
-	Copy matrix into svd->u and calculate U D V'
-*/
+autoSVD SVD_createFromGeneralMatrix (constMAT m);
 
-void SVD_svd_d (SVD me, double **m);
+void SVD_svd_d (SVD me, constMAT m);
 /*
 	Perform SVD analysis on matrix M, i.e., decompose M as M = UDV'.
 	Watch out: dataType contains V, not V' !!
@@ -49,7 +46,7 @@ void SVD_svd_d (SVD me, double **m);
 
 void SVD_compute (SVD me);
 
-void SVD_solve (SVD me, double b[], double x[]);
+autoVEC SVD_solve (SVD me, constVEC b);
 /* Solve Ax = b */
 
 void SVD_solve2 (SVD me, double b[], double x[], double fractionOfSumOfSingularValues);
@@ -78,23 +75,24 @@ integer SVD_zeroSmallSingularValues (SVD me, double tolerance);
 	Return the number of s.v.'s zeroed.
 */
 
-void SVD_synthesize (SVD me, integer sv_from, integer sv_to, double **m);
+autoMAT SVD_synthesize (SVD me, integer sv_from, integer sv_to);
 /*
 	Synthesize matrix as U D(sv_from:sv_to) V'.
-	(The synthesized matrix is an approximation of the svd'ed matrix with
-	only a selected number of sv's).
+	(The synthesized matrix is an approximation of the svd'ed matrix if
+	only a selected number of sv's is used).
 	Matrix m is [numberOfRows x numberOfColumns] and must be allocated
 	by caller!
 */
 
-void SVD_getSquared (SVD me, double **m, bool inverse);
+autoMAT SVD_getSquared (SVD me, bool inverse);
+void SVD_getSquared_preallocated (MAT m, SVD me, bool inverse);
 // compute V D^2 V' or V D^-2 V'
 
 integer SVD_getRank (SVD me);
 
 autoGSVD GSVD_create (integer numberOfColumns);
 
-autoGSVD GSVD_create_d (double **m1, integer numberOfRows1, integer numberOfColumns, double **m2, integer numberOfRows2);
+autoGSVD GSVD_create_d (constMAT m1, constMAT m2);
 
 void GSVD_setTolerance (GSVD me, double tolerance);
 

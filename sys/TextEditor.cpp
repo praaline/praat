@@ -18,9 +18,9 @@
 
 #include "TextEditor.h"
 #include "machine.h"
-#include "longchar.h"
+#include "../kar/longchar.h"
 #include "EditorM.h"
-#include "UnicodeData.h"
+#include "../kar/UnicodeData.h"
 
 Thing_implement (TextEditor, Editor, 0);
 
@@ -114,7 +114,7 @@ static void cb_open_ok (UiForm sendingForm, integer /* narg */, Stackel /* args 
 static void cb_showOpen (EditorCommand cmd) {
 	TextEditor me = (TextEditor) cmd -> d_editor;
 	if (! my openDialog)
-		my openDialog = autoUiForm (UiInfile_create (my windowForm, U"Open", cb_open_ok, me, nullptr, nullptr, false));
+		my openDialog = UiInfile_create (my windowForm, U"Open", cb_open_ok, me, nullptr, nullptr, false);
 	UiInfile_do (my openDialog.get());
 }
 
@@ -128,7 +128,7 @@ static void cb_saveAs_ok (UiForm sendingForm, integer /* narg */, Stackel /* arg
 
 static void menu_cb_saveAs (TextEditor me, EDITOR_ARGS_DIRECT) {
 	if (! my saveDialog)
-		my saveDialog = autoUiForm (UiOutfile_create (my windowForm, U"Save", cb_saveAs_ok, me, nullptr, nullptr));
+		my saveDialog = UiOutfile_create (my windowForm, U"Save", cb_saveAs_ok, me, nullptr, nullptr);
 	char32 defaultName [300];
 	Melder_sprint (defaultName,300, ! my v_fileBased () ? U"info.txt" : my name [0] ? MelderFile_name (& my file) : U"");
 	UiOutfile_do (my saveDialog.get(), defaultName);
@@ -529,7 +529,7 @@ static void menu_cb_goToLine (TextEditor me, EDITOR_ARGS_FORM) {
 	EDITOR_DO
 		autostring32 text = GuiText_getString (my textWidget);
 		integer currentLine = 1;
-		int64 left = 0, right = 0;
+		integer left = 0, right = 0;
 		if (lineToGo == 1) {
 			for (; text [right] != U'\n' && text [right] != U'\0'; right ++) { }
 		} else {
@@ -572,10 +572,10 @@ static void menu_cb_convertToCString (TextEditor me, EDITOR_ARGS_DIRECT) {
 			MelderInfo_write (U"\\\\");
 		} else if (kar > 127) {
 			if (kar <= 0x00FFFF) {
-				MelderInfo_write (U"\\u", hex [kar >> 12], hex [(kar >> 8) & 0x00000F], hex [(kar >> 4) & 0x00000F], hex [kar & 0x00000F]);
+				MelderInfo_write (U"\\u", hex [kar >> 12], hex [(kar >> 8) & 0x00'000F], hex [(kar >> 4) & 0x00'000F], hex [kar & 0x00'000F]);
 			} else {
-				MelderInfo_write (U"\\U", hex [kar >> 28], hex [(kar >> 24) & 0x00000F], hex [(kar >> 20) & 0x00000F], hex [(kar >> 16) & 0x00000F],
-					hex [(kar >> 12) & 0x00000F], hex [(kar >> 8) & 0x00000F], hex [(kar >> 4) & 0x00000F], hex [kar & 0x00000F]);
+				MelderInfo_write (U"\\U", hex [kar >> 28], hex [(kar >> 24) & 0x00'000F], hex [(kar >> 20) & 0x00'000F], hex [(kar >> 16) & 0x00'000F],
+					hex [(kar >> 12) & 0x00'000F], hex [(kar >> 8) & 0x00'000F], hex [(kar >> 4) & 0x00'000F], hex [kar & 0x00'000F]);
 			}
 		} else {
 			buffer [0] = *p;

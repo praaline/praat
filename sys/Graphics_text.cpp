@@ -17,9 +17,9 @@
  */
 
 #include <ctype.h>
-#include "UnicodeData.h"
+#include "../kar/UnicodeData.h"
 #include "GraphicsP.h"
-#include "longchar.h"
+#include "../kar/longchar.h"
 #include "Printer.h"
 
 extern const char * ipaSerifRegularPS [];
@@ -769,7 +769,10 @@ static void charDraw (void *void_me, int xDC, int yDC, _Graphics_widechar *lc,
 
 			if (my d_macView) {
 				[my d_macView   lockFocus];
-				my d_macGraphicsContext = (CGContextRef) [[NSGraphicsContext currentContext] graphicsPort];
+				my d_macGraphicsContext =
+						Melder_systemVersion < 101400 ?
+							(CGContextRef) [[NSGraphicsContext currentContext] graphicsPort] :
+							[[NSGraphicsContext currentContext] CGContext];
 			}
             CGContextSaveGState (my d_macGraphicsContext);
             CGContextTranslateCTM (my d_macGraphicsContext, xDC, yDC);

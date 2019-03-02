@@ -441,7 +441,7 @@ INTRO (U"Determine from the selected @CCA and @Correlation objects the correlati
 	"coefficients%.")
 MAN_END
 
-MAN_BEGIN (U"CCA & Correlation: Get variance fraction...", U"djmw", 20060323)
+MAN_BEGIN (U"CCA & Correlation: Get variance fraction...", U"djmw", 20181112)
 INTRO (U"Determine from the selected @CCA and @Correlation objects the fraction of the variance "
 	"explained by the selected @@canonical variate@ range.")
 ENTRY (U"Settings")
@@ -452,7 +452,7 @@ DEFINITION (U"determines the canonical variates (or canonical variables).")
 ENTRY (U"Remarks")
 NORMAL (U"1. In general the variance fractions for a particular canonical variate in the "
 	"dependent and in the independent set are not the same.")
-NORMAL (U"2. In general, the variance fractions for all canonical variates do not sum to 1.")
+NORMAL (U"2. In general, the variance fractions for all canonical variates do not sum to 1. \n(The technical reason is that for canonical correlation analysis in general the eigenvectors are not orthogonal, i.e. they overlap and therefore, necessarily, also the variance fractions overlap.) ")
 ENTRY (U"Algorithm")
 NORMAL (U"The formula's can be found on page 170 of @@Cooley & Lohnes (1971)@.")
 NORMAL (U"For example, the fraction of the variance explained by the %i^^th^ canonical "
@@ -515,7 +515,7 @@ NORMAL (U"The scores for the dependent data will be in the lower numbered column
 MAN_END
 
 
-MAN_BEGIN (U"Canonical correlation analysis", U"djmw", 20170829)
+MAN_BEGIN (U"Canonical correlation analysis", U"djmw", 20181118)
 INTRO (U"This tutorial will show you how to perform canonical correlation "
        "analysis with Praat.")
 ENTRY (U"1. Objective of canonical correlation analysis")
@@ -608,7 +608,7 @@ CODE (U"u1     1      .      .     0.860   .      .")
 CODE (U"u2     .      1      .      .     0.531   .")
 CODE (U"u3     .      .      1      .      .     0.070")
 CODE (U"v1    0.860   .      .      1      .      .")
-CODE (U"v2     .     0.1     .      .      1      .")
+CODE (U"v2     .     0.531     .      .      1      .")
 CODE (U"v3     .      .     0.070   .      .      1")
 NORMAL (U"The scores with a dot are zero to numerical precision. In this table the "
 	"only correlations that differ from zero are the canonical correlations. "
@@ -1257,16 +1257,16 @@ DEFINITION (U"define the coefficients of each @@Chebyshev polynomials|Chebyshev 
 	"The coefficient of the polynomial with the highest degree comes last.")
 MAN_END
 
-MAN_BEGIN (U"Create ISpline...", U"djmw", 20040407)
+MAN_BEGIN (U"Create ISpline...", U"djmw", 20181224)
 INTRO (U"A command to create an @ISpline from a list of coefficients.")
 ENTRY (U"Settings")
 TAG (U"##Xmin# and ##Xmax#")
 DEFINITION (U"define the domain of the polynomial @spline.")
-TAG (U"%Degree")
+TAG (U"##Degree")
 DEFINITION (U"defines the degree of the polynomial @spline.")
-TAG (U"%Coefficients")
+TAG (U"##Coefficients")
 DEFINITION (U"define the coefficients of the basis polynomials.")
-TAG (U"%%Interior knots")
+TAG (U"##Interior knots")
 DEFINITION (U"define the positions in the domain where continuity conditions are defined.")
 ENTRY (U"Behaviour")
 NORMAL (U"The number of coefficients and the number of interior knots must satisfy "

@@ -36,27 +36,6 @@
 #include "enums_getValue.h"
 #include "Graphics_extensions_enums.h"
 
-autonumvec nummat_vectorize (nummat m, integer rowmin, integer rowmax, integer colmin, integer colmax, bool byColumns) {
-	NUMfixIndicesInRange (1, m.nrow, & rowmin, & rowmax);
-	NUMfixIndicesInRange (1, m.ncol, & colmin, & colmax);
-	integer numberOfElements = (rowmax  - rowmin + 1) * (colmax - colmin + 1), index = 0;
-	autonumvec result (numberOfElements, kTensorInitializationType::RAW);
-	if (byColumns) {
-		for (integer icol = colmin; icol <= colmax; icol++) {
-			for (integer irow = rowmin; irow <= rowmax; irow++) {
-				result [++ index] = m [irow] [icol];
-			}
-		}
-	} else {
-		for (integer irow = rowmin; irow <= rowmax; irow ++) {
-			for (integer icol = colmin; icol <= colmax; icol++) {
-				result [++ index] = m [irow] [icol];
-			}
-		}
-	}
-	return result;
-}
-
 void Matrix_scatterPlot (Matrix me, Graphics g, integer icx, integer icy,
 	double xmin, double xmax, double ymin, double ymax,
 	double size_mm, conststring32 mark, bool garnish)
@@ -111,6 +90,25 @@ void Matrix_scatterPlot (Matrix me, Graphics g, integer icx, integer icy,
 	}
 }
 
+static autoVEC nummat_vectorize (constMAT m, integer rowmin, integer rowmax, integer colmin, integer colmax, bool byColumns) {
+	integer numberOfElements = (rowmax - rowmin + 1) * (colmax - colmin + 1), index = 0;
+	autoVEC result (numberOfElements, kTensorInitializationType::RAW);   // TODO: this does two things, namely making a window and vectorizing
+	if (byColumns) {
+		for (integer icol = colmin; icol <= colmax; icol ++) {
+			for (integer irow = rowmin; irow <= rowmax; irow ++) {
+				result [++ index] = m [irow] [icol];
+			}
+		}
+	} else {
+		for (integer irow = rowmin; irow <= rowmax; irow ++) {
+			for (integer icol = colmin; icol <= colmax; icol ++) {
+				result [++ index] = m [irow] [icol];
+			}
+		}
+	}
+	return result;
+}
+
 void Matrix_drawAsSquares_inside (Matrix me, Graphics g, double xmin, double xmax, double ymin, double ymax, kGraphicsMatrixOrigin origin, double cellAreaScaleFactor, kGraphicsMatrixCellDrawingOrder drawingOrder) {
 	integer colmin, colmax, rowmin, rowmax;
 	integer numberOfColumns = Matrix_getWindowSamplesX (me, xmin, xmax, & colmin, & colmax);
@@ -124,8 +122,8 @@ void Matrix_drawAsSquares_inside (Matrix me, Graphics g, double xmin, double xma
 	} else if (drawingOrder == kGraphicsMatrixCellDrawingOrder::Random) {
 		Permutation_permuteRandomly_inplace (p.get(), 1, numberOfCells);
 	} else if (drawingOrder == kGraphicsMatrixCellDrawingOrder::IncreasingValues || drawingOrder == kGraphicsMatrixCellDrawingOrder::DecreasingValues) {
-		autonumvec v = nummat_vectorize ({my z, my ny, my nx}, rowmin, rowmax, colmin, colmax, false);
-		NUMsort2<double, integer> (numberOfCells, v.at, p -> p);
+		autoVEC v = nummat_vectorize (my z.get(), rowmin, rowmax, colmin, colmax, false);
+		NUMsortTogether (v.get(), p -> p.get());
 		if (drawingOrder == kGraphicsMatrixCellDrawingOrder::DecreasingValues) {
 			Permutation_reverse_inline (p.get(), 1, numberOfCells);
 		}
@@ -133,7 +131,7 @@ void Matrix_drawAsSquares_inside (Matrix me, Graphics g, double xmin, double xma
 		Permutation_tableJump_inline (p.get(), numberOfColumns, 1);
 	}
 	
-	double extremum = NUMmatrix_extremum<double> (my z, 1, my ny, 1, my nx);
+	double extremum = NUMextremum (my z.get(), 1, my ny, 1, my nx);
 
 	extremum = fabs (extremum);
 	Graphics_Colour colour = Graphics_inqColour (g);
@@ -162,10 +160,10 @@ void Matrix_drawAsSquares_inside (Matrix me, Graphics g, double xmin, double xma
 		}
 		double cellRight = cellLeft + 2.0 * halfCellWidth;
 		double cellBottom = cellTop - 2.0 * halfCellHeight;
-		cellLeft = cellLeft < xmin ? xmin : cellLeft;
-		cellRight = cellRight > xmax ? xmax : cellRight;
-		cellTop = cellTop > ymax ? ymax : cellTop;
-		cellBottom = cellBottom < ymin ? ymin : cellBottom;
+		cellLeft = std::max (cellLeft, xmin);
+		cellRight = std::min (cellRight, xmax);
+		cellTop = std::min (cellTop, ymax);
+		cellBottom = std::max (cellBottom, ymin);
 		if (z > 0.0) {
 			Graphics_setColour (g, Graphics_WHITE);
 		}
@@ -176,8 +174,6 @@ void Matrix_drawAsSquares_inside (Matrix me, Graphics g, double xmin, double xma
 }
 
 void Matrix_drawAsSquares (Matrix me, Graphics g, double xmin, double xmax, double ymin, double ymax, int garnish) {
-	Graphics_Colour colour = Graphics_inqColour (g);
-
 	if (xmax <= xmin) {
 		xmin = my xmin;
 		xmax = my xmax;
@@ -213,7 +209,7 @@ void Matrix_scale (Matrix me, int choice) {
 	if (choice == 2) { // by row
 		for (integer i = 1; i <= my ny; i ++) {
 			Matrix_getWindowExtrema (me, 1, my nx, i, i, &min, &max);
-			extremum = fabs (max) > fabs (min) ? fabs (max) : fabs (min);
+			extremum = std::max (fabs (max), fabs (min));
 			if (extremum == 0.0) {
 				nZero ++;
 			} else {
@@ -225,7 +221,7 @@ void Matrix_scale (Matrix me, int choice) {
 	} else if (choice == 3) { // by col
 		for (integer j = 1; j <= my nx; j ++) {
 			Matrix_getWindowExtrema (me, j, j, 1, my ny, &min, &max);
-			extremum = fabs (max) > fabs (min) ? fabs (max) : fabs (min);
+			extremum = std::max (fabs (max), fabs (min));
 			if (extremum == 0.0) {
 				nZero ++;
 			} else {
@@ -236,7 +232,7 @@ void Matrix_scale (Matrix me, int choice) {
 		}
 	} else if (choice == 1) { // overall
 		Matrix_getWindowExtrema (me, 1, my nx, 1, my ny, &min, &max);
-		extremum =  fabs (max) > fabs (min) ? fabs (max) : fabs (min);
+		extremum =  std::max (fabs (max), fabs (min));
 		if (extremum == 0.0) {
 			nZero ++;
 		} else {
@@ -258,11 +254,7 @@ void Matrix_scale (Matrix me, int choice) {
 autoMatrix Matrix_transpose (Matrix me) {
 	try {
 		autoMatrix thee = Matrix_create (my ymin, my ymax, my ny, my dy, my y1, my xmin, my xmax, my nx, my dx, my x1);
-		for (integer i = 1; i <= my ny; i ++) {
-			for (integer j = 1; j <= my nx; j ++) {
-				thy z [j ] [i] = my z [i] [j];
-			}
-		}
+		thy z.all() <<= my z.transpose();
 		return thee;
 	} catch (MelderError) {
 		Melder_throw (me, U": not transposed.");
@@ -272,23 +264,20 @@ autoMatrix Matrix_transpose (Matrix me) {
 void Matrix_drawDistribution (Matrix me, Graphics g, double xmin, double xmax, double ymin, double ymax, double minimum, double maximum,
 	integer nBins, double freqMin, double freqMax, bool cumulative, bool garnish)
 {
-	if (nBins <= 0) {
-		return;
-	}
+	if (nBins <= 0) return;
 	if (xmax <= xmin) {
-		xmin = my xmin; xmax = my xmax;
+		xmin = my xmin;
+		xmax = my xmax;
 	}
 	if (ymax <= ymin) {
-		ymin = my ymin; ymax = my ymax;
+		ymin = my ymin;
+		ymax = my ymax;
 	}
 	integer ixmin, ixmax, iymin, iymax;
 	if ((Matrix_getWindowSamplesX (me, xmin, xmax, & ixmin, & ixmax) == 0) || 
-		(Matrix_getWindowSamplesY (me, ymin, ymax, & iymin, & iymax) == 0)) {
-		return;
-	}
-	if (maximum <= minimum) {
+		(Matrix_getWindowSamplesY (me, ymin, ymax, & iymin, & iymax) == 0)) return;
+	if (maximum <= minimum)
 		Matrix_getWindowExtrema (me, ixmin, ixmax, iymin, iymax, & minimum, & maximum);
-	}
 	if (maximum <= minimum) {
 		minimum -= 1.0; 
 		maximum += 1.0;
@@ -296,10 +285,9 @@ void Matrix_drawDistribution (Matrix me, Graphics g, double xmin, double xmax, d
 
 	// Count the numbers per bin and the total
 
-	if (nBins < 1) {
-		nBins = 10;
-	}
-	autoNUMvector<integer> freq (1, nBins);
+	if (nBins < 1) nBins = 10;
+
+	autoVEC freq = newVECraw (nBins);
 	double binWidth = (maximum - minimum) / nBins;
 	integer nxy = 0;
 	for (integer i = iymin; i <= iymax; i ++) {
@@ -314,11 +302,12 @@ void Matrix_drawDistribution (Matrix me, Graphics g, double xmin, double xmax, d
 
 	if (freqMax <= freqMin) {
 		if (cumulative) {
-			freqMin = 0; freqMax = 1.0;
+			freqMin = 0;
+			freqMax = 1.0;
 		} else {
-			NUMvector_extrema (freq.peek(), 1, nBins, & freqMin, & freqMax);
+			NUMextrema (freq.get(), & freqMin, & freqMax);
 			if (freqMax <= freqMin) {
-				freqMin = freqMin > 1.0 ? freqMin - 1.0 : 0.0;
+				freqMin = ( freqMin > 1.0 ? freqMin - 1.0 : 0.0 );
 				freqMax += 1.0;
 			}
 		}
@@ -329,11 +318,9 @@ void Matrix_drawDistribution (Matrix me, Graphics g, double xmin, double xmax, d
 	double fi = 0.0;
 	for (integer i = 1; i <= nBins; i ++) {
 		double ftmp = freq [i];
-		fi = cumulative ? fi + freq [i] / nxy : freq [i];
+		fi = ( cumulative ? fi + freq [i] / nxy : freq [i] );
 		ftmp = fi;
-		if (ftmp > freqMax) {
-			ftmp = freqMax;
-		}
+		ftmp = std::min (ftmp, freqMax);
 		if (ftmp > freqMin) {
 			Graphics_rectangle (g, minimum + (i - 1) * binWidth, minimum + i * binWidth, freqMin, ftmp);
 		}
@@ -385,7 +372,7 @@ void Matrix_drawSliceY (Matrix me, Graphics g, double x, double ymin, double yma
 	Graphics_unsetInner (g);
 }
 
-autoMatrix Matrix_solveEquation (Matrix me, double /* tolerance */) {
+autoMatrix Matrix_solveEquation (Matrix me, double tolerance) {
 	try {
 		integer nr = my ny, nc = my nx - 1;
 		Melder_require (nc > 0, U"There should be at least 2 columns in the matrix.");
@@ -394,9 +381,8 @@ autoMatrix Matrix_solveEquation (Matrix me, double /* tolerance */) {
 			Melder_warning (U"Solution is not unique (there are fewer equations than unknowns).");
 		}
 
-		autoNUMmatrix<double> u (1, nr, 1, nc);
-		autoNUMvector<double> b (1, nr);
-		autoNUMvector<double> x (1, nc);
+		autoMAT u = newMATraw (nr, nc);
+		autoVEC b = newVECraw (nr);
 		autoMatrix thee = Matrix_create (0.5, 0.5 + nc, nc, 1, 1, 0.5, 1.5, 1, 1, 1);
 
 		for (integer i = 1; i <= nr; i ++) {
@@ -406,7 +392,7 @@ autoMatrix Matrix_solveEquation (Matrix me, double /* tolerance */) {
 			b [i] = my z [i] [my nx];
 		}
 
-		NUMsolveEquation (u.peek(), nr, nc, b.peek(), 0, x.peek());
+		autoVEC x = NUMsolveEquation (u.get(), b.get(), tolerance);
 		for (integer j = 1; j <= nc; j ++) {
 			thy z [1] [j] = x [j];
 		}
@@ -418,10 +404,12 @@ autoMatrix Matrix_solveEquation (Matrix me, double /* tolerance */) {
 
 double Matrix_getMean (Matrix me, double xmin, double xmax, double ymin, double ymax) {
 	if (xmax <= xmin) {
-		xmin = my xmin; xmax = my xmax;
+		xmin = my xmin;
+		xmax = my xmax;
 	}
 	if (ymax <= ymin) {
-		ymin = my ymin; ymax = my ymax;
+		ymin = my ymin;
+		ymax = my ymax;
 	}
 	integer ixmin, ixmax, iymin, iymax;
 	if ((Matrix_getWindowSamplesX (me, xmin, xmax, & ixmin, & ixmax) == 0) ||
@@ -439,10 +427,12 @@ double Matrix_getMean (Matrix me, double xmin, double xmax, double ymin, double 
 
 double Matrix_getStandardDeviation (Matrix me, double xmin, double xmax, double ymin, double ymax) {
 	if (xmax <= xmin) {
-		xmin = my xmin; xmax = my xmax;
+		xmin = my xmin;
+		xmax = my xmax;
 	}
 	if (ymax <= ymin) {
-		ymin = my ymin; ymax = my ymax;
+		ymin = my ymin;
+		ymax = my ymax;
 	}
 	integer ixmin, ixmax, iymin, iymax;
 	if ((Matrix_getWindowSamplesX (me, xmin, xmax, & ixmin, & ixmax) == 0) ||
@@ -488,10 +478,10 @@ autoDaata IDXFormattedMatrixFileRecognizer (integer numberOfBytesRead, const cha
 	/*
 	 * Check how many bytes each cell needs
 	 */
-	integer cellSizeBytes = (type == 0x08 || type == 0x09) ? 1 : type == 0x0B ? 2 : (type == 0x0C || type == 0x0D) ? 4 : type == 0x0E ? 8 : 0;
-	if (cellSizeBytes == 0) {
+	integer cellSizeBytes = ( (type == 0x08 || type == 0x09) ? 1 : ( type == 0x0B ? 2 : ( (type == 0x0C || type == 0x0D) ? 4 : ( type == 0x0E ? 8 : 0 ) ) ) );
+	if (cellSizeBytes == 0)
 		return autoDaata ();
-	}
+
 	trace (U"Cell size =", cellSizeBytes);
 	double numberOfBytes = numberOfCells * cellSizeBytes + 4 + numberOfDimensions * 4;
 	trace (U"Number of bytes =", numberOfBytes);
@@ -602,6 +592,44 @@ autoMatrix Matrix_readFromIDXFormatFile (MelderFile file) {
 		return me;
 	} catch (MelderError) {
 		Melder_throw (U"Cannot read from IDX format file ", MelderFile_messageName (file), U".");
+	}
+}
+
+autoEigen Matrix_to_Eigen (Matrix me) {
+	try {
+		Melder_require (my nx == my ny, U"The Matrix should be square.");
+		Melder_require (NUMisSymmetric (my z.get()), U"The Matrix should be symmetric.");
+		autoEigen thee = Eigen_create (my nx, my nx);
+		Eigen_initFromSymmetricMatrix (thee.get(), my z.get());
+		return thee;
+	} catch (MelderError) {
+		Melder_throw (U"Cannot create Eigen from Matrix.");
+	}
+}
+
+void Matrix_Eigen_complex (Matrix me, autoMatrix *out_eigenvectors, autoMatrix *out_eigenvalues) {
+	try {
+		Melder_require (my nx == my ny, U"The Matrix should be square.");
+		autoVEC eigenvalues_re, eigenvalues_im;
+		autoMAT right_eigenvectors;
+		MAT_getEigenSystemFromGeneralMatrix (my z.get(), nullptr, & right_eigenvectors, & eigenvalues_re, & eigenvalues_im);
+		autoMAT eigenvectors_reim;
+		MAT_eigenvectors_decompress (right_eigenvectors.get(), eigenvalues_re.get(), eigenvalues_im.get(), & eigenvectors_reim);
+		if (out_eigenvectors) {
+			autoMatrix eigenvectors = Matrix_createSimple (my ny, 2 * my ny);
+			eigenvectors -> z.all() <<= eigenvectors_reim.all();
+			*out_eigenvectors = eigenvectors.move();
+		}
+		if (out_eigenvalues) {
+			autoMatrix eigenvalues = Matrix_createSimple (my ny, 2);
+			for (long i = 1; i <= my ny; i ++) {
+				eigenvalues -> z [i] [1] = eigenvalues_re [i];
+				eigenvalues -> z [i] [2] = eigenvalues_im [i];
+			}
+			*out_eigenvalues = eigenvalues.move();	
+		}
+	}catch (MelderError) {
+		Melder_throw (U"Cannot create Eigenvalues from Matrix.");
 	}
 }
 

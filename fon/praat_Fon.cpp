@@ -389,7 +389,7 @@ DO
 FORM (REAL_Formant_getValueAtTime, U"Formant: Get value", U"Formant: Get value at time...") {
 	NATURAL (formantNumber, U"Formant number", U"1")
 	REAL (time, U"Time (s)", U"0.5")
-	RADIO_ENUM (unit, U"Unit", kFormant_unit, HERTZ)
+	RADIO_ENUM (kFormant_unit, unit, U"Unit", kFormant_unit::HERTZ)
 	RADIO (interpolation, U"Interpolation", 1)   // ignored
 		RADIOBUTTON (U"Linear")
 	OK
@@ -402,7 +402,7 @@ DO
 FORM (REAL_Formant_getBandwidthAtTime, U"Formant: Get bandwidth", U"Formant: Get bandwidth at time...") {
 	NATURAL (formantNumber, U"Formant number", U"1")
 	REAL (time, U"Time (s)", U"0.5")
-	RADIO_ENUM (unit, U"Unit", kFormant_unit, HERTZ)
+	RADIO_ENUM (kFormant_unit, unit, U"Unit", kFormant_unit::HERTZ)
 	RADIO (interpolation, U"Interpolation", 1)   // ignored
 		RADIOBUTTON (U"Linear")
 	OK
@@ -415,7 +415,7 @@ DO
 FORM (REAL_Formant_getMinimum, U"Formant: Get minimum", U"Formant: Get minimum...") {
 	NATURAL (formantNumber, U"Formant number", U"1")
 	praat_TimeFunction_RANGE (fromTime, toTime)
-	RADIO_ENUM (unit, U"Unit", kFormant_unit, HERTZ)
+	RADIO_ENUM (kFormant_unit, unit, U"Unit", kFormant_unit::HERTZ)
 	RADIOx (interpolation, U"Interpolation", 2, 0)
 		RADIOBUTTON (U"None")
 		RADIOBUTTON (U"Parabolic")
@@ -429,7 +429,7 @@ DO
 FORM (REAL_Formant_getMaximum, U"Formant: Get maximum", U"Formant: Get maximum...") {
 	NATURAL (formantNumber, U"Formant number", U"1")
 	praat_TimeFunction_RANGE (fromTime, toTime)
-	RADIO_ENUM (unit, U"Unit", kFormant_unit, HERTZ)
+	RADIO_ENUM (kFormant_unit, unit, U"Unit", kFormant_unit::HERTZ)
 	RADIOx (interpolation, U"Interpolation", 2, 0)
 		RADIOBUTTON (U"None")
 		RADIOBUTTON (U"Parabolic")
@@ -443,7 +443,7 @@ DO
 FORM (REAL_Formant_getTimeOfMinimum, U"Formant: Get time of minimum", U"Formant: Get time of minimum...") {
 	NATURAL (formantNumber, U"Formant number", U"1")
 	praat_TimeFunction_RANGE (fromTime, toTime)
-	RADIO_ENUM (unit, U"Unit", kFormant_unit, HERTZ)
+	RADIO_ENUM (kFormant_unit, unit, U"Unit", kFormant_unit::HERTZ)
 	RADIOx (interpolation, U"Interpolation", 2, 0)
 		RADIOBUTTON (U"None")
 		RADIOBUTTON (U"Parabolic")
@@ -457,7 +457,7 @@ DO
 FORM (REAL_Formant_getTimeOfMaximum, U"Formant: Get time of maximum", U"Formant: Get time of maximum...") {
 	NATURAL (formantNumber, U"Formant number", U"1")
 	praat_TimeFunction_RANGE (fromTime, toTime)
-	RADIO_ENUM (unit, U"Unit", kFormant_unit, HERTZ)
+	RADIO_ENUM (kFormant_unit, unit, U"Unit", kFormant_unit::HERTZ)
 	RADIOx (interpolation, U"Interpolation", 2, 0)
 		RADIOBUTTON (U"None")
 		RADIOBUTTON (U"Parabolic")
@@ -477,7 +477,7 @@ DIRECT (INTEGER_Formant_getMaximumNumberOfFormants) {
 FORM (REAL_Formant_getMean, U"Formant: Get mean", U"Formant: Get mean...") {
 	NATURAL (formantNumber, U"Formant number", U"1")
 	praat_TimeFunction_RANGE (fromTime, toTime)
-	RADIO_ENUM (unit, U"Unit", kFormant_unit, HERTZ)
+	RADIO_ENUM (kFormant_unit, unit, U"Unit", kFormant_unit::HERTZ)
 	OK
 DO
 	NUMBER_ONE (Formant)
@@ -505,7 +505,7 @@ DO
 FORM (REAL_Formant_getQuantile, U"Formant: Get quantile", nullptr) {
 	NATURAL (formantNumber, U"Formant number", U"1")
 	praat_TimeFunction_RANGE (fromTime, toTime)
-	RADIO_ENUM (unit, U"Unit", kFormant_unit, HERTZ)
+	RADIO_ENUM (kFormant_unit, unit, U"Unit", kFormant_unit::HERTZ)
 	REAL (quantile, U"Quantile", U"0.50 (= median)")
 	OK
 DO
@@ -517,7 +517,7 @@ DO
 FORM (REAL_Formant_getQuantileOfBandwidth, U"Formant: Get quantile of bandwidth", nullptr) {
 	NATURAL (formantNumber, U"Formant number", U"1")
 	praat_TimeFunction_RANGE (fromTime, toTime)
-	RADIO_ENUM (unit, U"Unit", kFormant_unit, HERTZ)
+	RADIO_ENUM (kFormant_unit, unit, U"Unit", kFormant_unit::HERTZ)
 	REAL (quantile, U"Quantile", U"0.50 (= median)")
 	OK
 DO
@@ -529,7 +529,7 @@ DO
 FORM (REAL_Formant_getStandardDeviation, U"Formant: Get standard deviation", nullptr) {
 	NATURAL (formantNumber, U"Formant number", U"1")
 	praat_TimeFunction_RANGE (fromTime, toTime)
-	RADIO_ENUM (unit, U"Unit", kFormant_unit, HERTZ)
+	RADIO_ENUM (kFormant_unit, unit, U"Unit", kFormant_unit::HERTZ)
 	OK
 DO
 	NUMBER_ONE (Formant)
@@ -1550,9 +1550,18 @@ DO
 	MODIFY_EACH_WEAK_END
 }
 
-FORM (REAL_Pitch_getMinimum, U"Pitch: Get minimum", 0) {
+FORM (NUMMAT_Pitch_getAllCandidatesInFrame, U"Pitch: Get all candidates in frame", nullptr) {
+	NATURAL (frameNumber, U"Frame number", U"1")
+	OK
+DO
+	NUMMAT_ONE (Pitch)
+		autoMAT result = Pitch_getAllCandidatesInFrame (me, frameNumber);
+	NUMMAT_ONE_END
+}
+
+FORM (REAL_Pitch_getMinimum, U"Pitch: Get minimum", nullptr) {
 	praat_TimeFunction_RANGE (fromTime, toTime)
-	OPTIONMENU_ENUM (unit, U"Unit", kPitch_unit, DEFAULT)
+	OPTIONMENU_ENUM (kPitch_unit, unit, U"Unit", kPitch_unit::DEFAULT)
 	RADIOx (interpolation, U"Interpolation", 2, 0)
 		RADIOBUTTON (U"None")
 		RADIOBUTTON (U"Parabolic")
@@ -1566,7 +1575,7 @@ DO
 
 FORM (REAL_Pitch_getMaximum, U"Pitch: Get maximum", nullptr) {
 	praat_TimeFunction_RANGE (fromTime, toTime)
-	OPTIONMENU_ENUM (unit, U"Unit", kPitch_unit, DEFAULT)
+	OPTIONMENU_ENUM (kPitch_unit, unit, U"Unit", kPitch_unit::DEFAULT)
 	RADIOx (interpolation, U"Interpolation", 2, 0)
 		RADIOBUTTON (U"None")
 		RADIOBUTTON (U"Parabolic")
@@ -1580,7 +1589,7 @@ DO
 
 FORM (REAL_Pitch_getMean, U"Pitch: Get mean", nullptr) {
 	praat_TimeFunction_RANGE (fromTime, toTime)
-	OPTIONMENU_ENUM (unit, U"Unit", kPitch_unit, DEFAULT)
+	OPTIONMENU_ENUM (kPitch_unit, unit, U"Unit", kPitch_unit::DEFAULT)
 	OK
 DO
 	NUMBER_ONE (Pitch)
@@ -1621,7 +1630,7 @@ DIRECT (REAL_Pitch_getMeanAbsSlope_noOctave) {
 FORM (REAL_Pitch_getQuantile, U"Pitch: Get quantile", nullptr) {
 	praat_TimeFunction_RANGE (fromTime, toTime)
 	REAL (quantile, U"Quantile", U"0.50 (= median)")
-	OPTIONMENU_ENUM (unit, U"Unit", kPitch_unit, DEFAULT)
+	OPTIONMENU_ENUM (kPitch_unit, unit, U"Unit", kPitch_unit::DEFAULT)
 	OK
 DO
 	NUMBER_ONE (Pitch)
@@ -1659,33 +1668,33 @@ DO
 
 FORM (REAL_Pitch_getTimeOfMaximum, U"Pitch: Get time of maximum", nullptr) {
 	praat_TimeFunction_RANGE (fromTime, toTime)
-	OPTIONMENU_ENUM (unit, U"Unit", kPitch_unit, DEFAULT)
+	OPTIONMENU_ENUM (kPitch_unit, unit, U"Unit", kPitch_unit::DEFAULT)
 	RADIOx (interpolation, U"Interpolation", 2, 0)
 		RADIOBUTTON (U"None")
 		RADIOBUTTON (U"Parabolic")
 	OK
 DO
 	NUMBER_ONE (Pitch)
-		double result = Pitch_getTimeOfMaximum (me, fromTime, toTime, (kPitch_unit) unit, interpolation);
+		double result = Pitch_getTimeOfMaximum (me, fromTime, toTime, unit, interpolation);
 	NUMBER_ONE_END (U" seconds")
 }
 
 FORM (REAL_Pitch_getTimeOfMinimum, U"Pitch: Get time of minimum", nullptr) {
 	praat_TimeFunction_RANGE (fromTime, toTime)
-	OPTIONMENU_ENUM (unit, U"Unit", kPitch_unit, DEFAULT)
+	OPTIONMENU_ENUM (kPitch_unit, unit, U"Unit", kPitch_unit::DEFAULT)
 	RADIOx (interpolation, U"Interpolation", 2, 0)
 		RADIOBUTTON (U"None")
 		RADIOBUTTON (U"Parabolic")
 	OK
 DO
 	NUMBER_ONE (Pitch)
-		double result = Pitch_getTimeOfMinimum (me, fromTime, toTime, (kPitch_unit) unit, interpolation);
+		double result = Pitch_getTimeOfMinimum (me, fromTime, toTime, unit, interpolation);
 	NUMBER_ONE_END (U" seconds")
 }
 
 FORM (REAL_Pitch_getValueAtTime, U"Pitch: Get value at time", U"Pitch: Get value at time...") {
 	REAL (time, U"Time (s)", U"0.5")
-	OPTIONMENU_ENUM (unit, U"Unit", kPitch_unit, DEFAULT)
+	OPTIONMENU_ENUM (kPitch_unit, unit, U"Unit", kPitch_unit::DEFAULT)
 	RADIOx (interpolation, U"Interpolation", 2, 0)
 		RADIOBUTTON (U"Nearest")
 		RADIOBUTTON (U"Linear")
@@ -1699,7 +1708,7 @@ DO
 	
 FORM (REAL_Pitch_getValueInFrame, U"Pitch: Get value in frame", U"Pitch: Get value in frame...") {
 	INTEGER (frameNumber, U"Frame number", U"10")
-	OPTIONMENU_ENUM (unit, U"Unit", kPitch_unit, DEFAULT)
+	OPTIONMENU_ENUM (kPitch_unit, unit, U"Unit", kPitch_unit::DEFAULT)
 	OK
 DO
 	NUMBER_ONE (Pitch)
@@ -2390,7 +2399,7 @@ FORM (REAL_Spectrum_getRealValueInBin, U"Spectrum: Get real value in bin", nullp
 	OK
 DO
 	NUMBER_ONE (Spectrum)
-		if (binNumber > my nx) Melder_throw (U"Bin number must not exceed number of bins.");
+		if (binNumber > my nx) Melder_throw (U"Bin number should not exceed number of bins.");
 		double result = my z [1] [binNumber];
 	NUMBER_ONE_END (U" (real value in bin ", binNumber, U")")
 }
@@ -2836,7 +2845,7 @@ DIRECT (NEW_Transition_to_Matrix) {
 // MARK: - Praat menu
 
 FORM (INFO_Praat_test, U"Praat test", 0) {
-	OPTIONMENU_ENUM (test, U"Test", kPraatTests, DEFAULT)
+	OPTIONMENU_ENUM (kPraatTests, test, U"Test", kPraatTests::DEFAULT)
 	SENTENCE (arg1, U"arg1", U"1000000")
 	SENTENCE (arg2, U"arg2", U"")
 	SENTENCE (arg3, U"arg3", U"")
@@ -3200,6 +3209,9 @@ praat_addAction1 (classFormant, 0, U"Hack", nullptr, 0, nullptr);
 		praat_addAction1 (classPitch, 1, U"Get slope without octave jumps", nullptr, 1, REAL_Pitch_getMeanAbsSlope_noOctave);
 		praat_addAction1 (classPitch, 2, U"-- query two --", nullptr, 1, nullptr);
 		praat_addAction1 (classPitch, 2, U"Count differences", nullptr, 1, INFO_Pitch_difference);
+		praat_addAction1 (classPitch, 2, U"-- hack --", nullptr, 1, nullptr);
+		praat_addAction1 (classPitch, 1, U"Internal", nullptr, 1, nullptr);
+			praat_addAction1 (classPitch, 1, U"Get all candidates in frame...", nullptr, 2, NUMMAT_Pitch_getAllCandidatesInFrame);
 	praat_addAction1 (classPitch, 0, U"Modify -", nullptr, 0, nullptr);
 		praat_TimeFunction_modify_init (classPitch);
 		praat_addAction1 (classPitch, 0, U"Formula...", nullptr, 1, MODIFY_Pitch_formula);

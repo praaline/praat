@@ -1,6 +1,6 @@
 /* praat_HMM_init.cpp
  *
- * Copyright (C) 2010-2011,2015-2016 David Weenink
+ * Copyright (C) 2010-2018 David Weenink
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -335,7 +335,7 @@ FORM (REAL_HMM_getStartProbability, U"HMM: Get start probability", U"HMM: Get st
 DO
 	NUMBER_ONE (HMM)
 		Melder_require (stateNumber <= my numberOfStates, U"State number too high.");
-		double result = my transitionProbs[0][stateNumber];
+		double result = my initialStateProbs [stateNumber];
 	NUMBER_ONE_END (U" : [ ", stateNumber, U" ]")
 }
 
@@ -467,7 +467,7 @@ FORM (MODIFY_HMM_HMMObservationSequence_learn, U"HMM & HMMObservationSequence: L
 DO
 	Melder_require (minimumProbability >= 0.0 && minimumProbability < 1.0, U"The minimum probabilty should be in [0, 1).");
 	MODIFY_FIRST_OF_ONE_AND_LIST(HMM, HMMObservationSequence)
-		HMM_HMMObservationSequenceBag_learn (me, (HMMObservationSequenceBag) &list, relativePrecision_log, minimumProbability, showProgress);
+		HMM_HMMObservationSequenceBag_learn (me, (HMMObservationSequenceBag) & list, relativePrecision_log, minimumProbability, showProgress);
 	MODIFY_FIRST_OF_ONE_AND_LIST_END
 }
 
@@ -658,10 +658,10 @@ void praat_HMM_init () {
 	praat_addMenuCommand (U"Objects", U"New", U"Draw forward probabilities illustration", nullptr, praat_HIDDEN + praat_DEPTH_1, GRAPHICS_HMM_drawForwardProbabilitiesIllustration);
 	praat_addMenuCommand (U"Objects", U"New", U"Draw backward probabilities illustration", nullptr, praat_HIDDEN + praat_DEPTH_1, GRAPHICS_HMM_drawBackwardProbabilitiesIllustration);
 	praat_addMenuCommand (U"Objects", U"New", U"Draw forward and backward probabilities illustration", nullptr, praat_HIDDEN + praat_DEPTH_1, GRAPHICS_HMM_drawForwardAndBackwardProbabilitiesIllustration);
-
+	
 	praat_addAction1 (classGaussianMixture, 0, U"GaussianMixture help", nullptr, 0, HELP_GaussianMixture_help);
 	praat_addAction1 (classGaussianMixture, 0, U"Draw concentration ellipses...", nullptr, 0, GRAPHICS_GaussianMixture_drawConcentrationEllipses);
-	praat_addAction1 (classGaussianMixture, 0, U"Draw marginal pdf...", nullptr, 0, GRAPHICS_GaussianMixture_PCA_drawConcentrationEllipses);
+	praat_addAction1 (classGaussianMixture, 0, U"Draw marginal pdf...", nullptr, 0, GRAPHICS_GaussianMixture_drawMarginalPdf);
 	praat_addAction1 (classGaussianMixture, 0, U"Query -", nullptr, 0, nullptr);
 	praat_addAction1 (classGaussianMixture, 1, U"Get number of components", nullptr, 1, INTEGER_GaussianMixture_getNumberOfComponents);
 	praat_addAction1 (classGaussianMixture, 1, U"Get dimension of component", nullptr, 1, INTEGER_GaussianMixture_getDimensionOfComponent);

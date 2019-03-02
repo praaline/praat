@@ -1,5 +1,5 @@
-#define PRAAT_VERSION_STR 6.0.41
-#define PRAAT_VERSION_NUM 6041
-#define PRAAT_YEAR 2018
-#define PRAAT_MONTH July
-#define PRAAT_DAY 12
+#define PRAAT_VERSION_STR 6.0.48
+#define PRAAT_VERSION_NUM 6048
+#define PRAAT_YEAR 2019
+#define PRAAT_MONTH February
+#define PRAAT_DAY 17

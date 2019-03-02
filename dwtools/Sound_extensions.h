@@ -2,7 +2,7 @@
 #define _Sound_extensions_h_
 /* Sound_extensions.h
  *
- * Copyright (C) 1993-2017 David Weenink
+ * Copyright (C) 1993-2018 David Weenink
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -106,8 +106,8 @@ double Sound_correlateParts (Sound me, double t1, double t2, double duration);
 	Correlate part (t1, t1+duration) with (t2, t2+duration)
 */
 
-void Sound_localMean (Sound me, double fromTime, double toTime, double *mean);
-void Sound_localPeak (Sound me, double fromTime, double toTime, double ref, double *peak);
+double Sound_localMean (Sound me, double fromTime, double toTime);
+double Sound_localPeak (Sound me, double fromTime, double toTime, double reference);
 
 autoSound Sound_localAverage (Sound me, double averaginginterval, int windowType);
 /* y[n] = sum(i=-n, i=n, x[n+i])/(2*n+1) */
@@ -192,8 +192,8 @@ autoSound Sound_IntervalTier_cutPartsMatchingLabel (Sound me, IntervalTier thee,
  * (2) the end time of the first interval if matching
  */
 
-autoSound Sound_trimSilencesAtStartAndEnd (Sound me, double trimDuration, double minPitch, double timeStep,
-	double silenceThreshold, double minSilenceDuration, double minSoundingDuration, double *t1, double *t2);
+autoSound Sound_trimSilencesAtStartAndEnd (Sound me, double trimDuration, double minPitch, double timeStep,	double silenceThreshold, 
+double minSilenceDuration, double minSoundingDuration, double *startTimeOfSounding, double *endTimeOfSounding);
 
 autoSound Sound_trimSilences (Sound me, double trimDuration, bool onlyAtStartAndEnd, double minPitch, double timeStep,
     double silenceThreshold, double minSilenceDuration, double minSoundingDuration, autoTextGrid *tg, conststring32 trimLabel);

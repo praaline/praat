@@ -572,7 +572,7 @@ static void insertBoundaryOrPoint (TextGridEditor me, integer itier, double t1, 
 			 */
 			integer left, right;
 			autostring32 text = GuiText_getStringAndSelectionPosition (my text, & left, & right);
-			bool wholeTextIsSelected = right - left == str32len (text.get());
+			bool wholeTextIsSelected = ( right - left == str32len (text.get()) );
 			rightNewInterval = TextInterval_create (t2, interval -> xmax, text.get() + right);
 			text [right] = U'\0';
 			midNewInterval = TextInterval_create (t1, t2, text.get() + left);
@@ -1280,7 +1280,7 @@ static void gui_text_cb_changed (TextGridEditor me, GuiTextEvent /* event */) {
 			if (selectedPoint) {
 				TextPoint point = textTier -> points.at [selectedPoint];
 				point -> mark. reset();
-				if (str32spn (text.get(), U" \n\t") != str32len (text.get()))   // any visible characters?
+				if (Melder_findInk (text.get()))   // any visible characters?
 					point -> mark = Melder_dup_f (text.get());
 				FunctionEditor_redraw (me);
 				Editor_broadcastDataChanged (me);
@@ -2098,7 +2098,7 @@ void structTextGridEditor :: v_clickSelectionViewer (double xWC, double yWC) {
 				if (selectedPoint) {
 					TextPoint point = textTier -> points.at [selectedPoint];
 					point -> mark. reset();
-					if (str32spn (newText.string, U" \n\t") != str32len (newText.string))   // any visible characters?
+					if (Melder_findInk (newText.string))   // any visible characters?
 						point -> mark = Melder_dup_f (newText.string);
 
 					our suppressRedraw = true;   // prevent valueChangedCallback from redrawing
@@ -2193,18 +2193,18 @@ SENTENCE_VARIABLE (v_prefs_addFields_theText)
 void structTextGridEditor :: v_prefs_addFields (EditorCommand cmd) {
 	UiField _radio_;
 	NATURAL_FIELD (v_prefs_addFields_fontSize, U"Font size (points)", our default_fontSize ())
-	OPTIONMENU_ENUM_FIELD (v_prefs_addFields_textAlignmentInIntervals, U"Text alignment in intervals",
-		kGraphics_horizontalAlignment, kGraphics_horizontalAlignment::DEFAULT)
+	OPTIONMENU_ENUM_FIELD (kGraphics_horizontalAlignment, v_prefs_addFields_textAlignmentInIntervals,
+			U"Text alignment in intervals", kGraphics_horizontalAlignment::DEFAULT)
 	OPTIONMENU_FIELD (v_prefs_addFields_useTextStyles, U"The symbols %#_^ in labels", our default_useTextStyles () + 1)
 		OPTION (U"are shown as typed")
 		OPTION (U"mean italic/bold/sub/super")
 	OPTIONMENU_FIELD (v_prefs_addFields_shiftDragMultiple, U"With the shift key, you drag", our default_shiftDragMultiple () + 1)
 		OPTION (U"a single boundary")
 		OPTION (U"multiple boundaries")
-	OPTIONMENU_ENUM_FIELD (v_prefs_addFields_showNumberOf, U"Show number of",
-		kTextGridEditor_showNumberOf, kTextGridEditor_showNumberOf::DEFAULT)
-	OPTIONMENU_ENUM_FIELD (v_prefs_addFields_paintIntervalsGreenWhoseLabel, U"Paint intervals green whose label...",
-		kMelder_string, kMelder_string::DEFAULT)
+	OPTIONMENU_ENUM_FIELD (kTextGridEditor_showNumberOf, v_prefs_addFields_showNumberOf,
+			U"Show number of", kTextGridEditor_showNumberOf::DEFAULT)
+	OPTIONMENU_ENUM_FIELD (kMelder_string, v_prefs_addFields_paintIntervalsGreenWhoseLabel,
+			U"Paint intervals green whose label...", kMelder_string::DEFAULT)
 	SENTENCE_FIELD (v_prefs_addFields_theText, U"...the text", our default_greenString ())
 }
 void structTextGridEditor :: v_prefs_setValues (EditorCommand cmd) {

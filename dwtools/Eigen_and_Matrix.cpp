@@ -40,7 +40,7 @@ autoMatrix Eigen_extractEigenvector (Eigen me, integer index, integer numberOfRo
 		integer i = 1;
 		for (integer irow = 1; irow <= numberOfRows; irow ++) {
 			for (integer icol = 1; icol <= numberOfColumns; icol ++) {
-				thy z [irow] [icol] = i <= my dimension ? my eigenvectors [index] [i ++] : 0.0;
+				thy z [irow] [icol] = ( i <= my dimension ? my eigenvectors [index] [i ++] : 0.0 );
 			}
 		}
 		return thee;
@@ -54,12 +54,11 @@ autoMatrix Eigen_Matrix_to_Matrix_projectRows (Eigen me, Matrix thee, integer nu
 		if (numberOfDimensionsToKeep <= 0 || numberOfDimensionsToKeep > my numberOfEigenvalues) {
 			numberOfDimensionsToKeep = my numberOfEigenvalues;
 		}
-		Melder_require (thy nx == my dimension, U"The number of columns (", thy nx, U") should equal the size of the eigenvectors (", my dimension, U").");
+		Melder_require (thy nx == my dimension, 
+			U"The number of columns (", thy nx, U") should equal the size of the eigenvectors (", my dimension, U").");
 		
 		autoMatrix him = Matrix_create (0.5, 0.5 + numberOfDimensionsToKeep, numberOfDimensionsToKeep, 1.0, 1.0, thy ymin, thy ymax, thy ny, thy dy, thy y1);
-		NUMdmatrix_projectRowsOnEigenspace (thy z, thy ny, 1, my eigenvectors, numberOfDimensionsToKeep, my dimension, his z, 1);
-		//Eigen_and_matrix_into_matrix_principalComponents (me, thy z, thy ny, 1, his z, numberOfDimensionsToKeep, 1);
-		
+		MATprojectRowsOnEigenspace_preallocated (his z.get(), 1, thy z.get(), 1, my eigenvectors.horizontalBand (1, numberOfDimensionsToKeep));		
 		return him;
 	} catch (MelderError) {
 		Melder_throw (U"Projection Matrix from ", me, U" and ", thee, U" not created.");
@@ -74,7 +73,7 @@ autoMatrix Eigen_Matrix_to_Matrix_projectColumns (Eigen me, Matrix thee, integer
 		Melder_require (thy nx == my dimension, U"The number of rows (", thy ny, U") should equal the size of the eigenvectors (", my dimension, U").");
 		
 		autoMatrix him = Matrix_create (thy xmin, thy xmax, thy nx, thy dx, thy x1, 0.5, 0.5 + numberOfDimensionsToKeep, numberOfDimensionsToKeep, 1.0, 1.0);
-		NUMdmatrix_projectColumnsOnEigenspace (thy z, thy nx, my eigenvectors, numberOfDimensionsToKeep, my dimension, his z);
+		MATprojectColumnsOnEigenspace_preallocated (his z.get(), thy z.get(), my eigenvectors.horizontalBand (1,numberOfDimensionsToKeep));
 		return him;
 	} catch (MelderError) {
 		Melder_throw (U"Projection Matrix from ", me, U" and ", thee, U" not created.");

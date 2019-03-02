@@ -1,6 +1,6 @@
 /* manual_tutorials.cpp
  *
- * Copyright (C) 1992-2018 Paul Boersma
+ * Copyright (C) 1992-2019 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,10 +22,34 @@
 void manual_tutorials_init (ManPages me);
 void manual_tutorials_init (ManPages me) {
 
-MAN_BEGIN (U"What's new?", U"ppgb", 20180511)
+MAN_BEGIN (U"What's new?", U"ppgb", 20190217)
 INTRO (U"Latest changes in Praat.")
 //LIST_ITEM (U"• Manual page about @@drawing a vowel triangle@.")
-
+NORMAL (U"##6.0.48# (17 February 2019)")
+LIST_ITEM (U"• Removed a bug introduced in 6.0.44 whereby Praat could crash when drawing a function without any points.")
+LIST_ITEM (U"• Removed a bug whereby Praat would not start up on macOS 10.10 (because of required GPU libraries).")
+NORMAL (U"##6.0.47# (8 February 2019)")
+LIST_ITEM (U"• Removed a bug introduced in 6.0.44 whereby a cepstral peak prominence would be computed incorrectly.")
+NORMAL (U"##6.0.46# (3 January 2019)")
+LIST_ITEM (U"• Removed a crashing bug in the LongSound window introduced in 6.0.44.")
+LIST_ITEM (U"• Removed a bug causing incorrect conversion from Formant to LPC introduced in 6.0.44.")
+LIST_ITEM (U"• More space for actions in buttons window.")
+NORMAL (U"##6.0.45# (1 January 2019)")
+LIST_ITEM (U"• Removed a crashing bug in EditDistanceTable introduced in 6.0.44.")
+LIST_ITEM (U"• Removed a crashing bug in KlattGrid drawing introduced in 6.0.44.")
+LIST_ITEM (U"• Removed a bug introduced in 6.0.44 whereby old HMM files were read incorrectly.")
+NORMAL (U"##6.0.44# (31 December 2018)")
+LIST_ITEM (U"• Bug fixes and speed.")
+NORMAL (U"##6.0.43# (8 September 2018)")
+LIST_ITEM (U"• Removed a very old bug that could create invalid TextGrids during forced alignment.")
+LIST_ITEM (U"• Windows: repaired a bug introduced in 6.0.41 "
+	"that caused a crash in several places (such as when changing the sample rate in the SoundRecorder) "
+	"when Praat had been started with a double click.")
+LIST_ITEM (U"• Windows: repaired a bug introduced in 6.0.41 that caused Praat to crash when exiting.")
+NORMAL (U"##6.0.42# (15 August 2018)")
+LIST_ITEM (U"• Repaired a bug introduced in 6.0.41 that caused a crash in pause windows.")
+NORMAL (U"##6.0.41# (6 August 2018)")
+LIST_ITEM (U"• Interoperability: the Windows edition can now communicate with other software in UTF-8.")
 NORMAL (U"##6.0.40# (11 May 2018)")
 LIST_ITEM (U"• Scripting: @@Scripting 4.3. Querying objects|selected\\#  ()@.")
 LIST_ITEM (U"• Table window: cell selection.")

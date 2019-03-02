@@ -1,6 +1,6 @@
 /* Sound.cpp
  *
- * Copyright (C) 1992-2018 Paul Boersma
+ * Copyright (C) 1992-2019 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@
 #include "Sound.h"
 #include "Sound_extensions.h"
 #include "NUM2.h"
-#include "tensor.h"
 
 #include "enums_getText.h"
 #include "Sound_enums.h"
@@ -54,7 +53,7 @@ void structSound :: v_info () {
 		double minimum_Pa = our z [1] [1], maximum_Pa = minimum_Pa;
 		longdouble sum_Pa = 0.0, sumOfSquares_Pa2 = 0.0;
 		for (integer channel = 1; channel <= our ny; channel ++) {
-			double *waveform_Pa = our z [channel];
+			double *waveform_Pa = & our z [channel] [0];
 			for (integer i = 1; i <= our nx; i ++) {
 				double value_Pa = waveform_Pa [i];
 				sum_Pa += value_Pa;
@@ -90,7 +89,7 @@ void structSound :: v_info () {
 	bool thereAreEnoughObservationsToComputeSecondOrderChannelStatistics = ( our nx >= 2 );
 	if (thereAreEnoughObservationsToComputeSecondOrderChannelStatistics) {
 		for (integer channel = 1; channel <= our ny; channel ++) {
-			double stdev = stdev_scalar ({ our z [channel], our nx });
+			double stdev = NUMstdev (constVEC (& our z [channel] [0], our nx));
 			MelderInfo_writeLine (U"Standard deviation in channel ", channel, U": ", Melder_single (stdev), U" Pascal");
 		}
 	}
@@ -247,7 +246,7 @@ autoSound Sound_extractChannel (Sound me, integer ichan) {
 	}
 }
 
-autoSound Sound_extractChannels (Sound me, numvec channelNumbers) {
+autoSound Sound_extractChannels (Sound me, constVEC channelNumbers) {
 	try {
 		integer numberOfChannels = channelNumbers.size;
 		Melder_require (numberOfChannels > 0,
@@ -262,7 +261,7 @@ autoSound Sound_extractChannels (Sound me, numvec channelNumbers) {
 				U"Your channel number is ", originalChannelNumber,
 				U", but it should not be greater than my number of channels, which is ",
 				my ny, U".");
-			double *from = my z [originalChannelNumber], *to = your z [ichan];
+			double *from = & my z [originalChannelNumber] [0], *to = & your z [ichan] [0];
 			for (integer isamp = 1; isamp <= my nx; isamp ++) {
 				to [isamp] = from [isamp];
 			}
@@ -274,55 +273,56 @@ autoSound Sound_extractChannels (Sound me, numvec channelNumbers) {
 }
 
 static double getSumOfSquares (Sound me, double xmin, double xmax, integer *n) {
-	if (xmax <= xmin) { xmin = my xmin; xmax = my xmax; }
+	Melder_assert (me);
+	Function_unidirectionalAutowindow (me, & xmin, & xmax);
 	integer imin, imax;
 	*n = Sampled_getWindowSamples (me, xmin, xmax, & imin, & imax);
 	if (*n < 1) return undefined;
-	longdouble sum2 = 0.0;
-	for (integer channel = 1; channel <= my ny; channel ++) {
-		double *amplitude = my z [channel];
+	longdouble sumOfSquares = 0.0;
+	for (integer ichan = 1; ichan <= my ny; ichan ++) {
+		VEC channel = my z.row (ichan);
 		for (integer i = imin; i <= imax; i ++) {
-			double value = amplitude [i];
-			sum2 += value * value;
+			longdouble value = channel [i];
+			sumOfSquares += value * value;
 		}
 	}
-	return (double) sum2;
+	return double (sumOfSquares);
 }
 
 double Sound_getRootMeanSquare (Sound me, double xmin, double xmax) {
 	integer n;
-	double sum2 = getSumOfSquares (me, xmin, xmax, & n);
-	return isdefined (sum2) ? sqrt (sum2 / (n * my ny)) : undefined;
+	double sumOfSquares = getSumOfSquares (me, xmin, xmax, & n);
+	return isdefined (sumOfSquares) ? sqrt (sumOfSquares / (n * my ny)) : undefined;
 }
 
 double Sound_getEnergy (Sound me, double xmin, double xmax) {
 	integer n;
-	double sum2 = getSumOfSquares (me, xmin, xmax, & n);
-	return isdefined (sum2) ? sum2 * my dx / my ny : undefined;
+	double sumOfSquares = getSumOfSquares (me, xmin, xmax, & n);
+	return isdefined (sumOfSquares) ? sumOfSquares * my dx / my ny : undefined;
 }
 
 double Sound_getPower (Sound me, double xmin, double xmax) {
 	integer n;
-	double sum2 = getSumOfSquares (me, xmin, xmax, & n);
-	return isdefined (sum2) ? sum2 / (n * my ny) : undefined;
+	double sumOfSquares = getSumOfSquares (me, xmin, xmax, & n);
+	return isdefined (sumOfSquares) ? sumOfSquares / (n * my ny) : undefined;
 }
 
 double Sound_getEnergyInAir (Sound me) {
 	integer n;
-	double sum2 = getSumOfSquares (me, 0.0, 0.0, & n);
-	return isdefined (sum2) ? sum2 * my dx / (400.0 * my ny) : undefined;
+	double sumOfSquares = getSumOfSquares (me, 0.0, 0.0, & n);
+	return isdefined (sumOfSquares) ? sumOfSquares * my dx / (400.0 * my ny) : undefined;
 }
 
 double Sound_getIntensity_dB (Sound me) {
 	integer n;
-	double sum2 = getSumOfSquares (me, 0.0, 0.0, & n);
-	return isdefined (sum2) && sum2 != 0.0 ? 10.0 * log10 (sum2 / (n * my ny) / 4.0e-10) : undefined;
+	double sumOfSquares = getSumOfSquares (me, 0.0, 0.0, & n);
+	return isdefined (sumOfSquares) && sumOfSquares != 0.0 ? 10.0 * log10 (sumOfSquares / (n * my ny) / 4.0e-10) : undefined;
 }
 
 double Sound_getPowerInAir (Sound me) {
 	integer n;
-	double sum2 = getSumOfSquares (me, 0, 0, & n);
-	return ( isdefined (sum2) ? sum2 / (n * my ny) / 400.0 : undefined );
+	double sumOfSquares = getSumOfSquares (me, 0, 0, & n);
+	return ( isdefined (sumOfSquares) ? sumOfSquares / (n * my ny) / 400.0 : undefined );
 }
 
 autoSound Matrix_to_Sound_mono (Matrix me, integer row) {
@@ -331,7 +331,7 @@ autoSound Matrix_to_Sound_mono (Matrix me, integer row) {
 		if (row < 0) row = my ny + 1 + row;
 		if (row < 1) row = 1;
 		if (row > my ny) row = my ny;
-		NUMvector_copyElements (my z [row], thy z [1], 1, my nx);
+		NUMvector_copyElements (& my z [row] [0], & thy z [1] [0], 1, my nx);
 		return thee;
 	} catch (MelderError) {
 		Melder_throw (me, U": not converted to Sound.");
@@ -364,15 +364,15 @@ autoSound Sound_upsample (Sound me) {
 		while (nfft < my nx + 2000) nfft *= 2;
 		autoSound thee = Sound_create (my ny, my xmin, my xmax, my nx * 2, my dx / 2, my x1 - my dx / 4);
 		for (integer channel = 1; channel <= my ny; channel ++) {
-			autonumvec data (2 * nfft, kTensorInitializationType::ZERO);   // zeroing is important...
-			NUMvector_copyElements (my z [channel], & data [1000], 1, my nx);   // ...because this fills only part of the sound
-			NUMrealft (data.at, nfft, 1);
+			autoVEC data (2 * nfft, kTensorInitializationType::ZERO);   // zeroing is important...
+			NUMvector_copyElements (& my z [channel] [0], & data [1000], 1, my nx);   // ...because this fills only part of the sound
+			NUMrealft (data.part (1, nfft), 1);
 			integer imin = (integer) (nfft * 0.95);
 			for (integer i = imin + 1; i <= nfft; i ++) {
 				data [i] *= ((double) (nfft - i)) / (nfft - imin);
 			}
 			data [2] = 0.0;
-			NUMrealft (data.at, 2 * nfft, -1);
+			NUMrealft (data.get(), -1);
 			double factor = 1.0 / nfft;
 			for (integer i = 1; i <= thy nx; i ++) {
 				thy z [channel] [i] = data [i + 2000] * factor;
@@ -397,46 +397,41 @@ autoSound Sound_resample (Sound me, double samplingFrequency, integer precision)
 		if (weNeedAnAntiAliasingFilter) {
 			integer nfft = 1, antiTurnAround = 1000;
 			while (nfft < my nx + antiTurnAround * 2) nfft *= 2;
-			autonumvec data (nfft, kTensorInitializationType::RAW);   // will be zeroed in every turn of the loop
+			autoVEC data (nfft, kTensorInitializationType::RAW);   // will be zeroed in every turn of the loop
 			filtered = Sound_create (my ny, my xmin, my xmax, my nx, my dx, my x1);
-			for (integer channel = 1; channel <= my ny; channel ++) {
-				for (integer i = 1; i <= nfft; i ++) {
+			for (integer ichan = 1; ichan <= my ny; ichan ++) {
+				for (integer i = 1; i <= nfft; i ++)
 					data [i] = 0.0;
-				}
-				NUMvector_copyElements (my z [channel], & data [antiTurnAround], 1, my nx);
-				NUMrealft (data.at, nfft, 1);   // go to the frequency domain
-				for (integer i = Melder_ifloor (upfactor * nfft); i <= nfft; i ++) {
+				NUMvector_copyElements (& my z [ichan] [0], & data [antiTurnAround], 1, my nx);
+				NUMrealft (data.get(), 1);   // go to the frequency domain
+				for (integer i = Melder_ifloor (upfactor * nfft); i <= nfft; i ++)
 					data [i] = 0.0;   // filter away high frequencies
-				}
 				data [2] = 0.0;
-				NUMrealft (data.at, nfft, -1);   // return to the time domain
+				NUMrealft (data.get(), -1);   // return to the time domain
 				double factor = 1.0 / nfft;
-				double *to = filtered -> z [channel];
-				for (integer i = 1; i <= my nx; i ++) {
+				VEC to = filtered -> z.row (ichan);
+				for (integer i = 1; i <= my nx; i ++)
 					to [i] = data [i + antiTurnAround] * factor;
-				}
 			}
 			me = filtered.get();   // reference copy; remove at end
 		}
 		autoSound thee = Sound_create (my ny, my xmin, my xmax, numberOfSamples, 1.0 / samplingFrequency,
-			0.5 * (my xmin + my xmax - (numberOfSamples - 1) / samplingFrequency));
-		for (integer channel = 1; channel <= my ny; channel ++) {
-			double *from = my z [channel];
-			double *to = thy z [channel];
+				0.5 * (my xmin + my xmax - (numberOfSamples - 1) / samplingFrequency));
+		for (integer ichan = 1; ichan <= my ny; ichan ++) {
 			if (precision <= 1) {
 				for (integer i = 1; i <= numberOfSamples; i ++) {
 					double x = Sampled_indexToX (thee.get(), i);
 					double index = Sampled_xToIndex (me, x);
 					integer leftSample = Melder_ifloor (index);
 					double fraction = index - leftSample;
-					to [i] = leftSample < 1 || leftSample >= my nx ? 0.0 :
-						(1 - fraction) * from [leftSample] + fraction * from [leftSample + 1];
+					thy z [ichan] [i] = ( leftSample < 1 || leftSample >= my nx ? 0.0 :
+							(1 - fraction) * my z [ichan] [leftSample] + fraction * my z [ichan] [leftSample + 1] );
 				}
 			} else {
 				for (integer i = 1; i <= numberOfSamples; i ++) {
 					double x = Sampled_indexToX (thee.get(), i);
 					double index = Sampled_xToIndex (me, x);
-					to [i] = NUM_interpolate_sinc (my z [channel], my nx, index, precision);
+					thy z [ichan] [i] = NUM_interpolate_sinc (my z.row (ichan), index, precision);
 				}
 			}
 		}
@@ -455,8 +450,8 @@ autoSound Sounds_append (Sound me, double silenceDuration, Sound thee) {
 			Melder_throw (U"The sampling frequencies are not equal.");
 		autoSound him = Sound_create (my ny, 0.0, nx * my dx, nx, my dx, 0.5 * my dx);
 		for (integer channel = 1; channel <= my ny; channel ++) {
-			NUMvector_copyElements (my z [channel], his z [channel], 1, my nx);
-			NUMvector_copyElements (thy z [channel], his z [channel] + my nx + nx_silence, 1, thy nx);
+			NUMvector_copyElements (& my z [channel] [0], & his z [channel] [0], 1, my nx);
+			NUMvector_copyElements (& thy z [channel] [0], & his z [channel] [0] + my nx + nx_silence, 1, thy nx);
 		}
 		return him;
 	} catch (MelderError) {
@@ -485,9 +480,9 @@ autoSound Sounds_concatenate (OrderedOf<structSound>& list, double overlapTime) 
 		}
 		numberOfSmoothingSamples = Melder_iround (overlapTime / dx);
 		autoSound thee = Sound_create (numberOfChannels, 0.0, nx * dx, nx, dx, 0.5 * dx);
-		autonumvec smoother;
+		autoVEC smoother;
 		if (numberOfSmoothingSamples > 0) {
-			smoother = autonumvec (numberOfSmoothingSamples, kTensorInitializationType::RAW);
+			smoother = autoVEC (numberOfSmoothingSamples, kTensorInitializationType::RAW);
 			double factor = NUMpi / numberOfSmoothingSamples;
 			for (integer i = 1; i <= numberOfSmoothingSamples; i ++) {
 				smoother [i] = 0.5 - 0.5 * cos (factor * (i - 0.5));
@@ -511,7 +506,7 @@ autoSound Sounds_concatenate (OrderedOf<structSound>& list, double overlapTime) 
 				{
 					thy z [channel] [thySample] += sound -> z [channel] [mySample] * smoother [j];   // add
 				}
-				NUMvector_copyElements (sound -> z [channel], thy z [channel] + nx,
+				NUMvector_copyElements (& sound -> z [channel] [0], & thy z [channel] [0] + nx,
 					1 + numberOfSmoothingSamplesAtTheStartOfThisSound, sound -> nx - numberOfSmoothingSamplesAtTheEndOfThisSound);
 				for (integer j = 1, mySample = sound -> nx - numberOfSmoothingSamplesAtTheEndOfThisSound + 1, thySample = mySample + nx;
 					 j <= numberOfSmoothingSamplesAtTheEndOfThisSound;
@@ -540,19 +535,19 @@ autoSound Sounds_convolve (Sound me, Sound thee, kSounds_convolve_scaling scalin
 		integer n1 = my nx, n2 = thy nx;
 		integer n3 = n1 + n2 - 1, nfft = 1;
 		while (nfft < n3) nfft *= 2;
-		autonumvec data1 (nfft, kTensorInitializationType::RAW);
-		autonumvec data2 (nfft, kTensorInitializationType::RAW);
+		autoVEC data1 (nfft, kTensorInitializationType::RAW);
+		autoVEC data2 (nfft, kTensorInitializationType::RAW);
 		integer numberOfChannels = my ny > thy ny ? my ny : thy ny;
 		autoSound him = Sound_create (numberOfChannels, my xmin + thy xmin, my xmax + thy xmax, n3, my dx, my x1 + thy x1);
 		for (integer channel = 1; channel <= numberOfChannels; channel ++) {
-			double *a = my z [my ny == 1 ? 1 : channel];
+			double *a = & my z [my ny == 1 ? 1 : channel] [0];
 			for (integer i = n1; i > 0; i --) data1 [i] = a [i];
 			for (integer i = n1 + 1; i <= nfft; i ++) data1 [i] = 0.0;
-			a = thy z [thy ny == 1 ? 1 : channel];
+			a = & thy z [thy ny == 1 ? 1 : channel] [0];
 			for (integer i = n2; i > 0; i --) data2 [i] = a [i];
 			for (integer i = n2 + 1; i <= nfft; i ++) data2 [i] = 0.0;
-			NUMrealft (data1.at, nfft, 1);
-			NUMrealft (data2.at, nfft, 1);
+			NUMrealft (data1.get(), 1);
+			NUMrealft (data2.get(), 1);
 			data2 [1] *= data1 [1];
 			data2 [2] *= data1 [2];
 			for (integer i = 3; i <= nfft; i += 2) {
@@ -560,8 +555,8 @@ autoSound Sounds_convolve (Sound me, Sound thee, kSounds_convolve_scaling scalin
 				data2 [i + 1] = data1 [i] * data2 [i + 1] + data1 [i + 1] * data2 [i];
 				data2 [i] = temp;
 			}
-			NUMrealft (data2.at, nfft, -1);
-			a = him -> z [channel];
+			NUMrealft (data2.get(), -1);
+			a = & him -> z [channel] [0];
 			for (integer i = 1; i <= n3; i ++) {
 				a [i] = data2 [i];
 			}
@@ -572,7 +567,7 @@ autoSound Sounds_convolve (Sound me, Sound thee, kSounds_convolve_scaling scalin
 			} break;
 			case kSounds_convolve_signalOutsideTimeDomain::SIMILAR: {
 				for (integer channel = 1; channel <= numberOfChannels; channel ++) {
-					double *a = his z [channel];
+					double *a = & his z [channel] [0];
 					double edge = n1 < n2 ? n1 : n2;
 					for (integer i = 1; i < edge; i ++) {
 						double factor = edge / i;
@@ -620,19 +615,19 @@ autoSound Sounds_crossCorrelate (Sound me, Sound thee, kSounds_convolve_scaling 
 		integer n1 = my nx, n2 = thy nx;
 		integer n3 = n1 + n2 - 1, nfft = 1;
 		while (nfft < n3) nfft *= 2;
-		autonumvec data1 (nfft, kTensorInitializationType::RAW);
-		autonumvec data2 (nfft, kTensorInitializationType::RAW);
+		autoVEC data1 (nfft, kTensorInitializationType::RAW);
+		autoVEC data2 (nfft, kTensorInitializationType::RAW);
 		double my_xlast = my x1 + (n1 - 1) * my dx;
 		autoSound him = Sound_create (numberOfChannels, thy xmin - my xmax, thy xmax - my xmin, n3, my dx, thy x1 - my_xlast);
 		for (integer channel = 1; channel <= numberOfChannels; channel ++) {
-			double *a = my z [my ny == 1 ? 1 : channel];
+			double *a = & my z [my ny == 1 ? 1 : channel] [0];
 			for (integer i = n1; i > 0; i --) data1 [i] = a [i];
 			for (integer i = n1 + 1; i <= nfft; i ++) data1 [i] = 0.0;
-			a = thy z [thy ny == 1 ? 1 : channel];
+			a = & thy z [thy ny == 1 ? 1 : channel] [0];
 			for (integer i = n2; i > 0; i --) data2 [i] = a [i];
 			for (integer i = n2 + 1; i <= nfft; i ++) data2 [i] = 0.0;
-			NUMrealft (data1.at, nfft, 1);
-			NUMrealft (data2.at, nfft, 1);
+			NUMrealft (data1.get(), 1);
+			NUMrealft (data2.get(), 1);
 			data2 [1] *= data1 [1];
 			data2 [2] *= data1 [2];
 			for (integer i = 3; i <= nfft; i += 2) {
@@ -640,8 +635,8 @@ autoSound Sounds_crossCorrelate (Sound me, Sound thee, kSounds_convolve_scaling 
 				data2 [i + 1] = data1 [i] * data2 [i + 1] - data1 [i + 1] * data2 [i];   // reverse me by taking the conjugate of data1
 				data2 [i] = temp;
 			}
-			NUMrealft (data2.at, nfft, -1);
-			a = him -> z [channel];
+			NUMrealft (data2.get(), -1);
+			a = & him -> z [channel] [0];
 			for (integer i = 1; i < n1; i ++) {
 				a [i] = data2 [i + (nfft - (n1 - 1))];   // data for the first part ("negative lags") is at the end of data2
 			}
@@ -655,7 +650,7 @@ autoSound Sounds_crossCorrelate (Sound me, Sound thee, kSounds_convolve_scaling 
 			} break;
 			case kSounds_convolve_signalOutsideTimeDomain::SIMILAR: {
 				for (integer channel = 1; channel <= numberOfChannels; channel ++) {
-					double *a = his z [channel];
+					double *a = & his z [channel] [0];
 					double edge = n1 < n2 ? n1 : n2;
 					for (integer i = 1; i < edge; i ++) {
 						double factor = edge / i;
@@ -697,22 +692,22 @@ autoSound Sound_autoCorrelate (Sound me, kSounds_convolve_scaling scaling, kSoun
 	try {
 		integer numberOfChannels = my ny, n1 = my nx, n2 = n1 + n1 - 1, nfft = 1;
 		while (nfft < n2) nfft *= 2;
-		autonumvec data (nfft, kTensorInitializationType::RAW);
+		autoVEC data (nfft, kTensorInitializationType::RAW);
 		double my_xlast = my x1 + (n1 - 1) * my dx;
 		autoSound thee = Sound_create (numberOfChannels, my xmin - my xmax, my xmax - my xmin, n2, my dx, my x1 - my_xlast);
 		for (integer channel = 1; channel <= numberOfChannels; channel ++) {
-			double *a = my z [channel];
+			double *a = & my z [channel] [0];
 			for (integer i = n1; i > 0; i --) data [i] = a [i];
 			for (integer i = n1 + 1; i <= nfft; i ++) data [i] = 0.0;
-			NUMrealft (data.at, nfft, 1);
+			NUMrealft (data.get(), 1);
 			data [1] *= data [1];
 			data [2] *= data [2];
 			for (integer i = 3; i <= nfft; i += 2) {
 				data [i] = data [i] * data [i] + data [i + 1] * data [i + 1];
 				data [i + 1] = 0.0;   // reverse me by taking the conjugate of data1
 			}
-			NUMrealft (data.at, nfft, -1);
-			a = thy z [channel];
+			NUMrealft (data.get(), -1);
+			a = & thy z [channel] [0];
 			for (integer i = 1; i < n1; i ++) {
 				a [i] = data [i + (nfft - (n1 - 1))];   // data for the first part ("negative lags") is at the end of data
 			}
@@ -726,7 +721,7 @@ autoSound Sound_autoCorrelate (Sound me, kSounds_convolve_scaling scaling, kSoun
 			} break;
 			case kSounds_convolve_signalOutsideTimeDomain::SIMILAR: {
 				for (integer channel = 1; channel <= numberOfChannels; channel ++) {
-					double *a = thy z [channel];
+					double *a = & thy z [channel] [0];
 					double edge = n1;
 					for (integer i = 1; i < edge; i ++) {
 						double factor = edge / i;
@@ -767,20 +762,15 @@ autoSound Sound_autoCorrelate (Sound me, kSounds_convolve_scaling scaling, kSoun
 void Sound_draw (Sound me, Graphics g,
 	double tmin, double tmax, double minimum, double maximum, bool garnish, conststring32 method)
 {
-	bool treversed = tmin > tmax;
-	if (treversed) { double temp = tmin; tmin = tmax; tmax = temp; }
-	/*
-		Automatic domain.
-	*/
-	if (tmin == tmax) {
-		tmin = my xmin;
-		tmax = my xmax;
-	}
+	const bool timesAreReversed = ( tmin > tmax );
+	if (timesAreReversed) std::swap (tmin, tmax);
+	Function_bidirectionalAutowindow (me, & tmin, & tmax);
 	/*
 		Domain expressed in sample numbers.
 	*/
 	integer ixmin, ixmax;
-	Matrix_getWindowSamplesX (me, tmin, tmax, & ixmin, & ixmax);
+	integer n = Matrix_getWindowSamplesX (me, tmin, tmax, & ixmin, & ixmax);
+	if (n < 1) return;
 	/*
 		Automatic vertical range.
 	*/
@@ -796,41 +786,41 @@ void Sound_draw (Sound me, Graphics g,
 	*/
 	Graphics_setInner (g);
 	for (integer channel = 1; channel <= my ny; channel ++) {
-		Graphics_setWindow (g, treversed ? tmax : tmin, treversed ? tmin : tmax,
+		Graphics_setWindow (g, timesAreReversed ? tmax : tmin, timesAreReversed ? tmin : tmax,
 			minimum - (my ny - channel) * (maximum - minimum),
-			maximum + (channel - 1) * (maximum - minimum));
+			maximum + (channel - 1) * (maximum - minimum)
+		);
 		if (str32str (method, U"bars") || str32str (method, U"Bars")) {
 			for (integer ix = ixmin; ix <= ixmax; ix ++) {
-				double x = Sampled_indexToX (me, ix);
-				double y = my z [channel] [ix];
-				double left = x - 0.5 * my dx, right = x + 0.5 * my dx;
-				if (y > maximum) y = maximum;
-				if (left < tmin) left = tmin;
-				if (right > tmax) right = tmax;
+				const double x = Sampled_indexToX (me, ix);
+				const double y = std::min (my z [channel] [ix], maximum);
+				const double left = std::max (x - 0.5 * my dx, tmin);
+				const double right = std::min (x + 0.5 * my dx, tmax);
 				Graphics_line (g, left, y, right, y);
 				Graphics_line (g, left, y, left, minimum);
 				Graphics_line (g, right, y, right, minimum);
 			}
 		} else if (str32str (method, U"poles") || str32str (method, U"Poles")) {
 			for (integer ix = ixmin; ix <= ixmax; ix ++) {
-				double x = Sampled_indexToX (me, ix);
+				const double x = Sampled_indexToX (me, ix);
 				Graphics_line (g, x, 0, x, my z [channel] [ix]);
 			}
 		} else if (str32str (method, U"speckles") || str32str (method, U"Speckles")) {
 			for (integer ix = ixmin; ix <= ixmax; ix ++) {
-				double x = Sampled_indexToX (me, ix);
+				const double x = Sampled_indexToX (me, ix);
 				Graphics_speckle (g, x, my z [channel] [ix]);
 			}
 		} else {
 			/*
 			 * The default: draw as a curve.
 			 */
-			Graphics_function (g, my z [channel], ixmin, ixmax,
-				Matrix_columnToX (me, ixmin), Matrix_columnToX (me, ixmax));
+			Graphics_function (g, & my z [channel] [0], ixmin, ixmax,
+					Matrix_columnToX (me, ixmin), Matrix_columnToX (me, ixmax));
 		}
 	}
-	Graphics_setWindow (g, treversed ? tmax : tmin, treversed ? tmin : tmax, minimum, maximum);
-	if (garnish && my ny == 2) Graphics_line (g, tmin, 0.5 * (minimum + maximum), tmax, 0.5 * (minimum + maximum));
+	Graphics_setWindow (g, timesAreReversed ? tmax : tmin, timesAreReversed ? tmin : tmax, minimum, maximum);
+	if (garnish && my ny == 2)
+		Graphics_line (g, tmin, 0.5 * (minimum + maximum), tmax, 0.5 * (minimum + maximum));
 	Graphics_unsetInner (g);
 	if (garnish) {
 		Graphics_drawInnerBox (g);
@@ -839,16 +829,15 @@ void Sound_draw (Sound me, Graphics g,
 		Graphics_setWindow (g, tmin, tmax, minimum - (my ny - 1) * (maximum - minimum), maximum);
 		Graphics_markLeft (g, minimum, true, true, false, nullptr);
 		Graphics_markLeft (g, maximum, true, true, false, nullptr);
-		if (minimum != 0.0 && maximum != 0.0 && (minimum > 0.0) != (maximum > 0.0)) {
+		if (minimum != 0.0 && maximum != 0.0 && (minimum > 0.0) != (maximum > 0.0))
 			Graphics_markLeft (g, 0.0, true, true, true, nullptr);
-		}
 		if (my ny == 2) {
-			Graphics_setWindow (g, treversed ? tmax : tmin, treversed ? tmin : tmax, minimum, maximum + (my ny - 1) * (maximum - minimum));
+			Graphics_setWindow (g, timesAreReversed ? tmax : tmin, timesAreReversed ? tmin : tmax,
+					minimum, maximum + (my ny - 1) * (maximum - minimum));
 			Graphics_markRight (g, minimum, true, true, false, nullptr);
 			Graphics_markRight (g, maximum, true, true, false, nullptr);
-			if (minimum != 0.0 && maximum != 0.0 && (minimum > 0.0) != (maximum > 0.0)) {
+			if (minimum != 0.0 && maximum != 0.0 && (minimum > 0.0) != (maximum > 0.0))
 				Graphics_markRight (g, 0.0, true, true, true, nullptr);
-			}
 		}
 	}
 }
@@ -862,7 +851,7 @@ static double interpolate (Sound me, integer i1, integer channel)
 	return x1 + (x2 - x1) * y1 / (y1 - y2);   // linear
 }
 double Sound_getNearestZeroCrossing (Sound me, double position, integer channel) {
-	double *amplitude = my z [channel];
+	double *amplitude = & my z [channel] [0];
 	integer leftSample = Sampled_xToLowIndex (me, position);
 	integer rightSample = leftSample + 1, ileft, iright;
 	double leftZero, rightZero;
@@ -917,6 +906,8 @@ autoSound Sound_createAsPureTone (integer numberOfChannels, double startingTime,
 	double sampleRate, double frequency, double amplitude, double fadeInDuration, double fadeOutDuration)
 {
 	try {
+		Melder_require (numberOfChannels >= 1,
+			U"The number of channels has to be at least 1.");
 		double numberOfSamples_f = round ((endTime - startingTime) * sampleRate);
 		if (numberOfSamples_f > (double) INT32_MAX)
 			Melder_throw (U"Cannot create sounds with more than ", Melder_bigInteger (INT32_MAX), U" samples, because they cannot be saved to disk.");
@@ -951,16 +942,17 @@ autoSound Sound_createAsToneComplex (double startTime, double endTime, double sa
 			Translate default firstFrequency.
 		*/
 		if (firstFrequency <= 0.0) firstFrequency = frequencyStep;
-		double firstOmega = 2 * NUMpi * firstFrequency;
+		double const firstOmega = 2 * NUMpi * firstFrequency;
 		/*
 			Translate default ceiling.
 		*/
-		double omegaStep = 2 * NUMpi * frequencyStep, nyquistFrequency = 0.5 * samplingFrequency;
+		double const omegaStep = 2 * NUMpi * frequencyStep;
+		double const nyquistFrequency = 0.5 * samplingFrequency;
 		if (ceiling <= 0.0 || ceiling > nyquistFrequency) ceiling = nyquistFrequency;
 		/*
 			Translate number of components.
 		*/
-		integer maximumNumberOfComponents = Melder_ifloor ((ceiling - firstFrequency) / frequencyStep) + 1;
+		integer const maximumNumberOfComponents = Melder_ifloor ((ceiling - firstFrequency) / frequencyStep) + 1;
 		if (numberOfComponents <= 0 || numberOfComponents > maximumNumberOfComponents)
 			numberOfComponents = maximumNumberOfComponents;
 		if (numberOfComponents < 1)
@@ -968,13 +960,14 @@ autoSound Sound_createAsToneComplex (double startTime, double endTime, double sa
 		/*
 			Generate the Sound.
 		*/
-		double factor = 0.99 / numberOfComponents;
+		double const factor = 0.99 / numberOfComponents;
 		autoSound me = Sound_create (1, startTime, endTime, Melder_iround ((endTime - startTime) * samplingFrequency),
 			1.0 / samplingFrequency, startTime + 0.5 / samplingFrequency);
-		double *amplitude = my z [1];
 		for (integer isamp = 1; isamp <= my nx; isamp ++) {
-			double value = 0.0, t = Sampled_indexToX (me.get(), isamp);
-			double omegaStepT = omegaStep * t, firstOmegaT = firstOmega * t;
+			double const t = Sampled_indexToX (me.get(), isamp);
+			double const omegaStepT = omegaStep * t;
+			double const firstOmegaT = firstOmega * t;
+			longdouble value = 0.0;
 			if (phase == Sound_TONE_COMPLEX_SINE) {
 				for (integer icomp = 1; icomp <= numberOfComponents; icomp ++)
 					value += sin (firstOmegaT + (icomp - 1) * omegaStepT);
@@ -982,7 +975,7 @@ autoSound Sound_createAsToneComplex (double startTime, double endTime, double sa
 				for (integer icomp = 1; icomp <= numberOfComponents; icomp ++)
 					value += cos (firstOmegaT + (icomp - 1) * omegaStepT);
 			}
-			amplitude [isamp] = value * factor;
+			my z [1] [isamp] = double (value) * factor;
 		}
 		return me;
 	} catch (MelderError) {
@@ -991,56 +984,56 @@ autoSound Sound_createAsToneComplex (double startTime, double endTime, double sa
 }
 
 void Sound_multiplyByWindow (Sound me, kSound_windowShape windowShape) {
-	for (integer channel = 1; channel <= my ny; channel ++) {
+	for (integer ichan = 1; ichan <= my ny; ichan ++) {
 		integer n = my nx;
-		double *amp = my z [channel];
+		VEC channel = my z.row (ichan);
 		switch (windowShape) {
 			case kSound_windowShape::RECTANGULAR: {
 				;
 			} break; case kSound_windowShape::TRIANGULAR: {   // "Bartlett"
 				for (integer i = 1; i <= n; i ++) { double phase = (double) i / n;   // 0..1
-					amp [i] *= 1.0 - fabs ((2.0 * phase - 1.0)); }
+					channel [i] *= 1.0 - fabs ((2.0 * phase - 1.0)); }
 			} break; case kSound_windowShape::PARABOLIC: {   // "Welch"
 				for (integer i = 1; i <= n; i ++) { double phase = (double) i / n;
-					amp [i] *= 1.0 - (2.0 * phase - 1.0) * (2.0 * phase - 1.0); }
+					channel [i] *= 1.0 - (2.0 * phase - 1.0) * (2.0 * phase - 1.0); }
 			} break; case kSound_windowShape::HANNING: {
 				for (integer i = 1; i <= n; i ++) { double phase = (double) i / n;
-					amp [i] *= 0.5 * (1.0 - cos (2.0 * NUMpi * phase)); }
+					channel [i] *= 0.5 * (1.0 - cos (2.0 * NUMpi * phase)); }
 			} break; case kSound_windowShape::HAMMING: {
 				for (integer i = 1; i <= n; i ++) { double phase = (double) i / n;
-					amp [i] *= 0.54 - 0.46 * cos (2.0 * NUMpi * phase); }
+					channel [i] *= 0.54 - 0.46 * cos (2.0 * NUMpi * phase); }
 			} break; case kSound_windowShape::GAUSSIAN_1: {
 				double imid = 0.5 * (n + 1), edge = exp (-3.0), onebyedge1 = 1.0 / (1.0 - edge);   // -0.5..+0.5
 				for (integer i = 1; i <= n; i ++) { double phase = ((double) i - imid) / n;
-					amp [i] *= (exp (-12.0 * phase * phase) - edge) * onebyedge1; }
+					channel [i] *= (exp (-12.0 * phase * phase) - edge) * onebyedge1; }
 			} break; case kSound_windowShape::GAUSSIAN_2: {
 				double imid = 0.5 * (double) (n + 1), edge = exp (-12.0), onebyedge1 = 1.0 / (1.0 - edge);
 				for (integer i = 1; i <= n; i ++) { double phase = ((double) i - imid) / n;
-					amp [i] *= (exp (-48.0 * phase * phase) - edge) * onebyedge1; }
+					channel [i] *= (exp (-48.0 * phase * phase) - edge) * onebyedge1; }
 			} break; case kSound_windowShape::GAUSSIAN_3: {
 				double imid = 0.5 * (double) (n + 1), edge = exp (-27.0), onebyedge1 = 1.0 / (1.0 - edge);
 				for (integer i = 1; i <= n; i ++) { double phase = ((double) i - imid) / n;
-					amp [i] *= (exp (-108.0 * phase * phase) - edge) * onebyedge1; }
+					channel [i] *= (exp (-108.0 * phase * phase) - edge) * onebyedge1; }
 			} break; case kSound_windowShape::GAUSSIAN_4: {
 				double imid = 0.5 * (double) (n + 1), edge = exp (-48.0), onebyedge1 = 1.0 / (1.0 - edge);
 				for (integer i = 1; i <= n; i ++) { double phase = ((double) i - imid) / n;
-					amp [i] *= (exp (-192.0 * phase * phase) - edge) * onebyedge1; }
+					channel [i] *= (exp (-192.0 * phase * phase) - edge) * onebyedge1; }
 			} break; case kSound_windowShape::GAUSSIAN_5: {
 				double imid = 0.5 * (double) (n + 1), edge = exp (-75.0), onebyedge1 = 1.0 / (1.0 - edge);
 				for (integer i = 1; i <= n; i ++) { double phase = ((double) i - imid) / n;
-					amp [i] *= (exp (-300.0 * phase * phase) - edge) * onebyedge1; }
+					channel [i] *= (exp (-300.0 * phase * phase) - edge) * onebyedge1; }
 			} break; case kSound_windowShape::KAISER_1: {
 				double imid = 0.5 * (double) (n + 1);
 				double factor = 1.0 / NUMbessel_i0_f (2 * NUMpi);
 				for (integer i = 1; i <= n; i ++) { double phase = 2.0 * ((double) i - imid) / n;   // -1..+1
 					double root = 1.0 - phase * phase;
-					amp [i] *= root <= 0.0 ? 0.0 : factor * NUMbessel_i0_f (2.0 * NUMpi * sqrt (root)); }
+					channel [i] *= root <= 0.0 ? 0.0 : factor * NUMbessel_i0_f (2.0 * NUMpi * sqrt (root)); }
 			} break; case kSound_windowShape::KAISER_2: {
 				double imid = 0.5 * (double) (n + 1);
 				double factor = 1.0 / NUMbessel_i0_f (2 * NUMpi * NUMpi + 0.5);
 				for (integer i = 1; i <= n; i ++) { double phase = 2.0 * ((double) i - imid) / n;   // -1..+1
 					double root = 1.0 - phase * phase;
-					amp [i] *= root <= 0.0 ? 0.0 : factor * NUMbessel_i0_f ((2.0 * NUMpi * NUMpi + 0.5) * sqrt (root)); }
+					channel [i] *= root <= 0.0 ? 0.0 : factor * NUMbessel_i0_f ((2.0 * NUMpi * NUMpi + 0.5) * sqrt (root)); }
 			} break; default: {
 			}
 		}
@@ -1048,18 +1041,14 @@ void Sound_multiplyByWindow (Sound me, kSound_windowShape windowShape) {
 }
 
 void Sound_scaleIntensity (Sound me, double newAverageIntensity) {
-	double currentIntensity = Sound_getIntensity_dB (me), factor;
+	const double currentIntensity = Sound_getIntensity_dB (me);
 	if (isundef (currentIntensity)) return;
-	factor = pow (10, (newAverageIntensity - currentIntensity) / 20.0);
-	for (integer channel = 1; channel <= my ny; channel ++) {
-		for (integer i = 1; i <= my nx; i ++) {
-			my z [channel] [i] *= factor;
-		}
-	}
+	const double factor = pow (10.0, (newAverageIntensity - currentIntensity) / 20.0);
+	my z.all()  *=  factor;
 }
 
 void Sound_overrideSamplingFrequency (Sound me, double rate) {
-	my dx = 1 / rate;
+	my dx = 1.0 / rate;
 	my x1 = my xmin + 0.5 * my dx;
 	my xmax = my xmin + my nx * my dx;
 }
@@ -1099,7 +1088,7 @@ autoSound Sound_extractPart (Sound me, double t1, double t2, kSound_windowShape 
 			The *virtual* samples will remain at zero.
 		*/
 		for (integer channel = 1; channel <= my ny; channel ++) {
-			NUMvector_copyElements (my z [channel], thy z [channel] + 1 - ix1,
+			NUMvector_copyElements (& my z [channel] [0], & thy z [channel] [0] + 1 - ix1,
 					( ix1 < 1 ? 1 : ix1 ), ( ix2 > my nx ? my nx : ix2 ));
 		}
 		/*
@@ -1140,7 +1129,7 @@ autoSound Sound_extractPartForOverlap (Sound me, double t1, double t2, double ov
 			The *virtual* samples will remain at zero.
 		*/
 		for (integer channel = 1; channel <= my ny; channel ++) {
-			NUMvector_copyElements (my z [channel], thy z [channel] + 1 - ix1,
+			NUMvector_copyElements (& my z [channel] [0], & thy z [channel] [0] + 1 - ix1,
 					( ix1 < 1 ? 1 : ix1 ), ( ix2 > my nx ? my nx : ix2 ));
 		}
 		return thee;
@@ -1153,16 +1142,17 @@ void Sound_filterWithFormants (Sound me, double tmin, double tmax,
 	int numberOfFormants, double formant [], double bandwidth [])
 {
 	try {
-		for (integer channel = 1; channel <= my ny; channel ++) {
-			if (tmax <= tmin) { tmin = my xmin; tmax = my xmax; }   // autowindowing
+		for (integer ichan = 1; ichan <= my ny; ichan ++) {
+			Function_unidirectionalAutowindow (me, & tmin, & tmax);
 			integer itmin, itmax;
 			integer n = Sampled_getWindowSamples (me, tmin, tmax, & itmin, & itmax);
 			if (n <= 2)
 				Melder_throw (U"Sound too short.");
-			double *amplitude = my z [channel] + itmin - 1;   // base 1
-			NUMdeemphasize_f (amplitude, n, my dx, 50.0);
+			VEC channel = my z.row (ichan);
+			VEC window = channel.part (itmin, itmax);
+			NUMdeemphasize_f (window, my dx, 50.0);
 			for (int iformant = 1; iformant <= numberOfFormants; iformant ++) {
-				NUMfilterSecondOrderSection_fb (amplitude, n, my dx, formant [iformant], bandwidth [iformant]);
+				NUMfilterSecondOrderSection_fb (window, my dx, formant [iformant], bandwidth [iformant]);
 			}
 		}
 		Matrix_scaleAbsoluteExtremum (me, 0.99);
@@ -1182,8 +1172,9 @@ autoSound Sound_filter_oneFormant (Sound me, double frequency, double bandwidth)
 }
 
 void Sound_filterWithOneFormantInplace (Sound me, double frequency, double bandwidth) {
-	for (integer channel = 1; channel <= my ny; channel ++) {
-		NUMfilterSecondOrderSection_fb (my z [channel], my nx, my dx, frequency, bandwidth);
+	for (integer ichan = 1; ichan <= my ny; ichan ++) {
+		VEC channel = my z.row (ichan);
+		NUMfilterSecondOrderSection_fb (channel, my dx, frequency, bandwidth);
 	}
 	Matrix_scaleAbsoluteExtremum (me, 0.99);
 }
@@ -1215,7 +1206,7 @@ void Sound_reverse (Sound me, double tmin, double tmax) {
 	integer itmin, itmax;
 	integer n = Sampled_getWindowSamples (me, tmin, tmax, & itmin, & itmax) / 2;
 	for (integer channel = 1; channel <= my ny; channel ++) {
-		double *amp = my z [channel];
+		double *amp = & my z [channel] [0];
 		for (integer i = 0; i < n; i ++) {
 			double dummy = amp [itmin + i];
 			amp [itmin + i] = amp [itmax - i];
@@ -1279,5 +1270,7 @@ autoSound Sounds_crossCorrelate_short (Sound me, Sound thee, double tmin, double
 		Melder_throw (me, U": not cross-correlated.");
 	}
 }
+
+Thing_implement (SoundList, Ordered, 0);
 
 /* End of file Sound.cpp */
