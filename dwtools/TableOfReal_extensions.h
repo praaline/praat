@@ -153,7 +153,7 @@ void TableOfReal_centreRows (TableOfReal me);
 
 void TableOfReal_doubleCentre (TableOfReal me);
 
-bool TableOfReal_checkNonNegativity (TableOfReal me);
+bool TableOfReal_isNonNegative (TableOfReal me);
 
 double TableOfReal_getTableNorm (TableOfReal me);
 
@@ -193,7 +193,7 @@ autoTableOfReal TableOfReal_appendColumns (TableOfReal me, TableOfReal thee);
 void TableOfReal_copyOneRowWithLabel (TableOfReal me, TableOfReal thee, integer myrow, integer thyrow);
 
 /* Henze & Wagner (1997), A new approach to the BHEP tests for multivariate normality, Journal of Multivariate Analysis 62, 1-23. */
-double TableOfReal_normalityTest_BHEP (TableOfReal me, double *beta /* input and output */, double *tnb, double *lnmu, double *lnvar);
+double TableOfReal_normalityTest_BHEP (TableOfReal me, double *h, double *out_tnb, double *out_lnmu, double *out_lnvar, bool *out_singularCovariance);
 
 autoTableOfReal TableOfReal_TableOfReal_crossCorrelations (TableOfReal me, TableOfReal thee, bool by_columns, bool center, bool normalize);
 

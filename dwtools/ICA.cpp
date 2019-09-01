@@ -1,6 +1,6 @@
 /* ICA.cpp
  *
- * Copyright (C) 2010-2018 David Weenink
+ * Copyright (C) 2010-2019 David Weenink
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -162,7 +162,7 @@ static void Diagonalizer_CrossCorrelationTableList_ffdiag (Diagonalizer me, Cros
 				}
 				// update V
 				vnew.all() <<= my data.all();
-				MATVUmul (my data.get(), w.get(), vnew.get());
+				MATmul (my data.get(), w.get(), vnew.get());
 				for (integer k = 1; k <= ccts -> size; k ++) {
 					CrossCorrelationTable ct = ccts -> at [k];
 					Melder_assert (ct -> data.nrow == dimension && ct -> data.ncol == dimension);   // ppgb 20180913
@@ -192,7 +192,7 @@ static void update_one_column (CrossCorrelationTableList me, MAT d, constVEC wp,
 	for (integer ic = 2; ic <= my size; ic ++) { // exclude C0
 		SSCP cov = my at [ic];
 		// m1 = C * wvec
-		VECmul_preallocated (work, cov -> data.get(), wvec);
+		VECmul (work, cov -> data.get(), wvec);
 		// D = D +/- 2*p(t)*(m1*m1');
 		for (integer i = 1; i <= dimension; i ++) {
 			for (integer j = 1; j <= dimension; j ++) {
@@ -246,15 +246,15 @@ static void Diagonalizer_CrossCorrelationTable_qdiag (Diagonalizer me, CrossCorr
 
 		// W = P'\W == inv(P') * W
 
-		MATpseudoInverse_preallocated (pinv.get (), p.get(), 0.0);
-		MATVUmul (my data.get(), pinv.transpose(), wc.get());
+		MATpseudoInverse (pinv.get (), p.get(), 0.0);
+		MATmul (my data.get(), pinv.transpose(), wc.get());
 
 		// initialisation for order KN^3
 
 		for (integer ic = 2; ic <= thy size; ic ++) {
 			CrossCorrelationTable cov = ccts -> at [ic];
 			// C * W
-			MATVUmul (m1.get(), cov -> data.get(), my data.get());
+			MATmul (m1.get(), cov -> data.get(), my data.get());
 			// D += scalef * M1*M1'
 			multiplyScaleAdd_preallocated (d.get(), m1.get(), 2.0 * cweights [ic]);
 		}
@@ -314,7 +314,7 @@ static void Diagonalizer_CrossCorrelationTable_qdiag (Diagonalizer me, CrossCorr
 		// Revert the sphering W = P'*W;
 		// Take transpose to make W*C [i]W' diagonal instead of W'*C [i]*W => (P'*W)'=W'*P
 		wc.all() <<= my data.all();
-		MATVUmul (my data.get(), wc.transpose(), p.get()); // W = W'*P: final result
+		MATmul (my data.get(), wc.transpose(), p.get()); // W = W'*P: final result
 
 		// Calculate the "real" diagonality measure
 	//	double dm = CrossCorrelationTableList_Diagonalizer_getDiagonalityMeasure (thee, me, cweights, 1, thy size);
@@ -327,7 +327,7 @@ static void Diagonalizer_CrossCorrelationTable_qdiag (Diagonalizer me, CrossCorr
 void MixingMatrix_CrossCorrelationTableList_improveUnmixing (MixingMatrix me, CrossCorrelationTableList thee, integer maxNumberOfIterations, double tol, int method) {
 	autoDiagonalizer him = MixingMatrix_to_Diagonalizer (me);
 	Diagonalizer_CrossCorrelationTableList_improveDiagonality (him.get(), thee, maxNumberOfIterations, tol, method);
-	MATpseudoInverse_preallocated (my data.get(), his data.get(), 0);
+	MATpseudoInverse (my data.get(), his data.get(), 0);
 }
 
 
@@ -339,7 +339,7 @@ void MixingMatrix_CrossCorrelationTableList_improveUnmixing (MixingMatrix me, Cr
  */
 static void NUMcrossCorrelate_rows (constMAT x, integer icol1, integer icol2, integer lag, MAT inout_cc, VEC inout_centroid, double scale) {
 	Melder_assert (inout_cc.nrow == inout_cc.ncol && inout_cc.nrow == x.nrow);
-	lag = labs (lag);
+	lag = integer_abs (lag);
 	integer nsamples = icol2 - icol1 + 1 + lag;
 	Melder_require (nsamples > 0, U"Not enough samples to perform crosscorrealtions."); 
 	for (integer i = 1; i <= x.nrow; i ++) {
@@ -526,7 +526,7 @@ autoDiagonalizer MixingMatrix_to_Diagonalizer (MixingMatrix me) {
 			U"The number of channels and the number of components should be equal.");
 		
 		autoDiagonalizer thee = Diagonalizer_create (my numberOfRows);
-		MATpseudoInverse_preallocated (thy data.get(), my data.get(), 0.0);
+		MATpseudoInverse (thy data.get(), my data.get(), 0.0);
 		return thee;
 	} catch (MelderError) {
 		Melder_throw (me, U": no Diagonalizer created.");
@@ -537,7 +537,7 @@ autoMixingMatrix Diagonalizer_to_MixingMatrix (Diagonalizer me) {
 	try {
 		autoMixingMatrix thee = MixingMatrix_create (my numberOfRows, my numberOfColumns);
 		MixingMatrix_setRandomGauss (thee.get(), 0.0, 1.0);
-		MATpseudoInverse_preallocated (thy data.get(), my data.get(), 0.0);
+		MATpseudoInverse (thy data.get(), my data.get(), 0.0);
 
 		return thee;
 	} catch (MelderError) {
@@ -590,7 +590,7 @@ void structCrossCorrelationTable :: v_info () {
 autoCrossCorrelationTable CrossCorrelationTable_create (integer dimension) {
 	try {
 		autoCrossCorrelationTable me = Thing_new (CrossCorrelationTable);
-		SSCP_init (me.get(), dimension, dimension);
+		SSCP_init (me.get(), dimension, kSSCPstorage::Complete);
 		return me;
 	} catch (MelderError) {
 		Melder_throw (U"CrossCorrelationTable not created.");
@@ -827,7 +827,7 @@ static void Sound_MixingMatrix_improveUnmixing_fica (Sound me, MixingMatrix thee
 		integer iter = 0;
 		Melder_require (my ny == thy numberOfColumns, U"Dimensions should agree.");
 		
-		autoMAT x = matrixcopy (my z.get());
+		autoMAT x = newmatrixcopy (my z.get());
 		do {
 			iter ++;
 		} while (/*fabs((dm_old - dm_new) / dm_new) > tol &&*/ iter < maxNumberOfIterations);

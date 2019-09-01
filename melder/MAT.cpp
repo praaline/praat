@@ -24,6 +24,7 @@
 #ifdef macintosh
 	#include <Accelerate/Accelerate.h>
 	#import <MetalPerformanceShaders/MetalPerformanceShaders.h>
+	#include <OpenCL/opencl.h>
 #endif
 
 void MATcentreEachColumn_inplace (MATVU const& x) noexcept {
@@ -44,7 +45,7 @@ void MATdoubleCentre_inplace (MATVU const& x) noexcept {
 	MATcentreEachColumn_inplace (x);
 }
 
-void MATmtm_preallocated (MATVU const& target, constMATVU const& x) noexcept {
+void MATmtm (MATVU const& target, constMATVU const& x) noexcept {
 	Melder_assert (target.nrow == x.ncol);
 	Melder_assert (target.ncol == x.ncol);
 	#if 0
@@ -82,7 +83,7 @@ void MATmtm_preallocated (MATVU const& target, constMATVU const& x) noexcept {
 	#endif
 }
 
-void MATVUmul_ (MATVU const& target, constMATVU const& x, constMATVU const& y) noexcept {
+void MATmul_ (MATVU const& target, constMATVU const& x, constMATVU const& y) noexcept {
 	/*
 		Precise matrix multiplication, using pairwise summation.
 	*/
@@ -163,7 +164,7 @@ void MATVUmul_ (MATVU const& target, constMATVU const& x, constMATVU const& y) n
 	}
 }
 
-void MATVUmul_forceAllocation_ (MATVU const& target, constMATVU x, constMATVU y) {
+void MATmul_forceAllocation_ (MATVU const& target, constMATVU x, constMATVU y) {
 	/*
 		As seen above, the only multiplication that stays fast for large sizes,
 		if X and Y are packed row-major matrices, is X.Y';
@@ -212,9 +213,9 @@ void MATVUmul_forceAllocation_ (MATVU const& target, constMATVU x, constMATVU y)
 	}
 }
 
-void MATVUmul_allowAllocation_ (MATVU const& target, constMATVU x, constMATVU y) {
+void MATmul_allowAllocation_ (MATVU const& target, constMATVU x, constMATVU y) {
 	/*
-		The faster of MATVUmul_ and MATVUmul_forceAllocation.
+		The faster of MATmul_ and MATmul_forceAllocation.
 		Allocation takes place only for larger matrices, e.g. from size 47 on
 		(100,000 flops).
 
@@ -341,7 +342,7 @@ void MATVUmul_allowAllocation_ (MATVU const& target, constMATVU x, constMATVU y)
 	}
 }
 
-static inline void MATVUmul_rough_naiveReferenceImplementation (MATVU const& target, constMATVU const& x, constMATVU const& y) noexcept {
+static inline void MATmul_rough_naiveReferenceImplementation (MATVU const& target, constMATVU const& x, constMATVU const& y) noexcept {
 	/*
 		If x.colStride == size and y.colStride == 1,
 		this version is 0.073, 1.32, 1.17, 0.58 Gflop/s for size = 1,10,100,1000.
@@ -354,9 +355,9 @@ static inline void MATVUmul_rough_naiveReferenceImplementation (MATVU const& tar
 		}
 	}
 }
-void MATVUmul_fast_ (MATVU const& target, constMATVU const& x, constMATVU const& y) noexcept {
+void MATmul_fast_ (MATVU const& target, constMATVU const& x, constMATVU const& y) noexcept {
 	if ((false)) {
-		MATVUmul_rough_naiveReferenceImplementation (target, x, y);
+		MATmul_rough_naiveReferenceImplementation (target, x, y);
 	} else if (y.colStride == 1) {
 		/*
 			This case is appropriate for the multiplication of full matrices
@@ -424,7 +425,7 @@ void MATVUmul_fast_ (MATVU const& target, constMATVU const& x, constMATVU const&
 					X.Y'
 				The speed is 0.064, 1.18, 1.67, 1.69 Gflop/s for size = 1,10,100,1000.
 			*/
-			MATVUmul_ (target, x, y);
+			MATmul_ (target, x, y);
 		} else {
 			/*
 				This case will be appropriate for the multiplication of full matrices
@@ -459,11 +460,11 @@ void MATVUmul_fast_ (MATVU const& target, constMATVU const& x, constMATVU const&
 			A rare case: the strides of y are both greater than 1.
 			We do not bother to optimize these cases yet.
 		*/
-		MATVUmul_rough_naiveReferenceImplementation (target, x, y);
+		MATmul_rough_naiveReferenceImplementation (target, x, y);
 	}
 }
 
-void MATVUmul_forceMetal_ (MATVU const& target, constMATVU const& x, constMATVU const& y) {
+void MATmul_forceMetal_ (MATVU const& target, constMATVU const& x, constMATVU const& y) {
 #ifdef macintosh
 	if (@available (macOS 10.13, *)) {
 		/*
@@ -474,7 +475,32 @@ void MATVUmul_forceMetal_ (MATVU const& target, constMATVU const& x, constMATVU 
 		static id <MTLDevice> gpuDevice;
 		static id <MTLCommandQueue> gpuQueue;
 		if (! gpuInited) {
-			gpuDevice = MTLCreateSystemDefaultDevice ();
+			NSArray <id<MTLDevice>> *gpuDeviceList = MTLCopyAllDevices ();
+			NSUInteger numberOfGpuDevices = [gpuDeviceList count];
+			Melder_casual (U"Found ", numberOfGpuDevices, U" GPU devices.");
+			if (numberOfGpuDevices < 2) {
+				/*
+					Easy choice.
+				*/
+				gpuDevice = MTLCreateSystemDefaultDevice ();
+			} else {
+				int externalGpuDeviceNumber = -1, discreteGpuDeviceNumber = -1;
+				for (NSUInteger idevice = 0; idevice < numberOfGpuDevices; idevice ++) {
+					id <MTLDevice> device = [gpuDeviceList objectAtIndex: idevice];
+					autostring32 deviceName = Melder_8to32 ([[device name] UTF8String]);
+					Melder_casual (U"GPU device ", idevice, U": ", deviceName.get());
+					if (device. removable)
+						externalGpuDeviceNumber = int (idevice);
+					else if (! device. lowPower)
+						discreteGpuDeviceNumber = int (idevice);
+				}
+				if (externalGpuDeviceNumber != -1)
+					gpuDevice = [gpuDeviceList objectAtIndex: NSUInteger (externalGpuDeviceNumber)];
+				else if (discreteGpuDeviceNumber != -1)
+					gpuDevice = [gpuDeviceList objectAtIndex: NSUInteger (discreteGpuDeviceNumber)];
+				else
+					gpuDevice = MTLCreateSystemDefaultDevice ();   // unlikely fallback
+			}
 			autostring32 deviceName = Melder_8to32 ([[gpuDevice name] UTF8String]);
 			Melder_casual (U"GPU device for computing: ", deviceName.get());
 			gpuInited = true;
@@ -636,28 +662,104 @@ void MATVUmul_forceMetal_ (MATVU const& target, constMATVU const& x, constMATVU 
 					numberOfUnexpectedZeroes ++;
 				} else {
 					const double relativeError = fabs (checkedValue / targetValue - 1.0);
-					Melder_require (relativeError < 0.1,
-						U"GPU matrix multiplication incorrect: unexpected imprecision of ", relativeError, U".");
+					if (relativeError > 10.0) Melder_casual
+							(U"GPU matrix multiplication warning: unexpected imprecision of ", relativeError, U".");
 				}
 			}
 		}
-		Melder_require (numberOfUnexpectedZeroes == 0,
-			U"GPU matrix multiplication incorrect: found ", numberOfUnexpectedZeroes, U" unexpected zeroes.");
+		if (numberOfUnexpectedZeroes > 0) Melder_casual
+				(U"GPU matrix multiplication warning: found ", numberOfUnexpectedZeroes, U" unexpected zeroes, out of ", numberOfChecks, U".");
 		return;
 	}
 #else
-	MATVUmul(target, x, y);
+	MATmul(target, x, y);
 #endif
 }
 
-void MATouter_preallocated (MATVU const& target, constVECVU const& x, constVECVU const& y) {
+void MATmul_forceOpenCL_ (MATVU const& target, constMATVU const& x, constMATVU const& y) {
+#ifdef macintosh
+	static bool gpuInited = false;
+	static cl_context openclContext = nullptr;
+	static cl_command_queue commandQueue = nullptr;
+	static cl_kernel kernel = nullptr;
+	if (! gpuInited) {
+		cl_platform_id platformIDs = nullptr;
+		cl_uint numberOfPlatforms;
+		cl_int status = clGetPlatformIDs (1, & platformIDs, & numberOfPlatforms);
+		cl_device_id deviceIDs = nullptr;
+		cl_uint numberOfDevices;
+		status = clGetDeviceIDs (platformIDs, CL_DEVICE_TYPE_GPU, 1, & deviceIDs, & numberOfDevices);
+		openclContext = clCreateContext (nullptr, 1, & deviceIDs, nullptr, nullptr, & status);
+		commandQueue = clCreateCommandQueue (openclContext, deviceIDs, 0, & status);
+		conststring8 sourceText = "__kernel void vector_add(__global const int *A, __global const int *B, __global int *C) {"
+
+    /* Get the index of the current element to be processed */
+    	"int i = get_global_id(0);"
+
+    /* Do the operation */
+    	"C[i] = A[i] + B[i];"
+		"}";
+		size_t sourceSize = strlen (sourceText);
+		cl_program program = clCreateProgramWithSource (openclContext, 1,
+            (const char **) & sourceText, (const size_t *) & sourceSize, & status);
+		status = clBuildProgram (program, 1, & deviceIDs, nullptr, nullptr, nullptr);
+		kernel = clCreateKernel (program, "MATmul_opencl", & status);
+	}
+	#if 0
+	// Create memory buffers on the device for each vector
+    cl_mem a_mem_obj = clCreateBuffer (context, CL_MEM_READ_ONLY,
+            LIST_SIZE * sizeof(int), NULL, &ret);
+    cl_mem b_mem_obj = clCreateBuffer (context, CL_MEM_READ_ONLY,
+            LIST_SIZE * sizeof(int), NULL, &ret);
+    cl_mem c_mem_obj = clCreateBuffer (context, CL_MEM_WRITE_ONLY,
+            LIST_SIZE * sizeof(int), NULL, &ret);
+	// Copy the lists A and B to their respective memory buffers
+    ret = clEnqueueWriteBuffer(command_queue, a_mem_obj, CL_TRUE, 0,
+            LIST_SIZE * sizeof(int), A, 0, NULL, NULL);
+    ret = clEnqueueWriteBuffer(command_queue, b_mem_obj, CL_TRUE, 0,
+            LIST_SIZE * sizeof(int), B, 0, NULL, NULL);
+	// Set the arguments of the kernel
+    ret = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&a_mem_obj);
+    ret = clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&b_mem_obj);
+    ret = clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *)&c_mem_obj);
+
+    // Execute the OpenCL kernel on the list
+    size_t global_item_size = LIST_SIZE; // Process the entire lists
+    size_t local_item_size = 64; // Divide work items into groups of 64
+    ret = clEnqueueNDRangeKernel(command_queue, kernel, 1, NULL,
+            &global_item_size, &local_item_size, 0, NULL, NULL);
+
+    // Read the memory buffer C on the device to the local variable C
+    int *C = (int*)malloc(sizeof(int)*LIST_SIZE);
+    ret = clEnqueueReadBuffer(command_queue, c_mem_obj, CL_TRUE, 0,
+            LIST_SIZE * sizeof(int), C, 0, NULL, NULL);
+
+    // Display the result to the screen
+    for(i = 0; i < LIST_SIZE; i++)
+        printf("%d + %d = %d\n", A[i], B[i], C[i]);
+    // Clean up
+    ret = clFlush(command_queue);
+    ret = clFinish(command_queue);
+   ret = clReleaseMemObject(a_mem_obj);
+    ret = clReleaseMemObject(b_mem_obj);
+    ret = clReleaseMemObject(c_mem_obj);
+    free(A);
+    free(B);
+    free(C);
+    #endif
+#else
+	MATmul(target, x, y);
+#endif
+}
+
+void MATouter (MATVU const& target, constVECVU const& x, constVECVU const& y) {
 	for (integer irow = 1; irow <= x.size; irow ++)
 		for (integer icol = 1; icol <= y.size; icol ++)
 			target [irow] [icol] = x [irow] * y [icol];
 }
 autoMAT newMATouter (constVECVU const& x, constVECVU const& y) {
 	autoMAT result = newMATraw (x.size, y.size);
-	MATouter_preallocated (result.get(), x, y);
+	MATouter (result.get(), x, y);
 	return result;
 }
 
@@ -712,6 +814,11 @@ autoMAT newMATpeaks (constVECVU const& x, bool includeEdges, int interpolate, bo
 			result [2] [i] *= -1.0;
 	}
 	return result;
+}
+
+void MATpower (MATVU const& target, constMATVU const& mat, double power) {
+	for (integer irow = 1; irow <= target.nrow; irow ++)
+		VECpower (target.row (irow), mat.row (irow), power);
 }
 
 /* End of file MAT.cpp */

@@ -1,6 +1,6 @@
 /* Matrix.cpp
  *
- * Copyright (C) 1992-2018 Paul Boersma
+ * Copyright (C) 1992-2019 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -235,7 +235,7 @@ double Matrix_getValueAtXY (Matrix me, double x, double y) {
 }
 
 double Matrix_getSum (Matrix me) {
-	return NUMsum (my z.get());
+	return NUMsum (my z.all());
 }
 
 double Matrix_getNorm (Matrix me) {
@@ -394,17 +394,23 @@ void Matrix_paintSurface (Matrix me, Graphics g, double xmin, double xmax, doubl
 	if (maximum <= minimum) { minimum -= 1.0; maximum += 1.0; }
 	Graphics_setInner (g);
 	Graphics_setWindow (g, -1.0, 1.0, minimum, maximum);
-	Graphics_surface (g, my z.at_deprecated,
-		ixmin, ixmax, Matrix_columnToX (me, ixmin), Matrix_columnToX (me, ixmax),
-		iymin, iymax, Matrix_rowToY (me, iymin), Matrix_rowToY (me, iymax),
+	Graphics_surface (g, my z.part (iymin, iymax, ixmin, ixmax),
+		Matrix_columnToX (me, ixmin), Matrix_columnToX (me, ixmax),
+		Matrix_rowToY (me, iymin), Matrix_rowToY (me, iymax),
 		minimum, maximum, elevation, azimuth);
 	Graphics_unsetInner (g);
 }
 
-void Matrix_movie (Matrix me, Graphics g) {
+void Matrix_playMovie (Matrix me, Graphics g) {
+	Melder_require (my ny >= 2,
+		me, U": cannot play a movie for a Matrix with less than 2 rows.");
 	autoVEC column = newVECraw (my ny);
 	double minimum = 0.0, maximum = 1.0;
 	Matrix_getWindowExtrema (me, 1, my nx, 1, my ny, & minimum, & maximum);
+	if (minimum == maximum) {
+		minimum -= 0.5;
+		maximum += 0.5;
+	}
 	for (integer icol = 1; icol <= my nx; icol ++) {
 		column.all() <<= my z.column (icol);
 		Graphics_beginMovieFrame (g, & Graphics_WHITE);

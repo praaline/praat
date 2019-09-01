@@ -1,7 +1,6 @@
-#pragma once
-/* MelderRealRange.h
+/* NMF_enums.h
  *
- * Copyright (C) 2018 Paul Boersma
+ * Copyright (C) 2019 David Weenink
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,16 +16,9 @@
  * along with this work. If not, see <http://www.gnu.org/licenses/>.
  */
 
-inline MelderRealRange NUMextrema (const constVEC& vec) {
-	if (NUMisEmpty (vec)) return { undefined, undefined };
-	double minimum = vec [1], maximum = minimum;
-	for (integer i = 2; i <= vec.size; i ++) {
-		const double value = vec [i];
-		if (value < minimum) minimum = value;
-		if (value > maximum) maximum = value;
-	}
-	return { minimum, maximum };
-}
+enums_begin (kNMF_Initialization, 1)
+	enums_add (kNMF_Initialization, 1, RandomUniform, U"RandomUniform")
+	enums_add (kNMF_Initialization, 2, SVDAbsNegatives, U"SVDAbsNegatives")	
+enums_end (kNMF_Initialization, 2, SVDAbsNegatives)
 
-/* End of file MelderRealRange.h */
-
+/* End of file NMF_enums.h */

@@ -1,7 +1,6 @@
-#pragma once
-/* MelderIntegerRange.h
+/* Electroglottogram_def.h
  *
- * Copyright (C) 2018 Paul Boersma
+ * Copyright (C) 2019 David Weenink
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +16,17 @@
  * along with this work. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define ooSTRUCT Electroglottogram
+oo_DEFINE_CLASS (Electroglottogram, Sound)
 
-/* End of file MelderIntegerRange.h */
+	oo_OBJECT (Sound, 2, sound)
+	
+	#if oo_DECLARING
+		void v_info ()
+			override;
+	#endif
 
+oo_END_CLASS (Electroglottogram)
+#undef ooSTRUCT
+
+/* End of file Electroglottogram_def.h */

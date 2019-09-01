@@ -204,7 +204,7 @@ if(ifmin==1)ifmin=2;  /* BUG */
 	}
 }
 
-autoTable Spectrum_downto_Table (Spectrum me, bool includeBinNumbers, bool includeFrequency,
+autoTable Spectrum_tabulate (Spectrum me, bool includeBinNumbers, bool includeFrequency,
 	bool includeRealPart, bool includeImaginaryPart, bool includeEnergyDensity, bool includePowerDensity)
 {
 	try {
@@ -229,18 +229,6 @@ autoTable Spectrum_downto_Table (Spectrum me, bool includeBinNumbers, bool inclu
 		return thee;
 	} catch (MelderError) {
 		Melder_throw (me, U": not converted to Table.");
-	}
-}
-
-void Spectrum_list (Spectrum me, bool includeBinNumbers, bool includeFrequency,
-	bool includeRealPart, bool includeImaginaryPart, bool includeEnergyDensity, bool includePowerDensity)
-{
-	try {
-		autoTable table = Spectrum_downto_Table (me, includeBinNumbers, includeFrequency,
-			includeRealPart, includeImaginaryPart, includeEnergyDensity, includePowerDensity);
-		Table_list (table.get(), false);
-	} catch (MelderError) {
-		Melder_throw (me, U": not listed.");
 	}
 }
 
@@ -444,15 +432,17 @@ double Spectrum_getKurtosis (Spectrum me, double power) {
 	return m4 / (m2 * m2) - 3;
 }
 
-void Spectrum_getNearestMaximum (Spectrum me, double frequency, double *frequencyOfMaximum, double *heightOfMaximum) {
+MelderPoint Spectrum_getNearestMaximum (Spectrum me, double frequency) {
 	try {
 		autoSpectrumTier thee = Spectrum_to_SpectrumTier_peaks (me);
 		integer index = AnyTier_timeToNearestIndex (thee.get()->asAnyTier(), frequency);
 		if (index == 0)
 			Melder_throw (U"No peak.");
 		RealPoint point = thy points.at [index];
-		*frequencyOfMaximum = point -> number;
-		*heightOfMaximum = point -> value;
+		MelderPoint result;
+		result. x = point -> number;
+		result. y = point -> value;
+		return result;
 	} catch (MelderError) {
 		Melder_throw (me, U": no nearest maximum found.");
 	}

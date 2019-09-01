@@ -1,6 +1,6 @@
 /* praat_David_init.cpp
  *
- * Copyright (C) 1993-2018 David Weenink, 2015 Paul Boersma
+ * Copyright (C) 1993-2019 David Weenink, 2015 Paul Boersma
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -67,6 +67,7 @@
 #include "NUMmachar.h"
 
 #include "ActivationList.h"
+#include "AmplitudeTier.h"
 #include "Categories.h"
 #include "CategoriesEditor.h"
 #include "ClassificationTable.h"
@@ -77,6 +78,7 @@
 #include "EditDistanceTable.h"
 #include "Editor.h"
 #include "EditDistanceTable.h"
+#include "Electroglottogram.h"
 #include "Eigen_and_Matrix.h"
 #include "Eigen_and_Procrustes.h"
 #include "Eigen_and_SSCP.h"
@@ -122,6 +124,7 @@
 #include "CCs_to_DTW.h"
 #include "Discriminant_PatternList_Categories.h"
 #include "DTW_and_TextGrid.h"
+#include "Matrix_and_NMF.h"
 #include "Permutation_and_Index.h"
 #include "Pitch_extensions.h"
 #include "Sound_and_Spectrogram_extensions.h"
@@ -197,6 +200,25 @@ DIRECT (NEW_ActivationList_to_PatternList) {
 		autoPatternList result = ActivationList_to_PatternList (me);
 	CONVERT_EACH_END (my name.get())
 }
+
+FORM (REAL_AmplitudeTier_getValueAtTime, U"AmplitudeTier: Get value at time", nullptr) {
+	REAL (time, U"Time (s)", U"0.5")
+	OK
+DO
+	NUMBER_ONE (AmplitudeTier)
+		double result = RealTier_getValueAtTime (me, time);
+	NUMBER_ONE_END (U" Hz")
+}
+	
+FORM (REAL_AmplitudeTier_getValueAtIndex, U"AmplitudeTier: Get value at index", nullptr) {
+	INTEGER (pointNumber, U"Point number", U"10")
+	OK
+DO
+	NUMBER_ONE (AmplitudeTier)
+		double result = RealTier_getValueAtIndex (me, pointNumber);
+	NUMBER_ONE_END (U" Hz")
+}
+
 
 /********************** BandFilterSpectrogram *******************************************/
 
@@ -878,6 +900,12 @@ DO
 	CONVERT_EACH_END (my name.get())
 }
 
+DIRECT (MODIFY_ComplexSpectrogram_Spectrogram_replaceAmplitudes) {
+	MODIFY_FIRST_OF_TWO (ComplexSpectrogram, Spectrogram)
+		ComplexSpectrogram_Spectrogram_replaceAmplitudes (me, you);
+	MODIFY_FIRST_OF_TWO_END
+}
+
 /********************** Correlation *******************************************/
 
 FORM (NEW1_Correlation_createSimple, U"Create simple Correlation", U"Create simple Correlation...") {
@@ -1149,10 +1177,10 @@ DO
 }
 
 FORM (NEW1_Discriminant_TableOfReal_to_Configuration, U"Discriminant & TableOfReal: To Configuration", U"Discriminant & TableOfReal: To Configuration...") {
-	INTEGER (numberOfDimensions, U"Number of dimensions", U"0")
+	INTEGER (numberOfDimensions, U"Number of dimensions", U"0 (=all)")
 	OK
 DO
-	Melder_require (numberOfDimensions >= 0, U"The number of dimensions should be at least zero.");
+	Melder_require (numberOfDimensions >= 0, U"\"Number of dimensions\" should not be less than zero.");
 	CONVERT_TWO (Discriminant, TableOfReal)
 		autoConfiguration result = Discriminant_TableOfReal_to_Configuration (me, you, numberOfDimensions);
 	CONVERT_TWO_END (my name.get(), U"_", your name.get())
@@ -1394,7 +1422,7 @@ FORM (GRAPHICS_Discriminant_drawSigmaEllipses, U"Discriminant: Draw sigma ellips
 	REAL (xmax, U"right Horizontal range", U"0.0")
 	REAL (ymin, U"left Vertical range", U"0.0")
 	REAL (ymax, U"right Vertical range", U"0.0")
-	INTEGER (labelSize, U"Label size", U"12")
+	POSITIVE (labelSize, U"Label size", U"12")
 	BOOLEAN (garnish, U"Garnish", true)
 	OK
 DO
@@ -1413,7 +1441,7 @@ FORM (GRAPHICS_Discriminant_drawOneSigmaEllipse, U"Discriminant: Draw one sigma 
 	REAL (xmax, U"right Horizontal range", U"0.0")
 	REAL (ymin, U"left Vertical range", U"0.0")
 	REAL (ymax, U"right Vertical range", U"0.0")
-	INTEGER (labelSize, U"Label size", U"12")
+	POSITIVE (labelSize, U"Label size", U"12")
 	BOOLEAN (garnish, U"Garnish", true)
 	OK
 DO
@@ -1431,7 +1459,7 @@ FORM (GRAPHICS_Discriminant_drawConfidenceEllipses, U"Discriminant: Draw confide
 	REAL (xmax, U"right Horizontal range", U"0.0")
 	REAL (ymin, U"left Vertical range", U"0.0")
 	REAL (ymax, U"right Vertical range", U"0.0")
-	INTEGER (labelSize, U"Label size", U"12")
+	POSITIVE (labelSize, U"Label size", U"12")
 	BOOLEAN (garnish, U"Garnish", true)
 	OK
 DO
@@ -1450,7 +1478,7 @@ FORM (GRAPHICS_Discriminant_drawOneConfidenceEllipse, U"Discriminant: Draw one c
 	REAL (xmax, U"right Horizontal range", U"0.0")
 	REAL (ymin, U"left Vertical range", U"0.0")
 	REAL (ymax, U"right Vertical range", U"0.0")
-	INTEGER (labelSize, U"Label size", U"12")
+	POSITIVE (labelSize, U"Label size", U"12")
 	BOOLEAN (garnish, U"Garnish", true)
 	OK
 DO
@@ -2305,6 +2333,77 @@ DIRECT (NEW1_Eigen_Covariance_project) {
 	CONVERT_TWO_END (my name.get(), U"_", your name.get())
 }
 
+/******************** Electroglottogram ********************************************/
+
+FORM (NEW_Electroglottogram_highPassFilter, U"Electroglottogram: High-pass filter", U"Electroglottogram: High-pass filter...") {
+	REAL (fromFrequency, U"From frequency (Hz)", U"100.0")
+	POSITIVE (smoothing, U"Smoothing (Hz)", U"100.0")
+	OK
+DO
+	CONVERT_EACH (Electroglottogram)
+		autoElectroglottogram result = Electroglottogram_highPassFilter (me, fromFrequency, smoothing);
+	CONVERT_EACH_END (my name.get(), U"_filtered")
+}
+
+FORM (NEW_Electroglottogram_getClosedGlottisIntervals, U"Electroglottogram: To IntervalTier", U"") {
+	POSITIVE (pitchFloor, U"Pitch floor (Hz)", U"75.0")
+	POSITIVE (pitchCeiling, U"Pitch ceiling (Hz)", U"500.0")
+	POSITIVE (closingThreshold, U"Closing threshold", U"0.30")
+	POSITIVE (silenceThreshold, U"Silence threshold", U"0.03")
+	OK
+DO
+	Melder_require (closingThreshold < 1.0,
+		U"The closing threshold should be smaller than 1.");
+	CONVERT_EACH (Electroglottogram)
+		autoIntervalTier result = Electroglottogram_getClosedGlottisIntervals (me, pitchFloor, pitchCeiling, closingThreshold, silenceThreshold);
+	CONVERT_EACH_END (my name.get())
+}
+
+FORM (NEW_Electroglottogram_to_AmplitudeTier_levels, U"Electroglottogram: To AmplitudeTier (levels)", U"") {
+	POSITIVE (pitchFloor, U"Pitch floor (Hz)", U"75.0")
+	POSITIVE (pitchCeiling, U"Pitch ceiling (Hz)", U"500.0")
+	POSITIVE (closingThreshold, U"Closing threshold", U"0.30")
+	BOOLEAN (wantPeaks, U"Peaks", 0)
+	BOOLEAN (wantValleys, U"Valleys", 0)
+	OK
+DO
+	CONVERT_EACH (Electroglottogram)
+		autoAmplitudeTier peaks, valleys;
+		autoAmplitudeTier result = Electroglottogram_to_AmplitudeTier_levels (me, pitchFloor, pitchCeiling, closingThreshold, & peaks, & valleys);
+		if (wantPeaks)
+			praat_new (peaks.move(), my name.get(), U"_peaks");
+		if (wantValleys)
+			praat_new (valleys.move(), my name.get(), U"_valleys");
+	CONVERT_EACH_END (my name.get())
+
+}
+
+FORM (NEW_Electroglottogram_derivative, U"Electroglottogram: Derivative", U"Electroglottogram: Derivative...") {
+	POSITIVE (lowPassFrequency, U"Low-pass frequency (Hz)", U"5000.0")
+	POSITIVE (smoothing, U"Smoothing (Hz)", U"100.0")
+	BOOLEAN (peak99, U"Scale absolute peak at 0.99", 1)
+	OK
+DO
+	CONVERT_EACH (Electroglottogram)
+		autoSound result = Electroglottogram_derivative (me, lowPassFrequency, smoothing, peak99);
+	CONVERT_EACH_END (my name.get(), U"_derivative")
+}
+
+FORM (NEW_Electroglottogram_firstCentralDifference, U"Electroglottogram: First central difference", U"Electroglottogram: First central difference...") {
+	BOOLEAN (peak99, U"Scale absolute peak at 0.99", 1)
+	OK
+DO
+	CONVERT_EACH (Electroglottogram)
+		autoSound result = Electroglottogram_firstCentralDifference (me, peak99);
+	CONVERT_EACH_END (my name.get(), U"_cdiff")
+}
+
+DIRECT (NEW_Electroglottogram_to_Sound) {
+	CONVERT_EACH (Electroglottogram)
+		autoSound result = Electroglottogram_to_Sound (me);
+	CONVERT_EACH_END (my name.get())
+}
+
 /******************** Index ********************************************/
 
 DIRECT (HELP_Index_help) {
@@ -2367,7 +2466,7 @@ FORM (NEW_Index_extractPart, U"Index: Extract part", U"Index: Extract part...") 
 	INTEGER (toItem, U"right Item range", U"0")
 	OK
 DO
-	CONVERT_EACH (Index);
+	CONVERT_EACH (Index)
 		autoIndex result = Index_extractPart (me, fromItem, toItem);
 	CONVERT_EACH_END (my name.get(), U"_part")
 }
@@ -2376,7 +2475,7 @@ FORM (NEW_Index_to_Permutation, U"Index: To Permutation", U"Index: To Permutatio
 	BOOLEAN (permuteWithinClasses, U"Permute within classes", true)
 	OK
 DO
-	CONVERT_EACH (Index);
+	CONVERT_EACH (Index)
 		autoPermutation result = Index_to_Permutation_permuteRandomly (me, permuteWithinClasses);
 	CONVERT_EACH_END (my name.get())
 }
@@ -3523,6 +3622,15 @@ DO
 	NUMBER_ONE_END (U" (std dev)")
 }
 
+FORM (REAL_Matrix_getNorm, U"Matrix: Get norm", U"Matrix: Get norm...") {
+	REAL (power, U"Power", U"2.0")
+	OK
+DO
+	NUMBER_ONE (Matrix)
+		double result = NUMnorm (my z.all(), power);
+	NUMBER_ONE_END (U" (norm with power = ", power, U")")
+}
+	
 FORM (MODIFY_Matrix_scale, U"Matrix: Scale", nullptr) {
 	LABEL (U"self[row, col] := self[row, col] / `Scale factor'")
 	RADIO (scaleMethod, U"Scale factor", 1)
@@ -3555,12 +3663,21 @@ DIRECT (NEW_Matrix_to_PCA_byRows) {
 }
 
 FORM (NEW_Matrix_solveEquation, U"Matrix: Solve equation", U"Matrix: Solve equation...") {
-	REAL (tolerance, U"Tolerance", U"1.19e-7")
+	REAL (tolerance, U"Tolerance", U"1.0e-7")
 	OK
 DO
 	CONVERT_EACH (Matrix)
 		autoMatrix result = Matrix_solveEquation (me, tolerance);
 	CONVERT_EACH_END (my name.get(), U"_solution")
+}
+
+FORM (NEW_Matrix_solveMatrixEquation, U"Matrix: Solve matrix equation", U"Matrix: Solve matrix equation...") {
+	REAL (tolerance, U"Tolerance", U"1.0e-7")
+	OK
+DO
+	CONVERT_COUPLE (Matrix)
+		autoMatrix result = Matrix_solveEquation (me, you, tolerance);
+	CONVERT_COUPLE_END (U"solution")
 }
 
 DIRECT (NEW1_Matrix_Categories_to_TableOfReal) {
@@ -3605,6 +3722,12 @@ DIRECT (NEW_Matrix_to_Eigen) {
 	CONVERT_EACH_END (my name.get())
 }
 
+DIRECT (NEW_Matrix_to_SVD) {
+	CONVERT_EACH (Matrix)
+		autoSVD result = SVD_createFromGeneralMatrix (my z.get());
+	CONVERT_EACH_END (my name.get())
+}
+
 DIRECT (NEWTIMES2_Matrix_eigen_complex) {
 	LOOP {
 		iam_LOOP (Matrix);
@@ -3614,6 +3737,99 @@ DIRECT (NEWTIMES2_Matrix_eigen_complex) {
 		praat_new (values.move(), U"eigenvalues");
 	}
 END }
+
+FORM (NEW_Matrix_to_NMF_mu, U"Matrix: To NMF (m.u.)", U"Matrix: To NMF (m.u.)...") {
+	NATURAL (numberOfFeatures, U"Number of features", U"2")
+	INTEGER (maximumNumberOfIterations, U"Maximum number of iterations", U"400")
+	REAL (tolx, U"Change tolerance", U"1e-9")
+	REAL (told, U"Approximation tolerance", U"1e-9")
+	OPTIONMENU_ENUM (kNMF_Initialization, initializationMethod, U"Initialisation method", kNMF_Initialization::RandomUniform)
+	BOOLEAN (info, U"Info", 0)
+	OK
+DO
+	Melder_require (maximumNumberOfIterations >= 0, U"The maximum number of iterations should not e negative.");
+	CONVERT_EACH (Matrix)
+		autoNMF result = Matrix_to_NMF_mu (me, numberOfFeatures, maximumNumberOfIterations, tolx, told, initializationMethod, info);
+	CONVERT_EACH_END (my name.get(), U"_mu")
+}
+
+FORM (NEW_Matrix_to_NMF_als, U"Matrix: To NMF (ALS)", U"Matrix: To NMF (ALS)...") {
+	NATURAL (numberOfFeatures, U"Number of features", U"2")
+	INTEGER (maximumNumberOfIterations, U"Maximum number of iterations", U"20")
+	REAL (tolx, U"Change tolerance", U"1e-9")
+	REAL (told, U"Approximation tolerance", U"1e-9")
+	OPTIONMENU_ENUM (kNMF_Initialization, initializationMethod, U"Initialisation method", kNMF_Initialization::RandomUniform)
+	BOOLEAN (info, U"Info", 0)
+	OK
+DO
+	Melder_require (maximumNumberOfIterations >= 0, U"The maximum number of iterations should not e negative.");
+	CONVERT_EACH (Matrix)
+		autoNMF result = Matrix_to_NMF_als (me, numberOfFeatures, maximumNumberOfIterations, tolx, told, initializationMethod, info);
+	CONVERT_EACH_END (my name.get(), U"_als")
+}
+
+FORM (NEW_Matrix_to_NMF_is, U"Matrix: To NMF (IS)", U"Matrix: To NMF (IS)...") {
+	NATURAL (numberOfFeatures, U"Number of features", U"2")
+	INTEGER (maximumNumberOfIterations, U"Maximum number of iterations", U"20")
+	REAL (tolx, U"Change tolerance", U"1e-9")
+	REAL (told, U"Approximation tolerance", U"1e-9")
+	OPTIONMENU_ENUM (kNMF_Initialization, initializationMethod, U"Initialisation method", kNMF_Initialization::RandomUniform)
+	BOOLEAN (info, U"Info", 0)
+	OK
+DO
+	Melder_require (maximumNumberOfIterations >= 0, U"The maximum number of iterations should not e negative.");
+	CONVERT_EACH (Matrix)
+		autoNMF result = Matrix_to_NMF_is (me, numberOfFeatures, maximumNumberOfIterations, tolx, told, initializationMethod, info);
+	CONVERT_EACH_END (my name.get(), U"_als")
+}
+
+DIRECT (REAL_NMF_Matrix_getEuclideanDistance) {
+	NUMBER_TWO (NMF, Matrix)
+		double result = NMF_getEuclideanDistance (me, your z.get());
+	NUMBER_TWO_END (U" (= ", result / (your ny * your nx), U" * nrow * ncol)")
+}
+
+DIRECT (REAL_NMF_Matrix_getItakuraSaitoDivergence) {
+	NUMBER_TWO (NMF, Matrix)
+		double result = NMF_getItakuraSaitoDivergence (me, your z.get());
+	NUMBER_TWO_END (U" (= ", result / (your ny * your nx), U" * nrow * ncol)")
+}
+
+FORM (MODIFY_NMF_Matrix_improveFactorization_mu, U"NMF & Matrix: Improve factorization (m.u.)", nullptr) {
+	NATURAL (maximumNumberOfIterations, U"Maximum number of iterations", U"100")
+	REAL (tolx, U"Change tolerance", U"1e-9")
+	REAL (told, U"Approximation tolerance", U"1e-9")
+	BOOLEAN (info, U"Info", 0)
+	OK
+DO
+	MODIFY_FIRST_OF_TWO (NMF, Matrix)
+		NMF_improveFactorization_mu (me, your z.get(), maximumNumberOfIterations, tolx, told, info);
+	MODIFY_FIRST_OF_TWO_END
+}
+
+FORM (MODIFY_NMF_Matrix_improveFactorization_als, U"NMF & Matrix: Improve factorization (ALS)", nullptr) {
+	NATURAL (maximumNumberOfIterations, U"Maximum number of iterations", U"10")
+	REAL (tolx, U"Change tolerance", U"1e-9")
+	REAL (told, U"Approximation tolerance", U"1e-9")
+	BOOLEAN (info, U"Info", 0)
+	OK
+DO
+	MODIFY_FIRST_OF_TWO (NMF, Matrix)
+		NMF_improveFactorization_als (me, your z.get(), maximumNumberOfIterations, tolx, told, info);
+	MODIFY_FIRST_OF_TWO_END
+}
+
+FORM (MODIFY_NMF_Matrix_improveFactorization_is, U"NMF & Matrix: Improve factorization (IS)", nullptr) {
+	NATURAL (maximumNumberOfIterations, U"Maximum number of iterations", U"10")
+	REAL (tolx, U"Change tolerance", U"1e-9")
+	REAL (told, U"Approximation tolerance", U"1e-9")
+	BOOLEAN (info, U"Info", 0)
+	OK
+DO
+	MODIFY_FIRST_OF_TWO (NMF, Matrix)
+		NMF_improveFactorization_is (me, your z.get(), maximumNumberOfIterations, tolx, told, info);
+	MODIFY_FIRST_OF_TWO_END
+}
 
 FORM (NEW1_Matrices_to_DTW, U"Matrices: To DTW", U"Matrix: To DTW...") {
 	LABEL (U"Distance  between cepstral coefficients")
@@ -4028,6 +4244,47 @@ DIRECT (HELP_MSpline_help) {
 	HELP (U"MSpline")
 }
 
+DIRECT (HELP_NMF_help) {
+	HELP (U"NMF")
+}
+
+FORM (GRAPHICS_NMF_paintFeatures, U"NMF: Paint features", U"") {
+	NATURAL (fromFeature, U"From feature", U"1")
+	INTEGER (toFeature, U"To feature", U"0 (=all)")
+	NATURAL (fromRow, U"From row", U"1")
+	INTEGER (toRow, U"To row", U"0 (=all)")
+	REAL (minimum, U"Minimum", U"0.0")
+	REAL (maximum, U"maximum", U"0.0")
+	BOOLEAN (garnish, U"Garnish", 1)
+	OK
+DO
+	GRAPHICS_EACH (NMF)
+	NMF_paintFeatures (me, GRAPHICS, fromFeature, toFeature, fromRow, toRow, minimum,  maximum, 0, 0, garnish);
+	GRAPHICS_EACH_END
+}
+
+FORM (GRAPHICS_NMF_paintWeights, U"NMF: Paint weights", U"") {
+	NATURAL (fromWeight, U"From weight", U"1")
+	INTEGER (toWeight, U"To weight", U"0 (=all)")
+	NATURAL (fromRow, U"From row", U"1")
+	INTEGER (toRow, U"To row", U"0 (=all)")
+	REAL (minimum, U"Minimum", U"0.0")
+	REAL (maximum, U"maximum", U"0.0")
+	
+	BOOLEAN (garnish, U"Garnish", 1)
+	OK
+DO
+	GRAPHICS_EACH (NMF)
+	NMF_paintWeights (me, GRAPHICS, fromWeight, toWeight, fromRow, toRow, minimum,  maximum, 0, 0, garnish);
+	GRAPHICS_EACH_END
+}
+
+
+DIRECT (NEW_NMF_to_Matrix) {
+	CONVERT_EACH (NMF)
+		autoMatrix result = NMF_to_Matrix (me);
+	CONVERT_EACH_END (my name.get())
+}
 /********************** PatternList *******************************************/
 
 DIRECT (NEW1_PatternList_Categories_to_Discriminant) {
@@ -4260,7 +4517,7 @@ FORM (NEW_PCA_extractEigenvector, U"PCA: Extract eigenvector", U"Eigen: Extract 
 	INTEGER (numberOfColumns, U"Number of columns", U"0")
 	OK
 DO
-	Melder_require (numberOfRows >= 0, U"The number of rows should beat least 0.");
+	Melder_require (numberOfRows >= 0, U"The number of rows should be at least 0.");
 	Melder_require (numberOfColumns >= 0, U"The number of columns should be at least 0.");
 	CONVERT_EACH (PCA);
 		autoMatrix result = Eigen_extractEigenvector (me, eigenvectorNumber, numberOfRows, numberOfColumns);
@@ -4941,7 +5198,7 @@ FORM (GRAPHICS_Roots_draw, U"Roots: Draw", nullptr) {
 	REAL (ymin, U"Minimum of imaginary axis", U"0.0")
 	REAL (ymax, U"Maximum of imaginary axis", U"0.0")
 	SENTENCE (mark_string, U"Mark string (+x0...)", U"o")
-	NATURAL (markSize, U"Mark size", U"12")
+	POSITIVE (markSize, U"Mark size", U"12")
 	BOOLEAN (garnish, U"Garnish", false)
 	OK
 DO
@@ -5255,6 +5512,19 @@ DO
 	}
 END }
 
+FORM (REAL_Sound_getNearestLevelCrossing, U"Sound: Get nearest level crossing", U"Sound: Get nearest level crossing...") {
+	CHANNEL (channel, U"Channel (number, Left, or Right)", U"1")
+	REAL (time, U"Time (s)", U"0.1")
+	REAL (level, U"Level", U"0.1")
+	OPTIONMENU_ENUM (kSoundSearchDirection, searchDirection, U"Search direction", kSoundSearchDirection::DEFAULT)
+	OK
+DO
+	NUMBER_ONE (Sound)
+		if (channel > my ny) channel = 1;
+		double result = Sound_getNearestLevelCrossing (me, channel, time, level, searchDirection);
+	NUMBER_ONE_END (U" seconds")
+}
+
 FORM (NEW1_Sounds_to_DTW, U"Sounds: To DTW", nullptr) {
     POSITIVE (windowLength, U"Window length (s)", U"0.015")
     POSITIVE (timeStep, U"Time step (s)", U"0.005")
@@ -5420,11 +5690,11 @@ DO
 
 FORM (NEW_Sound_to_ComplexSpectrogram, U"Sound: To ComplexSpectrogram", nullptr) {
 	POSITIVE (windowLength, U"Window length (s)", U"0.015")
-	POSITIVE (timeStep, U"Time step", U"0.005")
+	POSITIVE (maximumFrequency, U"Maximum frequency (Hz)", U"8000.0")
 	OK
 DO
 	CONVERT_EACH (Sound)
-		autoComplexSpectrogram result = Sound_to_ComplexSpectrogram (me, windowLength, timeStep);
+		autoComplexSpectrogram result = Sound_to_ComplexSpectrogram (me, windowLength, maximumFrequency);
 	CONVERT_EACH_END (my name.get())
 }
 
@@ -5508,6 +5778,16 @@ DO
 	CONVERT_EACH_END (my name.get())
 }
 
+FORM (NEW_Sound_extractElectroglottogram, U"Sound: Extract Electroglottogram", U"Sound: Extract Electroglottogram...") {
+	NATURAL (channelNumber, U"Channel number", U"1")
+	BOOLEAN (invert, U"Invert", 0)
+	OK
+DO
+	CONVERT_EACH (Sound)
+		autoElectroglottogram result = Sound_extractElectroglottogram (me, channelNumber, invert);
+	CONVERT_EACH_END (my name.get())
+}
+	
 FORM (NEW_Sound_to_Polygon, U"Sound: To Polygon", U"Sound: To Polygon...") {
 	CHANNEL (channel, U"Channel (number, Left, or Right)", U"1")
 	praat_TimeFunction_RANGE(fromTime,toTime)
@@ -5544,7 +5824,7 @@ DO
 	CONVERT_EACH_END (my name.get(), U"_filtered")
 }
 
-FORM (NEW_Sound_removeNoise, U"Sound: Remove noise", U"Sound: Remove noise...") {
+FORM (NEW_Sound_reduceNoise, U"Sound: Reduce noise", U"Sound: Reduce noise...") {
 	REAL (fromTime, U"left Noise time range (s)", U"0.0")
 	REAL (toTime, U"right Noise time range (s)", U"0.0")
 	POSITIVE (windowLength, U"Window length (s)", U"0.025")
@@ -5552,8 +5832,24 @@ FORM (NEW_Sound_removeNoise, U"Sound: Remove noise", U"Sound: Remove noise...") 
 	REAL (fromFrequency, U"left Filter frequency range (Hz)", U"80.0")
 	REAL (toFrequency, U"right Filter frequency range (Hz)", U"10000.0")
 	POSITIVE (smoothingBandwidth, U"Smoothing bandwidth, (Hz)", U"40.0")
-	OPTIONMENU (noiseReductionMethod, U"Noise reduction method", 1)
-		OPTION (U"Spectral subtraction")
+	REAL (noiseReduction_dB, U"Noise reduction (dB)", U"-20.0")
+	OPTIONMENU_ENUM (kSoundNoiseReductionMethod, noiseReductionMethod, U"Noise reduction method", kSoundNoiseReductionMethod::DEFAULT)
+	OK
+DO
+	CONVERT_EACH (Sound)
+		autoSound result = Sound_reduceNoise (me, fromTime, toTime, windowLength, fromFrequency, toFrequency, smoothingBandwidth, noiseReduction_dB, noiseReductionMethod);
+	CONVERT_EACH_END (my name.get(), U"_denoised")
+}
+
+FORM (NEW_Sound_removeNoise, U"Sound: Remove noise", U"Sound: Reduce noise...") {
+	REAL (fromTime, U"left Noise time range (s)", U"0.0")
+	REAL (toTime, U"right Noise time range (s)", U"0.0")
+	POSITIVE (windowLength, U"Window length (s)", U"0.025")
+	LABEL (U"Filter")
+	REAL (fromFrequency, U"left Filter frequency range (Hz)", U"80.0")
+	REAL (toFrequency, U"right Filter frequency range (Hz)", U"10000.0")
+	POSITIVE (smoothingBandwidth, U"Smoothing bandwidth, (Hz)", U"40.0")
+	OPTIONMENU_ENUM (kSoundNoiseReductionMethod, noiseReductionMethod, U"Noise reduction method", kSoundNoiseReductionMethod::DEFAULT)
 	OK
 DO
 	CONVERT_EACH (Sound)
@@ -5889,7 +6185,7 @@ DO
 	MODIFY_EACH_END
 }
 
-FORM (MODIFY_SpeechSynthesizer_speechOutputSettings, U"SpeechSynthesizer: Set speech output settings", U"SpeechSynthesizer: Set speech output settings...") {
+FORM (MODIFY_SpeechSynthesizer_speechOutputSettings, U"SpeechSynthesizer: Speech output settings", U"SpeechSynthesizer: Speech output settings...") {
 	POSITIVE (samplingFrequency, U"Sampling frequency (Hz)", U"44100.0")
 	REAL (wordGap, U"Gap between words (s)", U"0.01")
 	POSITIVE (pitchAdjustment, U"Pitch multiplier (0.5-2.0)", U"1.0")
@@ -5901,14 +6197,16 @@ FORM (MODIFY_SpeechSynthesizer_speechOutputSettings, U"SpeechSynthesizer: Set sp
 	OK
 DO
 	if (wordGap < 0.0) wordGap = 0.0;
-	Melder_require (pitchAdjustment >= 0.5 && pitchAdjustment <= 2.0, U"The pitch adjustment should be between 0.5 and 2.0.");
-	Melder_require (pitchRange >= 0.0 && pitchRange <= 2.0, U"The pitch range multiplier should be between 0.0 and 2.0.");
+	Melder_require (pitchAdjustment >= 0.5 && pitchAdjustment <= 2.0,
+		U"The pitch adjustment should be between 0.5 and 2.0.");
+	Melder_require (pitchRange >= 0.0 && pitchRange <= 2.0,
+		U"The pitch range multiplier should be between 0.0 and 2.0.");
 	MODIFY_EACH (SpeechSynthesizer)
 		SpeechSynthesizer_setSpeechOutputSettings (me, samplingFrequency, wordGap, pitchAdjustment, pitchRange, wordsPerMinute, outputPhonemeCodes);
 	MODIFY_EACH_END
 }
 
-FORM (MODIFY_SpeechSynthesizer_setSpeechOutputSettings, U"SpeechSynthesizer: Set speech output settings", U"SpeechSynthesizer: Set speech output settings...") {
+FORM (MODIFY_SpeechSynthesizer_setSpeechOutputSettings, U"SpeechSynthesizer: Set speech output settings", U"SpeechSynthesizer: Speech output settings...") {
 	POSITIVE (samplingFrequency, U"Sampling frequency (Hz)", U"44100.0")
 	REAL (wordGap, U"Gap between words (s)", U"0.01")
 	INTEGER (pitchAdjustment_0_99, U"Pitch adjustment (0-99)", U"50")
@@ -5920,7 +6218,7 @@ FORM (MODIFY_SpeechSynthesizer_setSpeechOutputSettings, U"SpeechSynthesizer: Set
 		OPTION (U"IPA")
 	OK
 DO
-	if (wordGap < 0) wordGap = 0;
+	if (wordGap < 0.0) wordGap = 0.0;
 	if (pitchAdjustment_0_99 < 0) pitchAdjustment_0_99 = 0;
 	if (pitchAdjustment_0_99 > 99) pitchAdjustment_0_99 = 99;
 	if (pitchRange_0_99 < 0) pitchRange_0_99 = 0;
@@ -5928,7 +6226,7 @@ DO
 	double pitchAdjustment = (1.5/99.0 * pitchAdjustment_0_99 + 0.5);
 	double pitchRange = (pitchRange_0_99 / 49.5);
 	MODIFY_EACH (SpeechSynthesizer)
-		SpeechSynthesizer_setSpeechOutputSettings (me, samplingFrequency, wordGap, pitchAdjustment, pitchRange, wordsPerMinute,  outputPhonemeCodes);
+		SpeechSynthesizer_setSpeechOutputSettings (me, samplingFrequency, wordGap, pitchAdjustment, pitchRange, wordsPerMinute, outputPhonemeCodes);
 		SpeechSynthesizer_setEstimateSpeechRateFromSpeech (me, estimateWordsPerMinute);
 	MODIFY_EACH_END
 }
@@ -5944,9 +6242,8 @@ DO
 	CONVERT_TWO (SpeechSynthesizer, TextGrid)
 		autoTextGrid annotations;
 		autoSound result = SpeechSynthesizer_TextGrid_to_Sound (me, you, tierNumber, intervalNumber, (createAnnotations ? & annotations : nullptr ));
-		if (createAnnotations) {
+		if (createAnnotations)
 			praat_new (annotations.move(), my name.get());
-		}
 	CONVERT_TWO_END (my name.get())
 }
 
@@ -5974,7 +6271,8 @@ FORM (NEW1_SpeechSynthesizer_Sound_TextGrid_align2, U"SpeechSynthesizer & Sound 
     REAL (trimDuration, U"Silence trim duration (s)", U"0.08")
     OK
 DO
-   trimDuration = trimDuration < 0.0 ? 0.0 : trimDuration;
+	if (trimDuration < 0.0)
+		trimDuration = 0.0;
     CONVERT_THREE (SpeechSynthesizer, Sound, TextGrid)
 		autoTextGrid result = SpeechSynthesizer_Sound_TextGrid_align2 (me, you, him, tierNumber, fromInterval, toInterval, silenceThreshold_dB, minimumSilenceDuration, minimumSoundingDuration, trimDuration);
     CONVERT_THREE_END (his name.get(), U"_aligned")
@@ -6313,6 +6611,16 @@ DO
 	INTEGER_ONE_END (U" (= number of singular values needed)")
 }
 
+FORM (NEW_SVD_to_Matrix, U"SVD: To Matrix", U"SVD: To Matrix...") {
+	NATURAL (fromComponent, U"First component", U"1")
+	INTEGER (toComponent, U"Last component", U"0 (= all)")
+	OK
+DO
+	CONVERT_EACH (SVD)
+		autoMatrix result = SVD_to_Matrix (me, fromComponent, toComponent);
+	CONVERT_EACH_END (my name.get())
+}
+
 FORM (NEW_SVD_to_TableOfReal, U"SVD: To TableOfReal", U"SVD: To TableOfReal...") {
 	NATURAL (fromComponent, U"First component", U"1")
 	INTEGER (toComponent, U"Last component", U"0 (= all)")
@@ -6370,7 +6678,7 @@ FORM (GRAPHICS_Table_scatterPlotWhere, U"Table: Scatter plot where", nullptr) {
 	REAL (ymin, U"left Vertical range", U"0.0")
 	REAL (ymax, U"right Vertical range", U"0.0 (= auto)")
 	WORD (markColumn_string, U"Column with marks", U"")
-	NATURAL (fontSize, U"Font size", U"12")
+	POSITIVE (fontSize, U"Font size", U"12")
 	BOOLEAN (garnish, U"Garnish", true)
 	TEXTFIELD (formula, U"Use only data from rows where the following condition holds:", U"1; self$[\"gender\"]=\"male\"")
 	OK
@@ -6503,7 +6811,7 @@ FORM (GRAPHICS_Table_drawEllipses, U"Table: Draw ellipses", nullptr) {
 	REAL (ymax, U"right Vertical range", U"0.0 (= auto)")
 	WORD (factorColumn_string, U"Factor column", U"Vowel")
 	POSITIVE (numberOfSigmas, U"Number of sigmas", U"1.0")
-	INTEGER (fontSize, U"Font size", U"12 (0 = no label)")
+	REAL (fontSize, U"Font size", U"12 (0 = no label)")
 	BOOLEAN (garnish, U"Garnish", true)
 	OK
 DO
@@ -6524,7 +6832,7 @@ FORM (GRAPHICS_Table_drawEllipsesWhere, U"Table: Draw ellipses where", nullptr) 
 	REAL (ymax, U"right Vertical range", U"0.0 (= auto)")
 	WORD (factorColumn_string, U"Factor column", U"Vowel")
 	POSITIVE (numberOfSigmas, U"Number of sigmas", U"1.0")
-	INTEGER (fontSize, U"Font size", U"12 (0 = no label)")
+	REAL (fontSize, U"Font size", U"12 (0 = no label)")
 	BOOLEAN (garnish, U"Garnish", true)
 	TEXTFIELD (formula, U"Use only data in rows where the following condition holds:", U"1; self$[\"gender\"]=\"male\"")
 	OK
@@ -6813,21 +7121,24 @@ DIRECT (NEW1_CreateIrisDataset) {
 }
 
 FORM (INFO_TableOfReal_reportMultivariateNormality, U"TableOfReal: Report multivariate normality (BHEP)", U"TableOfReal: Report multivariate normality (BHEP)...") {
-	REAL (h, U"Smoothing parameter", U"0.0")
+	REAL (smoothing, U"Smoothing parameter", U"0.0")
 	OK
 DO
 	INFO_ONE (TableOfReal)
+		bool singular;
 		double tnb, lnmu, lnvar;
-		double prob = TableOfReal_normalityTest_BHEP (me, &h, &tnb, &lnmu, &lnvar);
+		double prob = TableOfReal_normalityTest_BHEP (me, & smoothing, & tnb, & lnmu, & lnvar, & singular);
 		MelderInfo_open ();
 		MelderInfo_writeLine (U"Baringhaus–Henze–Epps–Pulley normality test:");
 		MelderInfo_writeLine (U"Significance of normality: ", prob);
 		MelderInfo_writeLine (U"BHEP statistic: ", tnb);
 		MelderInfo_writeLine (U"Lognormal mean: ", lnmu);
 		MelderInfo_writeLine (U"Lognormal variance: ", lnvar);
-		MelderInfo_writeLine (U"Smoothing: ", h);
+		MelderInfo_writeLine (U"Smoothing: ", smoothing);
 		MelderInfo_writeLine (U"Sample size: ", my numberOfRows);
 		MelderInfo_writeLine (U"Number of variables: ", my numberOfColumns);
+		if (singular)
+			MelderInfo_writeLine (U"(Attention: the covariance matrix was singular!)");
 		MelderInfo_close ();
 	INFO_ONE_END
 }
@@ -7631,8 +7942,9 @@ void praat_uvafon_David_init () {
 		classChebyshevSeries, classClassificationTable, classComplexSpectrogram, classConfusion,
 		classCorrelation, classCovariance, classDiscriminant, classDTW,
 		classEigen, classExcitationList, classEditCostsTable, classEditDistanceTable,
+		classElectroglottogram,
 		classFileInMemory, classFileInMemorySet, classFileInMemoryManager, classFormantFilter,
-		classIndex, classKlattTable,
+		classIndex, classKlattTable, classNMF,
 		classPermutation, classISpline, classLegendreSeries,
 		classMelFilter, classMelSpectrogram, classMSpline, classPatternList, classPCA, classPolynomial, classRoots,
 		classSimpleString, classStringsIndex, classSpeechSynthesizer, classSPINET, classSSCP,
@@ -7705,6 +8017,9 @@ void praat_uvafon_David_init () {
 	praat_addAction1 (classActivationList, 0, U"To PatternList", nullptr, 0, NEW_ActivationList_to_PatternList);
 
 	praat_addAction2 (classActivationList, 1, classCategories, 1, U"To TableOfReal", nullptr, 0, NEW1_ActivationList_Categories_to_TableOfReal);
+	
+	praat_addAction1 (classAmplitudeTier, 0, U"Get value at time...", U"Get time from index...", 1, REAL_AmplitudeTier_getValueAtTime);
+	praat_addAction1 (classAmplitudeTier, 0, U"Get value at index...", U"Get value at time...", 1, REAL_AmplitudeTier_getValueAtIndex);
 
 	praat_addAction1 (classBarkFilter, 0, U"BarkFilter help", nullptr, 0, HELP_BarkFilter_help);
 	praat_FilterBank_all_init (classBarkFilter);	// deprecated 2014
@@ -7769,6 +8084,7 @@ void praat_uvafon_David_init () {
 	praat_addAction1 (classComplexSpectrogram, 0, U"Down to Spectrogram", nullptr, 0, NEW_ComplexSpectrogram_downto_Spectrogram);
 	praat_addAction1 (classComplexSpectrogram, 0, U"To Spectrum (slice)...", nullptr, 0, NEW_ComplexSpectrogram_to_Spectrum_slice);
 	//praat_addAction1 (classComplexSpectrogram, 0, U"Paint...", 0, 1, DO_Spectrogram_paint);
+	praat_addAction2 (classComplexSpectrogram, 1, classSpectrogram, 1, U"Replace amplitudes", nullptr, 0, MODIFY_ComplexSpectrogram_Spectrogram_replaceAmplitudes);
 
 	praat_addAction1 (classConfusion, 0, U"Confusion help", nullptr, 0, HELP_Confusion_help);
 	praat_TableOfReal_init2 (classConfusion);
@@ -7820,7 +8136,6 @@ void praat_uvafon_David_init () {
 	praat_addAction1 (classCovariance, 0, U"To Covariance (within)", nullptr, 0, NEW1_Covariances_to_Covariance_within);
 
 	praat_addAction2 (classCovariance, 1, classTableOfReal, 1, U"To TableOfReal (mahalanobis)...", nullptr, 0, NEW1_Covariance_TableOfReal_mahalanobis);
-
 	praat_addAction1 (classClassificationTable, 0, U"ClassificationTable help", nullptr, 0, HELP_ClassificationTable_help);
 	praat_TableOfReal_init (classClassificationTable);
 	praat_addAction1 (classClassificationTable, 0, U"Get class index at maximum in row...", U"Get column index...", 1, INTEGER_ClassificationTable_getClassIndexAtMaximumInRow);
@@ -7996,6 +8311,13 @@ void praat_uvafon_David_init () {
 	praat_addAction1 (classEditCostsTable, 1, U"Set costs (others)...", nullptr, 1, MODIFY_EditCostsTable_setCosts_others);
 	praat_addAction1 (classEditCostsTable, 1, U"To TableOfReal", nullptr, 0, NEW_EditCostsTable_to_TableOfReal);
 
+	praat_addAction1 (classElectroglottogram, 1, U"High-pass filter...", nullptr, 0, NEW_Electroglottogram_highPassFilter);
+	praat_addAction1 (classElectroglottogram, 1, U"Get closed glottis intervals...", nullptr, 0, NEW_Electroglottogram_getClosedGlottisIntervals);
+	praat_addAction1 (classElectroglottogram, 1, U"To AmplitudeTier (levels)...", nullptr, 0, NEW_Electroglottogram_to_AmplitudeTier_levels);
+	praat_addAction1 (classElectroglottogram, 1, U"Derivative...", nullptr, 0, NEW_Electroglottogram_derivative);
+	praat_addAction1 (classElectroglottogram, 1, U"First central difference...", nullptr, 0, NEW_Electroglottogram_firstCentralDifference);
+	praat_addAction1 (classElectroglottogram, 1, U"To Sound", nullptr, 0, NEW_Electroglottogram_to_Sound);
+	
 	praat_Index_init (classStringsIndex);
 	praat_addAction1 (classIndex, 0, U"Index help", nullptr, 0, HELP_Index_help);
 	praat_addAction1 (classStringsIndex, 1, U"Get class label...", nullptr, 0, INFO_StringsIndex_getClassLabelFromClassIndex);
@@ -8109,15 +8431,23 @@ void praat_uvafon_David_init () {
 	praat_addAction1 (classMatrix, 0, U"Draw cumulative distribution...", U"Draw distribution...", 1, GRAPHICS_Matrix_drawCumulativeDistribution);
 	praat_addAction1 (classMatrix, 0, U"Get mean...", U"Get sum", 1, REAL_Matrix_getMean);
 	praat_addAction1 (classMatrix, 0, U"Get standard deviation...", U"Get mean...", 1, REAL_Matrix_getStandardDeviation);
+	praat_addAction1 (classMatrix, 0, U"Mathematical -", U"Get standard deviation...", 1, nullptr);
+	praat_addAction1 (classMatrix, 0, U"Get norm...", U"Mathematical -", 2, REAL_Matrix_getNorm);
+	
 	praat_addAction1 (classMatrix, 0, U"Transpose", U"Synthesize", 0, NEW_Matrix_transpose);
 	praat_addAction1 (classMatrix, 0, U"Solve equation...", U"Analyse", 0, NEW_Matrix_solveEquation);
-	praat_addAction1 (classMatrix, 0, U"To PCA (by rows)", U"Solve equation...", 0, NEW_Matrix_to_PCA_byRows);
+	praat_addAction1 (classMatrix, 2, U"Solve matrix equation...", U"Solve equation...", 0, NEW_Matrix_solveMatrixEquation);
+	praat_addAction1 (classMatrix, 0, U"To PCA (by rows)", U"Solve matrix equation...", 0, NEW_Matrix_to_PCA_byRows);
 	praat_addAction1 (classMatrix, 0, U"To PCA (by columns)", U"To PCA (by rows)", 0, NEW_Matrix_to_PCA_byColumns);
 	praat_addAction1 (classMatrix, 0, U"To PatternList...", U"To VocalTract", 1, NEW_Matrix_to_PatternList);
 	praat_addAction1 (classMatrix, 0, U"To Pattern...", U"*To PatternList...", praat_DEPRECATED_2016, NEW_Matrix_to_PatternList);
 	praat_addAction1 (classMatrix, 0, U"To ActivationList", U"To PatternList...", 1, NEW_Matrix_to_ActivationList);
 	praat_addAction1 (classMatrix, 0, U"To Activation", U"*To ActivationList", praat_DEPRECATED_2016, NEW_Matrix_to_ActivationList);
 	praat_addAction1 (classMatrix, 0, U"To Eigen", U"Eigen", praat_HIDDEN, NEW_Matrix_to_Eigen);
+	praat_addAction1 (classMatrix, 0, U"To SVD", U"To Eigen", praat_HIDDEN, NEW_Matrix_to_SVD);
+	praat_addAction1 (classMatrix, 0, U"To NMF (m.u.)...", U"To SVD", praat_HIDDEN, NEW_Matrix_to_NMF_mu);
+	praat_addAction1 (classMatrix, 0, U"To NMF (ALS)...", U"To SVD", praat_HIDDEN, NEW_Matrix_to_NMF_als);
+	praat_addAction1 (classMatrix, 0, U"To NMF (IS)...", U"To SVD", praat_HIDDEN, NEW_Matrix_to_NMF_is);
 	praat_addAction1 (classMatrix, 0, U"Eigen (complex)", U"Eigen", praat_HIDDEN, NEWTIMES2_Matrix_eigen_complex);
 	praat_addAction1 (classMatrix, 2, U"To DTW...", U"To ParamCurve", 1, NEW1_Matrices_to_DTW);
 
@@ -8159,6 +8489,17 @@ void praat_uvafon_David_init () {
 	praat_addAction1 (classMSpline, 0, U"MSpline help", nullptr, 0, HELP_MSpline_help);
 	praat_Spline_init (classMSpline);
 
+	praat_addAction1 (classNMF, 0, U"NMF help", nullptr, 0, HELP_NMF_help);
+	praat_addAction1 (classNMF, 0, U"Paint features...", nullptr, 0, GRAPHICS_NMF_paintFeatures);
+	praat_addAction1 (classNMF, 0, U"Paint weights...", nullptr, 0, GRAPHICS_NMF_paintWeights);
+	praat_addAction1 (classNMF, 0, U"To Matrix", nullptr, 0, NEW_NMF_to_Matrix);
+	
+	praat_addAction2 (classNMF, 1, classMatrix, 1, U"Get Euclidean distance", nullptr, 0, REAL_NMF_Matrix_getEuclideanDistance);
+	praat_addAction2 (classNMF, 1, classMatrix, 1, U"Get Itakura-Saito distance", nullptr, 0, REAL_NMF_Matrix_getItakuraSaitoDivergence);
+	praat_addAction2 (classNMF, 1, classMatrix, 1, U"Improve factorization (ALS)...", nullptr, 0, MODIFY_NMF_Matrix_improveFactorization_als);
+	praat_addAction2 (classNMF, 1, classMatrix, 1, U"Improve factorization (m.u.)...", nullptr, 0, MODIFY_NMF_Matrix_improveFactorization_mu);
+	praat_addAction2 (classNMF, 1, classMatrix, 1, U"Improve factorization (IS)...", nullptr, 0, MODIFY_NMF_Matrix_improveFactorization_is);
+	
 	praat_addAction1 (classPatternList, 0, U"Draw", nullptr, 0, 0);
 	praat_addAction1 (classPatternList, 0, U"Draw...", nullptr, 0, GRAPHICS_PatternList_draw);
 	praat_PatternList_query_init (classPatternList);
@@ -8307,6 +8648,8 @@ void praat_uvafon_David_init () {
 	//	praat_addAction1 (classSound, 2, U"Paint enclosed...", U"Paint where...", praat_DEPTH_1 | praat_HIDDEN, DO_Sounds_paintEnclosed);
 	praat_addAction1 (classSound, 2, U"Paint enclosed...", U"Paint where...", 1, GRAPHICS_Sounds_paintEnclosed);
 
+	praat_addAction1 (classSound, 1, U"Get nearest level crossing...", U"Get nearest zero crossing...", 1, REAL_Sound_getNearestLevelCrossing);
+
 	praat_addAction1 (classSound, 0, U"To Pitch (shs)...", U"To Pitch (cc)...", 1, NEW_Sound_to_Pitch_shs);
 	praat_addAction1 (classSound, 0, U"Fade in...", U"Multiply by window...", praat_HIDDEN + praat_DEPTH_1, MODIFY_Sound_fadeIn);
 	praat_addAction1 (classSound, 0, U"Fade out...", U"Fade in...", praat_HIDDEN + praat_DEPTH_1, MODIFY_Sound_fadeOut);
@@ -8321,13 +8664,15 @@ void praat_uvafon_David_init () {
 	praat_addAction1 (classSound, 0, U"To MelFilter...", U"To BarkFilter...", praat_DEPRECATED_2014 | praat_DEPTH_1, NEW_Sound_to_MelFilter);
 	praat_addAction1 (classSound, 0, U"To MelSpectrogram...", U"To BarkSpectrogram...", praat_DEPTH_1, NEW_Sound_to_MelSpectrogram);
 	praat_addAction1 (classSound, 0, U"To ComplexSpectrogram...", U"To MelSpectrogram...", praat_DEPTH_1 + praat_HIDDEN, NEW_Sound_to_ComplexSpectrogram);
+    praat_addAction1 (classSound, 0, U"Extract Electroglottogram...", U"Extract part for overlap...", 1, NEW_Sound_extractElectroglottogram);
 
 	praat_addAction1 (classSound, 0, U"To Polygon...", U"Down to Matrix", praat_DEPTH_1 | praat_HIDDEN, NEW_Sound_to_Polygon);
     praat_addAction1 (classSound, 2, U"To Polygon (enclosed)...", U"Cross-correlate...", praat_DEPTH_1 | praat_HIDDEN, NEW1_Sounds_to_Polygon_enclosed);
     praat_addAction1 (classSound, 2, U"To DTW...", U"Cross-correlate...", praat_DEPTH_1, NEW1_Sounds_to_DTW);
 
 	praat_addAction1 (classSound, 1, U"Filter (gammatone)...", U"Filter (de-emphasis)...", 1, NEW_Sound_filterByGammaToneFilter4);
-	praat_addAction1 (classSound, 0, U"Remove noise...", U"Filter (formula)...", 1, NEW_Sound_removeNoise);
+	praat_addAction1 (classSound, 0, U"Remove noise...", U"Filter (formula)...", praat_DEPTH_1 | praat_HIDDEN, NEW_Sound_removeNoise);
+	praat_addAction1 (classSound, 0, U"Reduce noise...", U"Filter (formula)...", praat_DEPTH_1, NEW_Sound_reduceNoise);
 
 	praat_addAction1 (classSound, 0, U"Change gender...", U"Deepen band modulation...", 1, NEW_Sound_changeGender);
 
@@ -8410,6 +8755,7 @@ void praat_uvafon_David_init () {
 	praat_addAction1 (classSVD, 1, U"Get minimum number of singular values...", nullptr, 1, INTEGER_SVD_getMinimumNumberOfSingularValues);
 	
 	praat_addAction1 (classSVD, 0, U"To TableOfReal...", nullptr, 0, NEW_SVD_to_TableOfReal);
+	praat_addAction1 (classSVD, 0, U"To Matrix...", nullptr, 0, NEW_SVD_to_Matrix);
 	praat_addAction1 (classSVD, 0, U"Extract left singular vectors", nullptr, 0, NEW_SVD_extractLeftSingularVectors);
 	praat_addAction1 (classSVD, 0, U"Extract right singular vectors", nullptr, 0, NEW_SVD_extractRightSingularVectors);
 	praat_addAction1 (classSVD, 0, U"Extract singular values", nullptr, 0, NEW_SVD_extractSingularValues);
